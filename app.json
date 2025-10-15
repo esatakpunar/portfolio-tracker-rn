@@ -19,6 +19,7 @@
     ],
     "privacy": "public",
     "githubUrl": "https://github.com/esatakpunar/portfolio-tracker-rn",
+    "privacyPolicy": "https://esatakpunar.github.io/portfolio-tracker-privacy/",
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
@@ -67,8 +68,9 @@
     ],
     "extra": {
       "eas": {
-        "projectId": "your-project-id-here"
+        "projectId": "9eb1b6a0-cc19-45d1-a6ae-4b90c88a092f"
       }
-    }
+    },
+    "owner": "esatakpunar"
   }
 }
