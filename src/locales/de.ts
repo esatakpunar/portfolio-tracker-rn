@@ -99,5 +99,11 @@ export default {
   
   currentMarketPrices: 'Aktuelle Marktpreise',
   dangerZone: 'Gefahrenbereich',
-  resetAllDataSubtitle: 'Alle Daten zurücksetzen'
+  resetAllDataSubtitle: 'Alle Daten zurücksetzen',
+  
+  // Financial Disclaimer
+  financialDisclaimer: 'Finanzielle Haftungsausschluss',
+  priceDataInfo: 'Über Preisinformationen',
+  disclaimerText: 'Die in dieser App angezeigten Preise dienen nur zu Informationszwecken. Es wird empfohlen, professionelle Finanzberatung einzuholen, bevor Sie Investitionsentscheidungen treffen. Echtzeit-Marktdaten werden von der finans.truncgil.com API bezogen.',
+  dataSource: 'Datenquelle'
 };

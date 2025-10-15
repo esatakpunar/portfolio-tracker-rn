@@ -43,18 +43,16 @@ export const fetchPrices = async (currentPrices?: Prices): Promise<Prices> => {
       tl: 1,
     };
     
-    console.log('✅ Fiyatlar güncellendi:', prices);
+    // Prices updated successfully
     return prices;
   } catch (error) {
-    console.error('❌ Fiyatlar alınamadı:', error);
+    // Error fetching prices, fallback to cached or default prices
     
     // Fallback to current prices or defaults
     if (currentPrices && Object.keys(currentPrices).length > 0) {
-      console.log('⚠️ Mevcut fiyatlar kullanılıyor');
       return currentPrices;
     }
     
-    console.log('⚠️ Varsayılan fiyatlar kullanılıyor');
     return DEFAULT_PRICES;
   }
 };

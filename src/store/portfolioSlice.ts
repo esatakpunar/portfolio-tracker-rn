@@ -96,7 +96,12 @@ const portfolioSlice = createSlice({
       Promise.all([
         AsyncStorage.setItem(LOCAL_KEY, JSON.stringify(state.items)),
         AsyncStorage.setItem(HISTORY_KEY, JSON.stringify(state.history))
-      ]).catch(error => console.error('Error saving to AsyncStorage:', error));
+      ]).catch(error => {
+        // Handle AsyncStorage error silently in production
+        if (__DEV__) {
+          console.error('Error saving to AsyncStorage:', error);
+        }
+      });
     },
     
     removeItem: (state, action: PayloadAction<string>) => {
@@ -181,19 +186,34 @@ const portfolioSlice = createSlice({
       Promise.all([
         AsyncStorage.setItem(LOCAL_KEY, JSON.stringify(state.items)),
         AsyncStorage.setItem(HISTORY_KEY, JSON.stringify(state.history))
-      ]).catch(error => console.error('Error saving to AsyncStorage:', error));
+      ]).catch(error => {
+        // Handle AsyncStorage error silently in production
+        if (__DEV__) {
+          console.error('Error saving to AsyncStorage:', error);
+        }
+      });
     },
     
     updatePrice: (state, action: PayloadAction<{ key: AssetType; value: number }>) => {
       state.prices[action.payload.key] = action.payload.value;
       AsyncStorage.setItem(PRICES_KEY, JSON.stringify(state.prices))
-        .catch(error => console.error('Error saving prices:', error));
+        .catch(error => {
+          // Handle AsyncStorage error silently in production
+          if (__DEV__) {
+            console.error('Error saving prices:', error);
+          }
+        });
     },
     
     setLanguage: (state, action: PayloadAction<string>) => {
       state.currentLanguage = action.payload;
       AsyncStorage.setItem(LANGUAGE_KEY, action.payload)
-        .catch(error => console.error('Error saving language:', error));
+        .catch(error => {
+          // Handle AsyncStorage error silently in production
+          if (__DEV__) {
+            console.error('Error saving language:', error);
+          }
+        });
     },
     
     resetAll: (state) => {
@@ -229,14 +249,24 @@ const portfolioSlice = createSlice({
     setPrices: (state, action: PayloadAction<Prices>) => {
       state.prices = { ...state.prices, ...action.payload };
       AsyncStorage.setItem(PRICES_KEY, JSON.stringify(state.prices))
-        .catch(error => console.error('Error saving prices:', error));
+        .catch(error => {
+          // Handle AsyncStorage error silently in production
+          if (__DEV__) {
+            console.error('Error saving prices:', error);
+          }
+        });
     }
   },
   extraReducers: (builder) => {
     builder.addCase(fetchPrices.fulfilled, (state, action) => {
       state.prices = { ...state.prices, ...action.payload };
       AsyncStorage.setItem(PRICES_KEY, JSON.stringify(state.prices))
-        .catch(error => console.error('Error saving prices:', error));
+        .catch(error => {
+          // Handle AsyncStorage error silently in production
+          if (__DEV__) {
+            console.error('Error saving prices:', error);
+          }
+        });
     });
   }
 });
@@ -296,9 +326,12 @@ export const loadInitialData = () => async (dispatch: any) => {
     const prices = pricesJson ? JSON.parse(pricesJson) : undefined;
     
     dispatch(loadPersistedData({ items, history, prices, language: language || undefined }));
-  } catch (error) {
-    console.error('Error loading persisted data:', error);
-  }
+    } catch (error) {
+      // Handle error silently in production
+      if (__DEV__) {
+        console.error('Error loading persisted data:', error);
+      }
+    }
 };
 
 export default portfolioSlice.reducer;

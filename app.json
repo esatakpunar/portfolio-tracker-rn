@@ -7,6 +7,18 @@
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
     "newArchEnabled": true,
+    "description": "Track your investment portfolio with gold, silver, and currency assets. Modern glassmorphism design with multi-language support.",
+    "keywords": [
+      "portfolio",
+      "investment",
+      "gold",
+      "silver",
+      "currency",
+      "finance",
+      "tracker"
+    ],
+    "privacy": "public",
+    "githubUrl": "https://github.com/esatakpunar/portfolio-tracker-rn",
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
@@ -14,7 +26,27 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.portfoliotracker.app"
+      "bundleIdentifier": "com.portfoliotracker.app",
+      "buildNumber": "1",
+      "infoPlist": {
+        "NSUserTrackingUsageDescription": "This app does not track users or collect personal data.",
+        "ITSAppUsesNonExemptEncryption": false,
+        "CFBundleDisplayName": "Portfolio Tracker",
+        "CFBundleShortVersionString": "1.0.0",
+        "LSRequiresIPhoneOS": true,
+        "UIRequiredDeviceCapabilities": [
+          "armv7"
+        ],
+        "UIStatusBarStyle": "UIStatusBarStyleLightContent",
+        "UIViewControllerBasedStatusBarAppearance": false
+      },
+      "config": {
+        "usesNonExemptEncryption": false
+      },
+      "associatedDomains": [],
+      "entitlements": {
+        "com.apple.developer.applesignin": []
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -22,14 +54,21 @@
         "backgroundColor": "#0f172a"
       },
       "package": "com.portfoliotracker.app",
+      "versionCode": 1,
       "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "permissions": []
     },
     "web": {
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
       "expo-localization"
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "your-project-id-here"
+      }
+    }
   }
 }

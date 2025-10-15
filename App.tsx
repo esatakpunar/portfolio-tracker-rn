@@ -24,7 +24,10 @@ export default function App() {
         store.dispatch(fetchPrices() as any);
         setIsReady(true);
       } catch (error) {
-        console.error('Error initializing app:', error);
+        // Handle initialization error silently in production
+        if (__DEV__) {
+          console.error('Error initializing app:', error);
+        }
         setIsReady(true);
       }
     };

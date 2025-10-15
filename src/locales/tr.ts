@@ -99,5 +99,11 @@ export default {
   
   currentMarketPrices: 'Güncel piyasa fiyatları',
   dangerZone: 'Tehlikeli Bölge',
-  resetAllDataSubtitle: 'Tüm verileri sıfırla'
+  resetAllDataSubtitle: 'Tüm verileri sıfırla',
+  
+  // Financial Disclaimer
+  financialDisclaimer: 'Finansal Uyarı',
+  priceDataInfo: 'Fiyat bilgileri hakkında',
+  disclaimerText: 'Bu uygulamada gösterilen fiyatlar sadece bilgilendirme amaçlıdır. Yatırım kararlarınızı vermeden önce profesyonel finansal danışmanlık almanız önerilir. Gerçek zamanlı piyasa verileri finans.truncgil.com API\'sinden alınmaktadır.',
+  dataSource: 'Veri Kaynağı'
 };
