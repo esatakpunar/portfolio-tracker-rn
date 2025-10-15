@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { colors, spacing, borderRadius, fontSize, fontWeight, shadows } from '../theme';
+import { getAssetIcon, getAssetUnit } from '../utils/assetUtils';
 import { AssetType } from '../types';
 
 interface AddItemModalProps {
@@ -73,35 +74,6 @@ const AddItemModal: React.FC<AddItemModalProps> = ({ visible, onClose, onAdd }) 
     onClose();
   };
 
-  const getAssetIcon = (type: AssetType): string => {
-    const iconMap: Record<AssetType, string> = {
-      'tl': '₺',
-      'usd': '$',
-      'eur': '€',
-      'gumus': '₲',
-      'tam': '₲',
-      'ceyrek': '₲',
-      '22_ayar': '₲',
-      '24_ayar': '₲',
-    };
-    return iconMap[type] || '₲';
-  };
-
-  const getUnit = (type: AssetType) => {
-    if (type === 'ceyrek' || type === 'tam') {
-      return t('units.piece');
-    }
-    if (type === 'tl') {
-      return 'TL';
-    }
-    if (type === 'usd') {
-      return 'USD';
-    }
-    if (type === 'eur') {
-      return 'EUR';
-    }
-    return t('units.gram');
-  };
 
   const translateY = slideAnim.interpolate({
     inputRange: [0, 1],
@@ -204,7 +176,7 @@ const AddItemModal: React.FC<AddItemModalProps> = ({ visible, onClose, onAdd }) 
                     keyboardType="decimal-pad"
                     returnKeyType="done"
                   />
-                  <Text style={styles.unit}>{getUnit(selectedType)}</Text>
+                  <Text style={styles.unit}>{getAssetUnit(selectedType, t)}</Text>
                 </View>
               </View>
 

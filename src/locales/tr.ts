@@ -95,5 +95,9 @@ export default {
   save: 'Kaydet',
   loading: 'Yükleniyor...',
   error: 'Hata oluştu',
-  success: 'Başarılı'
+  success: 'Başarılı',
+  
+  currentMarketPrices: 'Güncel piyasa fiyatları',
+  dangerZone: 'Tehlikeli Bölge',
+  resetAllDataSubtitle: 'Tüm verileri sıfırla'
 };

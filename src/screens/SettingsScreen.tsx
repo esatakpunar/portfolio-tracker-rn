@@ -14,6 +14,7 @@ import { useAppSelector, useAppDispatch } from '../hooks/useRedux';
 import { selectPrices, resetAll, setLanguage, selectLanguage, fetchPrices } from '../store/portfolioSlice';
 import { colors, spacing, borderRadius, fontSize, fontWeight, shadows } from '../theme';
 import { availableLanguages, saveLanguage } from '../locales';
+import { getAssetIcon, getAssetColor } from '../utils/assetUtils';
 import { AssetType } from '../types';
 import { hapticFeedback } from '../utils/haptics';
 
@@ -70,36 +71,9 @@ const SettingsScreen: React.FC = () => {
     setShowLanguagePicker(false);
   };
 
-  const getPriceIcon = (key: AssetType): string => {
-    const iconMap: Record<AssetType, string> = {
-      'tl': '₺',
-      'usd': '$',
-      'eur': '€',
-      'gumus': '₲',
-      'tam': '₲',
-      'ceyrek': '₲',
-      '22_ayar': '₲',
-      '24_ayar': '₲',
-    };
-    return iconMap[key] || '₲';
-  };
-
-  const getPriceColor = (key: AssetType): string => {
-    const colorMap: Record<AssetType, string> = {
-      'tl': '#dc2626',
-      'usd': '#10b981',
-      'eur': '#3b82f6',
-      'gumus': '#6b7280',
-      'tam': '#f59e0b',
-      'ceyrek': '#f59e0b',
-      '22_ayar': '#f59e0b',
-      '24_ayar': '#f59e0b',
-    };
-    return colorMap[key] || colors.primaryStart;
-  };
 
   const renderPriceItem = (key: AssetType, value: number) => {
-    const priceColor = getPriceColor(key);
+    const priceColor = getAssetColor(key);
     
     return (
       <View key={key} style={styles.priceItem}>
@@ -112,7 +86,7 @@ const SettingsScreen: React.FC = () => {
             }
           ]}>
             <Text style={[styles.priceIcon, { color: priceColor }]}>
-              {getPriceIcon(key)}
+              {getAssetIcon(key)}
             </Text>
           </View>
           <Text style={styles.priceLabel}>{t(`assetTypes.${key}`)}</Text>
@@ -190,7 +164,7 @@ const SettingsScreen: React.FC = () => {
             </View>
             <View style={styles.sectionHeaderContent}>
               <Text style={styles.sectionTitle}>{t('refreshPrices')}</Text>
-              <Text style={styles.sectionSubtitle}>Current market prices</Text>
+              <Text style={styles.sectionSubtitle}>{t('currentMarketPrices')}</Text>
             </View>
           </View>
           
@@ -222,8 +196,8 @@ const SettingsScreen: React.FC = () => {
               <Text style={styles.sectionIcon}>⚠️</Text>
             </View>
             <View style={styles.sectionHeaderContent}>
-              <Text style={styles.sectionTitle}>Danger Zone</Text>
-              <Text style={styles.sectionSubtitle}>Reset all data</Text>
+              <Text style={styles.sectionTitle}>{t('dangerZone')}</Text>
+              <Text style={styles.sectionSubtitle}>{t('resetAllDataSubtitle')}</Text>
             </View>
           </View>
           

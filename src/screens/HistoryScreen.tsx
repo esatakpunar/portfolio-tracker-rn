@@ -10,6 +10,7 @@ import { useTranslation } from 'react-i18next';
 import { useAppSelector } from '../hooks/useRedux';
 import { selectHistory } from '../store/portfolioSlice';
 import { colors, spacing, borderRadius, fontSize, fontWeight } from '../theme';
+import { getAssetIcon, getAssetColor } from '../utils/assetUtils';
 import { HistoryItem } from '../types';
 
 const HistoryScreen: React.FC = () => {
@@ -40,33 +41,6 @@ const HistoryScreen: React.FC = () => {
     }
   };
 
-  const getAssetIcon = (type: string): string => {
-    const iconMap: Record<string, string> = {
-      'tl': '₺',
-      'usd': '$',
-      'eur': '€',
-      'gumus': '₲',
-      'tam': '₲',
-      'ceyrek': '₲',
-      '22_ayar': '₲',
-      '24_ayar': '₲',
-    };
-    return iconMap[type] || '₲';
-  };
-
-  const getAssetColor = (type: string): string => {
-    const colorMap: Record<string, string> = {
-      'tl': '#dc2626',
-      'usd': '#10b981',
-      'eur': '#3b82f6',
-      'gumus': '#6b7280',
-      'tam': '#f59e0b',
-      'ceyrek': '#f59e0b',
-      '22_ayar': '#f59e0b',
-      '24_ayar': '#f59e0b',
-    };
-    return colorMap[type] || colors.primaryStart;
-  };
 
   const renderHistoryItem = ({ item }: { item: HistoryItem }) => {
     const isAdd = item.type === 'add';

@@ -95,5 +95,9 @@ export default {
   save: 'Speichern',
   loading: 'Laden...',
   error: 'Ein Fehler ist aufgetreten',
-  success: 'Erfolgreich'
+  success: 'Erfolgreich',
+  
+  currentMarketPrices: 'Aktuelle Marktpreise',
+  dangerZone: 'Gefahrenbereich',
+  resetAllDataSubtitle: 'Alle Daten zurücksetzen'
 };
