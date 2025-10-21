@@ -1,13 +1,15 @@
 {
   "cli": {
-    "version": ">= 5.9.1"
+    "version": ">= 5.9.1",
+    "appVersionSource": "remote"
   },
   "build": {
     "development": {
       "developmentClient": true,
       "distribution": "internal",
       "ios": {
-        "resourceClass": "m-medium"
+        "resourceClass": "m-medium",
+        "simulator": true
       }
     },
     "preview": {
@@ -25,9 +27,9 @@
   "submit": {
     "production": {
       "ios": {
-        "appleId": "your-apple-id@example.com",
-        "ascAppId": "your-app-store-connect-app-id",
-        "appleTeamId": "your-team-id"
+        "appleId": "esatakpunar@gmail.com",
+        "ascAppId": "6754292674",
+        "appleTeamId": "ZJUV6ZYP44"
       }
     }
   }

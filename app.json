@@ -30,7 +30,6 @@
       "bundleIdentifier": "com.portfoliotracker.app",
       "buildNumber": "1",
       "infoPlist": {
-        "NSUserTrackingUsageDescription": "This app does not track users or collect personal data.",
         "ITSAppUsesNonExemptEncryption": false,
         "CFBundleDisplayName": "Portfolio Tracker",
         "CFBundleShortVersionString": "1.0.0",
