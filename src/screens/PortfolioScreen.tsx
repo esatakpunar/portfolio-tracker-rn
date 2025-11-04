@@ -66,7 +66,11 @@ const PortfolioScreen: React.FC = () => {
 
   const handleQuickAdd = (amount: number, description?: string) => {
     if (selectedAssetType) {
-      dispatch(addItem({ type: selectedAssetType, amount, description }));
+      const groupItems = groupedItems[selectedAssetType] || [];
+      const currentTotal = groupItems.reduce((sum, item) => sum + item.amount, 0);
+      const newAmount = currentTotal + amount;
+
+      dispatch(updateItemAmount({ type: selectedAssetType, newAmount, description }));
       hapticFeedback.medium();
       hapticFeedback.success();
     }
