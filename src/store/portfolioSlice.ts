@@ -1,7 +1,7 @@
 import { createSlice, PayloadAction, createAsyncThunk } from '@reduxjs/toolkit';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { PortfolioItem, HistoryItem, Prices, AssetType, CurrencyType } from '../types';
 import { fetchPrices as fetchPricesFromAPI } from '../services/priceService';
+import { safeAdd, safeSubtract } from '../utils/numberUtils';
 
 interface PortfolioState {
   items: PortfolioItem[];
@@ -27,11 +27,6 @@ const initialState: PortfolioState = {
   history: [],
   currentLanguage: 'tr'
 };
-
-const LOCAL_KEY = 'portfolio_items';
-const HISTORY_KEY = 'portfolio_history';
-const PRICES_KEY = 'portfolio_prices';
-const LANGUAGE_KEY = 'portfolio_language';
 
 export const fetchPrices = createAsyncThunk(
   'portfolio/fetchPrices',
@@ -92,16 +87,6 @@ const portfolioSlice = createSlice({
         date: new Date().toISOString(),
         description: newItem.description || ''
       });
-      
-      Promise.all([
-        AsyncStorage.setItem(LOCAL_KEY, JSON.stringify(state.items)),
-        AsyncStorage.setItem(HISTORY_KEY, JSON.stringify(state.history))
-      ]).catch(error => {
-        // Handle AsyncStorage error silently in production
-        if (__DEV__) {
-          console.error('Error saving to AsyncStorage:', error);
-        }
-      });
     },
     
     removeItem: (state, action: PayloadAction<string>) => {
@@ -116,23 +101,23 @@ const portfolioSlice = createSlice({
           item: removed,
           date: new Date().toISOString()
         });
-        
-        Promise.all([
-          AsyncStorage.setItem(LOCAL_KEY, JSON.stringify(state.items)),
-          AsyncStorage.setItem(HISTORY_KEY, JSON.stringify(state.history))
-        ]).catch(error => console.error('Error saving to AsyncStorage:', error));
       }
     },
     
     updateItemAmount: (state, action: PayloadAction<{ type: AssetType; newAmount: number; description?: string }>) => {
       const { type, newAmount, description } = action.payload;
+      
+      // Calculate current total for this asset type
       const itemsOfType = state.items.filter(item => item.type === type);
-      const currentTotal = itemsOfType.reduce((sum, item) => sum + item.amount, 0);
-      const difference = newAmount - currentTotal;
+      const currentTotal = itemsOfType.reduce((sum, item) => safeAdd(sum, item.amount), 0);
+      
+      // Calculate difference safely
+      const difference = safeSubtract(newAmount, currentTotal);
       
       if (difference === 0) return;
       
       if (difference > 0) {
+        // Adding more assets
         const newItem: PortfolioItem = {
           type,
           amount: difference,
@@ -144,129 +129,118 @@ const portfolioSlice = createSlice({
         state.items.push(newItem);
         
         state.history.unshift({
-          type: 'add',
+          type: 'update',
           item: newItem,
           date: new Date().toISOString(),
-          description: description || undefined
+          description: description || 'Miktar artırıldı',
+          previousAmount: currentTotal
         });
       } else {
-        let remainingToRemove = Math.abs(difference);
+        // Removing assets (difference is negative)
+        const amountToRemove = Math.abs(difference);
+        let remainingToRemove = amountToRemove;
         
-        for (let i = itemsOfType.length - 1; i >= 0 && remainingToRemove > 0; i--) {
-          const item = itemsOfType[i];
-          const index = state.items.findIndex(stateItem => stateItem.id === item.id);
+        // Create a new items array to avoid complex in-place splicing issues
+        const newItems: PortfolioItem[] = [];
+        const removedItems: PortfolioItem[] = []; // Track what we removed for history if needed
+        
+        // Keep items that are not of this type
+        state.items.forEach(item => {
+          if (item.type !== type) {
+            newItems.push(item);
+          }
+        });
+        
+        // Process items of this type (oldest first or newest first? usually FIFO or LIFO. 
+        // The previous implementation was iterating backwards (LIFO removal). Let's stick to that for consistency.)
+        // Actually, iterating backwards is good for removing from the end.
+        
+        // Let's sort itemsOfType by date descending (newest first) to remove newest first? 
+        // Or just use the order they are in.
+        // The previous implementation iterated backwards: `for (let i = itemsOfType.length - 1; ...)`
+        
+        const itemsToProcess = [...itemsOfType]; // Copy
+        
+        // We want to remove `remainingToRemove` from `itemsToProcess` starting from the end
+        for (let i = itemsToProcess.length - 1; i >= 0; i--) {
+          const item = itemsToProcess[i];
           
-          if (index !== -1) {
-            if (item.amount <= remainingToRemove) {
-              remainingToRemove -= item.amount;
-              state.items.splice(index, 1);
-              
-              state.history.unshift({
-                type: 'remove',
-                item: item,
-                date: new Date().toISOString(),
-                description: description || undefined
-              });
-            } else {
-              const removedAmount = remainingToRemove;
-              state.items[index].amount -= remainingToRemove;
-              remainingToRemove = 0;
-              
-              state.history.unshift({
-                type: 'remove',
-                item: { ...item, amount: removedAmount },
-                date: new Date().toISOString(),
-                description: description || undefined
-              });
-            }
+          if (remainingToRemove <= 0) {
+            newItems.push(item); // Keep the rest
+            continue;
+          }
+          
+          if (item.amount <= remainingToRemove) {
+            // Remove this entire item
+            remainingToRemove = safeSubtract(remainingToRemove, item.amount);
+            // Don't push to newItems
+          } else {
+            // Partial removal
+            const newAmount = safeSubtract(item.amount, remainingToRemove);
+            remainingToRemove = 0;
+            newItems.push({ ...item, amount: newAmount });
           }
         }
-      }
-      
-      Promise.all([
-        AsyncStorage.setItem(LOCAL_KEY, JSON.stringify(state.items)),
-        AsyncStorage.setItem(HISTORY_KEY, JSON.stringify(state.history))
-      ]).catch(error => {
-        // Handle AsyncStorage error silently in production
-        if (__DEV__) {
-          console.error('Error saving to AsyncStorage:', error);
+        
+        // Reconstruct state.items. 
+        // Note: The order in newItems might be mixed up because we separated by type.
+        // To preserve order, we should have iterated the main list.
+        // Let's try a safer approach that preserves order.
+        
+        // Reset logic:
+        remainingToRemove = amountToRemove;
+        // We iterate backwards through the main list to find items of this type
+        for (let i = state.items.length - 1; i >= 0; i--) {
+          const item = state.items[i];
+          if (item.type === type && remainingToRemove > 0) {
+             if (item.amount <= remainingToRemove) {
+               // Remove entire item
+               remainingToRemove = safeSubtract(remainingToRemove, item.amount);
+               state.items.splice(i, 1);
+             } else {
+               // Reduce amount
+               const newItemAmount = safeSubtract(item.amount, remainingToRemove);
+               state.items[i].amount = newItemAmount;
+               remainingToRemove = 0;
+             }
+          }
         }
-      });
+        
+        state.history.unshift({
+          type: 'update',
+          item: { 
+            type, 
+            amount: amountToRemove, // Show how much was removed (positive number)
+            id: Date.now().toString(), 
+            date: new Date().toISOString() 
+          },
+          date: new Date().toISOString(),
+          description: description || 'Miktar azaltıldı',
+          previousAmount: currentTotal
+        });
+      }
     },
     
     updatePrice: (state, action: PayloadAction<{ key: AssetType; value: number }>) => {
       state.prices[action.payload.key] = action.payload.value;
-      AsyncStorage.setItem(PRICES_KEY, JSON.stringify(state.prices))
-        .catch(error => {
-          // Handle AsyncStorage error silently in production
-          if (__DEV__) {
-            console.error('Error saving prices:', error);
-          }
-        });
     },
     
     setLanguage: (state, action: PayloadAction<string>) => {
       state.currentLanguage = action.payload;
-      AsyncStorage.setItem(LANGUAGE_KEY, action.payload)
-        .catch(error => {
-          // Handle AsyncStorage error silently in production
-          if (__DEV__) {
-            console.error('Error saving language:', error);
-          }
-        });
     },
     
     resetAll: (state) => {
       state.items = [];
       state.history = [];
-      AsyncStorage.removeItem(LOCAL_KEY);
-      AsyncStorage.removeItem(HISTORY_KEY);
-    },
-    
-    loadPersistedData: (
-      state, 
-      action: PayloadAction<{ 
-        items?: PortfolioItem[]; 
-        history?: HistoryItem[]; 
-        prices?: Prices;
-        language?: string;
-      }>
-    ) => {
-      if (action.payload.items) {
-        state.items = action.payload.items;
-      }
-      if (action.payload.history) {
-        state.history = action.payload.history;
-      }
-      if (action.payload.prices) {
-        state.prices = { ...initialPrices, ...action.payload.prices };
-      }
-      if (action.payload.language) {
-        state.currentLanguage = action.payload.language;
-      }
     },
     
     setPrices: (state, action: PayloadAction<Prices>) => {
       state.prices = { ...state.prices, ...action.payload };
-      AsyncStorage.setItem(PRICES_KEY, JSON.stringify(state.prices))
-        .catch(error => {
-          // Handle AsyncStorage error silently in production
-          if (__DEV__) {
-            console.error('Error saving prices:', error);
-          }
-        });
     }
   },
   extraReducers: (builder) => {
     builder.addCase(fetchPrices.fulfilled, (state, action) => {
       state.prices = { ...state.prices, ...action.payload };
-      AsyncStorage.setItem(PRICES_KEY, JSON.stringify(state.prices))
-        .catch(error => {
-          // Handle AsyncStorage error silently in production
-          if (__DEV__) {
-            console.error('Error saving prices:', error);
-          }
-        });
     });
   }
 });
@@ -278,7 +252,6 @@ export const {
   updatePrice, 
   setLanguage, 
   resetAll, 
-  loadPersistedData,
   setPrices
 } = portfolioSlice.actions;
 
@@ -310,28 +283,6 @@ export const selectTotalIn = (currency: CurrencyType) => (state: { portfolio: Po
       return sum + convertedValue;
     }
   }, 0);
-};
-
-export const loadInitialData = () => async (dispatch: any) => {
-  try {
-    const [itemsJson, historyJson, pricesJson, language] = await Promise.all([
-      AsyncStorage.getItem(LOCAL_KEY),
-      AsyncStorage.getItem(HISTORY_KEY),
-      AsyncStorage.getItem(PRICES_KEY),
-      AsyncStorage.getItem(LANGUAGE_KEY)
-    ]);
-    
-    const items = itemsJson ? JSON.parse(itemsJson) : undefined;
-    const history = historyJson ? JSON.parse(historyJson) : undefined;
-    const prices = pricesJson ? JSON.parse(pricesJson) : undefined;
-    
-    dispatch(loadPersistedData({ items, history, prices, language: language || undefined }));
-    } catch (error) {
-      // Handle error silently in production
-      if (__DEV__) {
-        console.error('Error loading persisted data:', error);
-      }
-    }
 };
 
 export default portfolioSlice.reducer;

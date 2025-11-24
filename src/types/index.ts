@@ -19,10 +19,11 @@ export interface PortfolioItem {
 }
 
 export interface HistoryItem {
-  type: 'add' | 'remove';
+  type: 'add' | 'remove' | 'update';
   item: PortfolioItem;
   date: string;
   description?: string;
+  previousAmount?: number;
 }
 
 export interface Prices {

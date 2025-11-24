@@ -3,12 +3,13 @@ import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { NavigationContainer } from '@react-navigation/native';
 import { Provider } from 'react-redux';
+import { PersistGate } from 'redux-persist/integration/react';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { StyleSheet, View, ActivityIndicator } from 'react-native';
 
-import { store } from './src/store';
+import { store, persistor } from './src/store';
 import { initializeI18n } from './src/locales';
-import { loadInitialData, fetchPrices } from './src/store/portfolioSlice';
+import { fetchPrices } from './src/store/portfolioSlice';
 import BottomTabNavigator from './src/navigation/BottomTabNavigator';
 import { useToast } from './src/hooks/useToast';
 import ToastNotification from './src/components/ToastNotification';
@@ -20,7 +21,7 @@ export default function App() {
     const initialize = async () => {
       try {
         await initializeI18n();
-        store.dispatch(loadInitialData() as any);
+        // loadInitialData is handled by redux-persist now
         store.dispatch(fetchPrices() as any);
         setIsReady(true);
       } catch (error) {
@@ -46,11 +47,13 @@ export default function App() {
   return (
     <GestureHandlerRootView style={styles.container}>
       <Provider store={store}>
-        <SafeAreaProvider>
-          <NavigationContainer>
-            <AppContent />
-          </NavigationContainer>
-        </SafeAreaProvider>
+        <PersistGate loading={null} persistor={persistor}>
+          <SafeAreaProvider>
+            <NavigationContainer>
+              <AppContent />
+            </NavigationContainer>
+          </SafeAreaProvider>
+        </PersistGate>
       </Provider>
     </GestureHandlerRootView>
   );
