@@ -33,14 +33,17 @@ let isFetchingPrices = false;
 
 export const fetchPrices = createAsyncThunk(
   'portfolio/fetchPrices',
-  async (_, { rejectWithValue }) => {
+  async (_, { rejectWithValue, getState }) => {
     if (isFetchingPrices) {
       return rejectWithValue('Already fetching prices');
     }
     
     isFetchingPrices = true;
     try {
-      const prices = await fetchPricesFromAPI();
+      // Get current prices from state to pass as fallback
+      const state = getState() as { portfolio: PortfolioState };
+      const currentPrices = state?.portfolio?.prices;
+      const prices = await fetchPricesFromAPI(currentPrices);
       return prices;
     } catch (error) {
       if (__DEV__) {
@@ -54,27 +57,55 @@ export const fetchPrices = createAsyncThunk(
 );
 
 const getItemValueInTL = (item: PortfolioItem, prices: Prices): number => {
+  // Validate inputs
+  if (!item || !item.type || isNaN(item.amount) || !isFinite(item.amount) || item.amount < 0) {
+    return 0;
+  }
+  
   if (item.type === 'tl') {
     return item.amount;
   } else if (item.type === 'usd') {
-    return item.amount * (prices.usd || 0);
+    const usdPrice = prices.usd || 0;
+    if (isNaN(usdPrice) || !isFinite(usdPrice) || usdPrice < 0) {
+      return 0;
+    }
+    return item.amount * usdPrice;
   } else if (item.type === 'eur') {
-    return item.amount * (prices.eur || 0);
+    const eurPrice = prices.eur || 0;
+    if (isNaN(eurPrice) || !isFinite(eurPrice) || eurPrice < 0) {
+      return 0;
+    }
+    return item.amount * eurPrice;
   } else {
-    return item.amount * (prices[item.type] || 0);
+    const price = prices[item.type] || 0;
+    if (isNaN(price) || !isFinite(price) || price < 0) {
+      return 0;
+    }
+    return item.amount * price;
   }
 };
 
 const convertFromTL = (valueTL: number, targetCurrency: CurrencyType, prices: Prices): number => {
+  // Validate input
+  if (isNaN(valueTL) || !isFinite(valueTL) || valueTL < 0) {
+    return 0;
+  }
+  
   switch (targetCurrency) {
     case 'TL':
       return valueTL;
-    case 'USD':
-      return valueTL / (prices.usd || 1);
-    case 'EUR':
-      return valueTL / (prices.eur || 1);
-    case 'ALTIN':
-      return valueTL / (prices['24_ayar'] || 1);
+    case 'USD': {
+      const usdPrice = prices.usd || 0;
+      return usdPrice > 0 ? valueTL / usdPrice : 0;
+    }
+    case 'EUR': {
+      const eurPrice = prices.eur || 0;
+      return eurPrice > 0 ? valueTL / eurPrice : 0;
+    }
+    case 'ALTIN': {
+      const altinPrice = prices['24_ayar'] || 0;
+      return altinPrice > 0 ? valueTL / altinPrice : 0;
+    }
     default:
       return valueTL;
   }
@@ -85,6 +116,13 @@ const portfolioSlice = createSlice({
   initialState,
   reducers: {
     addItem: (state, action: PayloadAction<Omit<PortfolioItem, 'id' | 'date'>>) => {
+      const { type, amount } = action.payload;
+      
+      // Validate input
+      if (!type || isNaN(amount) || !isFinite(amount) || amount <= 0) {
+        return; // Invalid input, ignore
+      }
+      
       const newItem: PortfolioItem = {
         ...action.payload,
         id: Date.now().toString(),
@@ -119,6 +157,11 @@ const portfolioSlice = createSlice({
     updateItemAmount: (state, action: PayloadAction<{ type: AssetType; newAmount: number; description?: string }>) => {
       const { type, newAmount, description } = action.payload;
       
+      // Validate input
+      if (!type || isNaN(newAmount) || !isFinite(newAmount) || newAmount < 0) {
+        return; // Invalid input, ignore
+      }
+      
       // Calculate current total for this asset type
       const itemsOfType = state.items.filter(item => item.type === type);
       const currentTotal = itemsOfType.reduce((sum, item) => safeAdd(sum, item.amount), 0);
@@ -126,7 +169,7 @@ const portfolioSlice = createSlice({
       // Calculate difference safely
       const difference = safeSubtract(newAmount, currentTotal);
       
-      if (difference === 0) return;
+      if (Math.abs(difference) < 0.000001) return; // Use epsilon for floating point comparison
       
       if (difference > 0) {
         // Adding more assets
@@ -186,7 +229,12 @@ const portfolioSlice = createSlice({
     },
     
     updatePrice: (state, action: PayloadAction<{ key: AssetType; value: number }>) => {
-      state.prices[action.payload.key] = action.payload.value;
+      const { key, value } = action.payload;
+      // Validate input
+      if (!key || isNaN(value) || !isFinite(value) || value < 0) {
+        return; // Invalid input, ignore
+      }
+      state.prices[key] = value;
     },
     
     setLanguage: (state, action: PayloadAction<string>) => {
@@ -206,8 +254,17 @@ const portfolioSlice = createSlice({
   extraReducers: (builder) => {
     builder
       .addCase(fetchPrices.fulfilled, (state, action) => {
-        // Merge new prices with existing ones
-        state.prices = { ...state.prices, ...action.payload };
+        // Validate payload before merging
+        if (action.payload && typeof action.payload === 'object') {
+          const validatedPrices: Partial<Prices> = {};
+          Object.entries(action.payload).forEach(([key, value]) => {
+            if (typeof value === 'number' && !isNaN(value) && isFinite(value) && value >= 0) {
+              validatedPrices[key as keyof Prices] = value;
+            }
+          });
+          // Merge new prices with existing ones
+          state.prices = { ...state.prices, ...validatedPrices };
+        }
       })
       .addCase(fetchPrices.rejected, (state) => {
         // Keep existing prices on error - no state change needed
@@ -232,12 +289,22 @@ export const selectHistory = (state: { portfolio: PortfolioState }) => state.por
 export const selectLanguage = (state: { portfolio: PortfolioState }) => state.portfolio.currentLanguage;
 
 export const selectTotalTL = (state: { portfolio: PortfolioState }) => {
+  if (!state.portfolio?.items || state.portfolio.items.length === 0) {
+    return 0;
+  }
   return state.portfolio.items.reduce((sum, item) => {
+    if (!item || !item.type || isNaN(item.amount)) {
+      return sum;
+    }
     return sum + getItemValueInTL(item, state.portfolio.prices);
   }, 0);
 };
 
 export const selectTotalIn = (currency: CurrencyType) => (state: { portfolio: PortfolioState }) => {
+  if (!state.portfolio?.items || state.portfolio.items.length === 0) {
+    return 0;
+  }
+  
   const gramEquivalents: Record<string, number> = {
     'ceyrek': 1.75,
     'tam': 7,
@@ -246,11 +313,19 @@ export const selectTotalIn = (currency: CurrencyType) => (state: { portfolio: Po
   };
   
   return state.portfolio.items.reduce((sum, item) => {
+    if (!item || !item.type || isNaN(item.amount) || !isFinite(item.amount)) {
+      return sum;
+    }
+    
     if (currency === 'ALTIN' && gramEquivalents[item.type]) {
       return sum + (item.amount * gramEquivalents[item.type]);
     } else {
       const valueTL = getItemValueInTL(item, state.portfolio.prices);
       const convertedValue = convertFromTL(valueTL, currency, state.portfolio.prices);
+      // Check for NaN or Infinity
+      if (isNaN(convertedValue) || !isFinite(convertedValue)) {
+        return sum;
+      }
       return sum + convertedValue;
     }
   }, 0);

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -12,6 +12,8 @@ import {
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { colors, spacing, borderRadius, fontSize, fontWeight, shadows } from '../theme';
+import { validateRemoveAmount } from '../utils/validationUtils';
+import { formatCurrency } from '../utils/formatUtils';
 import { AssetType } from '../types';
 
 interface QuickRemoveModalProps {
@@ -47,9 +49,9 @@ const QuickRemoveModal: React.FC<QuickRemoveModalProps> = ({
   }, [visible]);
 
   const handleRemove = () => {
-    const numAmount = parseFloat(amount.replace(',', '.'));
-    if (!isNaN(numAmount) && numAmount > 0 && numAmount <= currentAmount) {
-      onRemove(numAmount, description || undefined);
+    const validation = validateRemoveAmount(amount, currentAmount);
+    if (validation.isValid && validation.value !== undefined) {
+      onRemove(validation.value, description || undefined);
       setAmount('');
       setDescription('');
       onClose();
@@ -63,7 +65,10 @@ const QuickRemoveModal: React.FC<QuickRemoveModalProps> = ({
   };
 
   const handleMaxAmount = () => {
-    setAmount(currentAmount.toString());
+    const safeAmount = isNaN(currentAmount) || !isFinite(currentAmount) || currentAmount <= 0 
+      ? 0 
+      : currentAmount;
+    setAmount(safeAmount.toString());
   };
 
   const getAssetLabel = () => {
@@ -86,9 +91,13 @@ const QuickRemoveModal: React.FC<QuickRemoveModalProps> = ({
     return t('units.gram');
   };
 
+  const amountValidation = useMemo(
+    () => validateRemoveAmount(amount, currentAmount),
+    [amount, currentAmount]
+  );
+  
   const isValidAmount = () => {
-    const numAmount = parseFloat(amount.replace(',', '.'));
-    return !isNaN(numAmount) && numAmount > 0 && numAmount <= currentAmount;
+    return amountValidation.isValid;
   };
 
   const translateY = slideAnim.interpolate({
@@ -123,7 +132,10 @@ const QuickRemoveModal: React.FC<QuickRemoveModalProps> = ({
               <View style={styles.handle} />
               <Text style={styles.title}>{getAssetLabel()}</Text>
               <Text style={styles.subtitle}>
-                {t('currentAmount')}: {currentAmount.toFixed(2)} {getUnit()}
+                {t('currentAmount')}: {formatCurrency(
+                  isNaN(currentAmount) || !isFinite(currentAmount) ? 0 : currentAmount,
+                  'tr'
+                )} {getUnit()}
               </Text>
             </View>
 
@@ -132,7 +144,10 @@ const QuickRemoveModal: React.FC<QuickRemoveModalProps> = ({
                 <Text style={styles.label}>{t('amountToRemove')}:</Text>
                 <TouchableOpacity onPress={handleMaxAmount} activeOpacity={0.7}>
                   <Text style={styles.maxButton}>
-                    Max: {currentAmount.toFixed(2)}
+                    Max: {formatCurrency(
+                      isNaN(currentAmount) || !isFinite(currentAmount) ? 0 : currentAmount,
+                      'tr'
+                    )}
                   </Text>
                 </TouchableOpacity>
               </View>

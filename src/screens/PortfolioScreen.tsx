@@ -42,8 +42,22 @@ const PortfolioScreen: React.FC = () => {
   const swipeableRefs = useRef<Record<string, Swipeable | null>>({});
   const currentlyOpenSwipeable = useRef<string | null>(null);
 
-  const currentCurrency = CURRENCIES[currentCurrencyIndex];
+  // Bounds check for currency index to prevent out-of-bounds access
+  const safeCurrencyIndex = useMemo(() => {
+    const index = Math.max(0, Math.min(currentCurrencyIndex, CURRENCIES.length - 1));
+    return index;
+  }, [currentCurrencyIndex]);
+  
+  const currentCurrency = CURRENCIES[safeCurrencyIndex] || CURRENCIES[0];
   const totalValue = useAppSelector(selectTotalIn(currentCurrency));
+  
+  // Validate totalValue
+  const safeTotalValue = useMemo(() => {
+    if (isNaN(totalValue) || !isFinite(totalValue) || totalValue < 0) {
+      return 0;
+    }
+    return totalValue;
+  }, [totalValue]);
 
   const groupedItems = useMemo(() => {
     return items.reduce((acc, item) => {
@@ -56,6 +70,10 @@ const PortfolioScreen: React.FC = () => {
   }, [items]);
 
   const handleAddItem = (type: AssetType, amount: number, description?: string) => {
+    // Validate inputs
+    if (!type || isNaN(amount) || !isFinite(amount) || amount <= 0) {
+      return;
+    }
     dispatch(addItem({ type, amount, description }));
     hapticFeedback.success();
   };
@@ -69,9 +87,25 @@ const PortfolioScreen: React.FC = () => {
 
   const handleQuickAdd = (amount: number, description?: string) => {
     if (selectedAssetType) {
+      // Validate amount
+      if (isNaN(amount) || !isFinite(amount) || amount <= 0) {
+        return;
+      }
+      
       const groupItems = groupedItems[selectedAssetType] || [];
-      const currentTotal = groupItems.reduce((sum, item) => sum + item.amount, 0);
+      const currentTotal = groupItems.reduce((sum, item) => {
+        if (!item || isNaN(item.amount) || !isFinite(item.amount)) {
+          return sum;
+        }
+        return sum + item.amount;
+      }, 0);
+      
       const newAmount = currentTotal + amount;
+      
+      // Validate newAmount
+      if (isNaN(newAmount) || !isFinite(newAmount) || newAmount < 0) {
+        return;
+      }
 
       const finalDescription = description || t('amountIncreased');
       dispatch(updateItemAmount({ type: selectedAssetType, newAmount, description: finalDescription }));
@@ -105,12 +139,28 @@ const PortfolioScreen: React.FC = () => {
 
   const handleQuickRemove = (amountToRemove: number, description?: string) => {
     if (selectedAssetType) {
+      // Validate amountToRemove
+      if (isNaN(amountToRemove) || !isFinite(amountToRemove) || amountToRemove <= 0) {
+        return;
+      }
+      
       const groupItems = groupedItems[selectedAssetType] || [];
-      const currentTotal = groupItems.reduce((sum, item) => sum + item.amount, 0);
-      const newAmount = currentTotal - amountToRemove;
+      const currentTotal = groupItems.reduce((sum, item) => {
+        if (!item || isNaN(item.amount) || !isFinite(item.amount)) {
+          return sum;
+        }
+        return sum + item.amount;
+      }, 0);
+      
+      const newAmount = Math.max(0, currentTotal - amountToRemove);
+      
+      // Validate newAmount
+      if (isNaN(newAmount) || !isFinite(newAmount) || newAmount < 0) {
+        return;
+      }
       
       const finalDescription = description || t('amountDecreased');
-      dispatch(updateItemAmount({ type: selectedAssetType, newAmount: Math.max(0, newAmount), description: finalDescription }));
+      dispatch(updateItemAmount({ type: selectedAssetType, newAmount, description: finalDescription }));
       hapticFeedback.heavy();
     }
   };
@@ -154,9 +204,11 @@ const PortfolioScreen: React.FC = () => {
           showsHorizontalScrollIndicator={false}
           onMomentumScrollEnd={(event) => {
             const index = Math.round(event.nativeEvent.contentOffset.x / width);
-            if (index !== currentCurrencyIndex) {
+            // Bounds check to prevent invalid index
+            const safeIndex = Math.max(0, Math.min(index, CURRENCIES.length - 1));
+            if (safeIndex !== currentCurrencyIndex && safeIndex >= 0 && safeIndex < CURRENCIES.length) {
               hapticFeedback.selection();
-              setCurrentCurrencyIndex(index);
+              setCurrentCurrencyIndex(safeIndex);
             }
           }}
           renderItem={({ item: currency }) => (
@@ -192,7 +244,7 @@ const PortfolioScreen: React.FC = () => {
                   <View style={styles.totalCardBody}>
                     <View style={styles.totalValueContainer}>
                       <Text style={styles.totalValue}>
-                        {formatCurrency(totalValue, i18n.language)}
+                        {formatCurrency(safeTotalValue, i18n.language)}
                       </Text>
                       <Text style={styles.totalCurrencySymbol}>
                         {getCurrencySymbol(currency)}
@@ -212,7 +264,7 @@ const PortfolioScreen: React.FC = () => {
               key={index}
               style={[
                 styles.dot,
-                currentCurrencyIndex === index && styles.activeDot,
+                safeCurrencyIndex === index && styles.activeDot,
               ]}
             />
           ))}
@@ -271,14 +323,24 @@ const PortfolioScreen: React.FC = () => {
     itemType: AssetType,
     itemAmount: number
   ): number => {
+    // Validate inputs
+    if (isNaN(valueTL) || !isFinite(valueTL) || valueTL < 0) {
+      return 0;
+    }
+    if (isNaN(itemAmount) || !isFinite(itemAmount) || itemAmount < 0) {
+      return 0;
+    }
+    
     if (targetCurrency === 'TL') {
       return valueTL;
     }
     if (targetCurrency === 'USD') {
-      return prices.usd > 0 ? valueTL / prices.usd : 0;
+      const usdPrice = prices.usd || 0;
+      return usdPrice > 0 ? valueTL / usdPrice : 0;
     }
     if (targetCurrency === 'EUR') {
-      return prices.eur > 0 ? valueTL / prices.eur : 0;
+      const eurPrice = prices.eur || 0;
+      return eurPrice > 0 ? valueTL / eurPrice : 0;
     }
     if (targetCurrency === 'ALTIN') {
       const gramEquivalents: Record<string, number> = {
@@ -291,7 +353,8 @@ const PortfolioScreen: React.FC = () => {
       if (gramEquivalents[itemType]) {
         return itemAmount * gramEquivalents[itemType];
       } else {
-        return prices['24_ayar'] > 0 ? valueTL / prices['24_ayar'] : 0;
+        const altinPrice = prices['24_ayar'] || 0;
+        return altinPrice > 0 ? valueTL / altinPrice : 0;
       }
     }
     return valueTL;
@@ -308,10 +371,36 @@ const PortfolioScreen: React.FC = () => {
   };
 
   const renderAssetGroup = (type: AssetType, groupItems: PortfolioItem[]) => {
-    const totalAmount = groupItems.reduce((sum, item) => sum + item.amount, 0);
-    const pricePerUnit = prices[type];
+    // Safety check: empty array
+    if (!groupItems || groupItems.length === 0) {
+      return null;
+    }
+    
+    const totalAmount = groupItems.reduce((sum, item) => {
+      if (!item || isNaN(item.amount) || !isFinite(item.amount)) {
+        return sum;
+      }
+      return sum + item.amount;
+    }, 0);
+    
+    // Validate totalAmount
+    if (isNaN(totalAmount) || !isFinite(totalAmount) || totalAmount <= 0) {
+      return null;
+    }
+    
+    const pricePerUnit = prices[type] || 0;
+    if (isNaN(pricePerUnit) || !isFinite(pricePerUnit) || pricePerUnit <= 0) {
+      return null;
+    }
+    
     const totalValueTL = totalAmount * pricePerUnit;
     const convertedValue = convertToTargetCurrency(totalValueTL, currentCurrency, type, totalAmount);
+    
+    // Validate converted value
+    if (isNaN(convertedValue) || !isFinite(convertedValue)) {
+      return null;
+    }
+    
     const currencySymbol = getCurrencySymbol(currentCurrency);
 
     return (
@@ -338,13 +427,19 @@ const PortfolioScreen: React.FC = () => {
           <View style={styles.assetContent}>
             <Text style={styles.assetName}>{t(`assetTypes.${type}`)}</Text>
             <Text style={styles.assetAmount}>
-              {formatCurrency(totalAmount, i18n.language)}{getDefaultUnit(type) && ' '}{getDefaultUnit(type)}
+              {formatCurrency(
+                isNaN(totalAmount) || !isFinite(totalAmount) ? 0 : totalAmount,
+                i18n.language
+              )}{getDefaultUnit(type) && ' '}{getDefaultUnit(type)}
             </Text>
           </View>
           
           <View style={styles.assetValueContainer}>
             <Text style={styles.assetValue}>
-              {formatCurrency(convertedValue, i18n.language)} {currencySymbol}
+              {formatCurrency(
+                isNaN(convertedValue) || !isFinite(convertedValue) ? 0 : convertedValue,
+                i18n.language
+              )} {currencySymbol}
             </Text>
           </View>
         </TouchableOpacity>
@@ -390,9 +485,11 @@ const PortfolioScreen: React.FC = () => {
               </View>
             ) : (
               <View>
-                {Object.entries(groupedItems).map(([type, groupItems]) =>
-                  renderAssetGroup(type as AssetType, groupItems)
-                )}
+                {Object.entries(groupedItems)
+                  .filter(([_, groupItems]) => groupItems && groupItems.length > 0)
+                  .map(([type, groupItems]) =>
+                    renderAssetGroup(type as AssetType, groupItems)
+                  )}
               </View>
             )}
           </View>

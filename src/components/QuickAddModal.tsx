@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -12,6 +12,8 @@ import {
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { colors, spacing, borderRadius, fontSize, fontWeight, shadows } from '../theme';
+import { validateAmount } from '../utils/validationUtils';
+import { formatCurrency } from '../utils/formatUtils';
 import { AssetType } from '../types';
 
 interface QuickAddModalProps {
@@ -33,6 +35,9 @@ const QuickAddModal: React.FC<QuickAddModalProps> = ({
   const [amount, setAmount] = useState('');
   const [description, setDescription] = useState('');
   const [slideAnim] = useState(new Animated.Value(0));
+  
+  const amountValidation = useMemo(() => validateAmount(amount), [amount]);
+  const isAmountValid = amountValidation.isValid;
 
   useEffect(() => {
     if (visible) {
@@ -47,9 +52,9 @@ const QuickAddModal: React.FC<QuickAddModalProps> = ({
   }, [visible]);
 
   const handleAdd = () => {
-    const numAmount = parseFloat(amount.replace(',', '.'));
-    if (!isNaN(numAmount) && numAmount > 0) {
-      onAdd(numAmount, description || undefined);
+    const validation = validateAmount(amount);
+    if (validation.isValid && validation.value !== undefined) {
+      onAdd(validation.value, description || undefined);
       setAmount('');
       setDescription('');
       onClose();
@@ -114,7 +119,10 @@ const QuickAddModal: React.FC<QuickAddModalProps> = ({
               <View style={styles.handle} />
               <Text style={styles.title}>{getAssetLabel()}</Text>
               <Text style={styles.subtitle}>
-                {t('currentAmount')}: {currentAmount.toFixed(2)} {getUnit()}
+                {t('currentAmount')}: {formatCurrency(
+                  isNaN(currentAmount) || !isFinite(currentAmount) ? 0 : currentAmount,
+                  'tr'
+                )} {getUnit()}
               </Text>
             </View>
 
@@ -162,10 +170,10 @@ const QuickAddModal: React.FC<QuickAddModalProps> = ({
                 style={[
                   styles.button,
                   styles.addButton,
-                  (!amount || parseFloat(amount.replace(',', '.')) <= 0) && styles.addButtonDisabled,
+                  !isAmountValid && styles.addButtonDisabled,
                 ]}
                 onPress={handleAdd}
-                disabled={!amount || parseFloat(amount.replace(',', '.')) <= 0}
+                disabled={!isAmountValid}
                 activeOpacity={0.8}
               >
                 <Text style={styles.addButtonText}>{t('add')}</Text>

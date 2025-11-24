@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -14,6 +14,7 @@ import {
 import { useTranslation } from 'react-i18next';
 import { colors, spacing, borderRadius, fontSize, fontWeight, shadows } from '../theme';
 import { getAssetIcon, getAssetUnit } from '../utils/assetUtils';
+import { validateAmount } from '../utils/validationUtils';
 import { AssetType } from '../types';
 
 interface AddItemModalProps {
@@ -40,6 +41,9 @@ const AddItemModal: React.FC<AddItemModalProps> = ({ visible, onClose, onAdd }) 
   const [description, setDescription] = useState('');
   const [showTypePicker, setShowTypePicker] = useState(false);
   const [slideAnim] = useState(new Animated.Value(0));
+  
+  const amountValidation = useMemo(() => validateAmount(amount), [amount]);
+  const isAmountValid = amountValidation.isValid;
 
   useEffect(() => {
     if (visible) {
@@ -54,10 +58,9 @@ const AddItemModal: React.FC<AddItemModalProps> = ({ visible, onClose, onAdd }) 
   }, [visible]);
 
   const handleAdd = () => {
-    const normalizedAmount = amount.replace(',', '.');
-    const numAmount = parseFloat(normalizedAmount);
-    if (!isNaN(numAmount) && numAmount > 0) {
-      onAdd(selectedType, numAmount, description || undefined);
+    const validation = validateAmount(amount);
+    if (validation.isValid && validation.value !== undefined) {
+      onAdd(selectedType, validation.value, description || undefined);
       setAmount('');
       setDescription('');
       setSelectedType('22_ayar');
@@ -210,10 +213,10 @@ const AddItemModal: React.FC<AddItemModalProps> = ({ visible, onClose, onAdd }) 
                 style={[
                   styles.button,
                   styles.addButton,
-                  (!amount || parseFloat(amount.replace(',', '.')) <= 0) && styles.addButtonDisabled,
+                  !isAmountValid && styles.addButtonDisabled,
                 ]}
                 onPress={handleAdd}
-                disabled={!amount || parseFloat(amount.replace(',', '.')) <= 0}
+                disabled={!isAmountValid}
                 activeOpacity={0.8}
               >
                 <Text style={styles.addButtonText}>{t('add')}</Text>

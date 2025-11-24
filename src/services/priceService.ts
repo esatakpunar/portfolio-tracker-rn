@@ -61,11 +61,28 @@ const parsePrice = (value: string | number | null | undefined, fallback: number)
   return fallback;
 };
 
+/**
+ * Validates API response structure
+ */
+const validateApiResponse = (data: any): data is ApiResponse => {
+  if (!data || typeof data !== 'object') {
+    return false;
+  }
+  // Basic validation - check if it has expected structure
+  return true;
+};
+
 export const fetchPrices = async (currentPrices?: Prices): Promise<Prices> => {
   try {
     const response = await axios.get<ApiResponse>(API_URL, {
       timeout: 10000, // 10 second timeout
+      validateStatus: (status) => status === 200, // Only accept 200 status
     });
+    
+    // Validate response structure
+    if (!validateApiResponse(response.data)) {
+      throw new Error('Invalid API response structure');
+    }
     
     const data = response.data;
     
@@ -80,6 +97,15 @@ export const fetchPrices = async (currentPrices?: Prices): Promise<Prices> => {
       tl: 1,
     };
     
+    // Validate all prices are valid numbers
+    const allPricesValid = Object.values(prices).every(
+      (price) => typeof price === 'number' && !isNaN(price) && price >= 0
+    );
+    
+    if (!allPricesValid) {
+      throw new Error('Invalid price values in response');
+    }
+    
     // Prices updated successfully
     return prices;
   } catch (error) {
@@ -90,7 +116,14 @@ export const fetchPrices = async (currentPrices?: Prices): Promise<Prices> => {
     
     // Fallback to current prices or defaults
     if (currentPrices && Object.keys(currentPrices).length > 0) {
-      return currentPrices;
+      // Validate current prices before using as fallback
+      const currentPricesValid = Object.values(currentPrices).every(
+        (price) => typeof price === 'number' && !isNaN(price) && price >= 0
+      );
+      
+      if (currentPricesValid) {
+        return currentPrices;
+      }
     }
     
     return DEFAULT_PRICES;

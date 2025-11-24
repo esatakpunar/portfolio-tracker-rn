@@ -13,6 +13,7 @@ import { fetchPrices } from './src/store/portfolioSlice';
 import BottomTabNavigator from './src/navigation/BottomTabNavigator';
 import { useToast } from './src/hooks/useToast';
 import ToastNotification from './src/components/ToastNotification';
+import ErrorBoundary from './src/components/ErrorBoundary';
 
 export default function App() {
   const [isReady, setIsReady] = useState(false);
@@ -45,17 +46,19 @@ export default function App() {
   }
 
   return (
-    <GestureHandlerRootView style={styles.container}>
-      <Provider store={store}>
-        <PersistGate loading={null} persistor={persistor}>
-          <SafeAreaProvider>
-            <NavigationContainer>
-              <AppContent />
-            </NavigationContainer>
-          </SafeAreaProvider>
-        </PersistGate>
-      </Provider>
-    </GestureHandlerRootView>
+    <ErrorBoundary>
+      <GestureHandlerRootView style={styles.container}>
+        <Provider store={store}>
+          <PersistGate loading={null} persistor={persistor}>
+            <SafeAreaProvider>
+              <NavigationContainer>
+                <AppContent />
+              </NavigationContainer>
+            </SafeAreaProvider>
+          </PersistGate>
+        </Provider>
+      </GestureHandlerRootView>
+    </ErrorBoundary>
   );
 }
 

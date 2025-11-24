@@ -80,6 +80,8 @@ const SettingsScreen: React.FC = () => {
 
 
   const renderPriceItem = (key: AssetType, value: number) => {
+    // Validate value
+    const safeValue = isNaN(value) || !isFinite(value) || value < 0 ? 0 : value;
     const priceColor = getAssetColor(key);
     
     return (
@@ -104,7 +106,7 @@ const SettingsScreen: React.FC = () => {
         ) : (
           <View style={styles.priceValueContainer}>
             <Text style={styles.priceValue}>
-              {formatCurrency(value, i18n.language)}
+              {formatCurrency(safeValue, i18n.language)}
             </Text>
             <Text style={styles.priceCurrency}>₺</Text>
           </View>

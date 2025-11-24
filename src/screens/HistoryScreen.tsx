@@ -67,7 +67,10 @@ const HistoryScreen: React.FC = () => {
               styles.historyAmount,
               { color: isAdd ? colors.success : colors.error }
             ]}>
-              {isAdd ? '+' : '−'}{formatCurrency(item.item.amount, i18n.language)}
+              {isAdd ? '+' : '−'}{formatCurrency(
+                isNaN(item.item.amount) || !isFinite(item.item.amount) ? 0 : item.item.amount,
+                i18n.language
+              )}
             </Text>
           </View>
           <Text style={styles.historyDate}>
