@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useMemo } from 'react';
 import {
   View,
   Text,
@@ -21,12 +21,13 @@ import QuickAddModal from '../components/QuickAddModal';
 import QuickRemoveModal from '../components/QuickRemoveModal';
 import SwipeableAssetItem from '../components/SwipeableAssetItem';
 import { hapticFeedback } from '../utils/haptics';
+import { formatCurrency } from '../utils/formatUtils';
 
 const { width } = Dimensions.get('window');
 const CURRENCIES: CurrencyType[] = ['TL', 'USD', 'EUR', 'ALTIN'];
 
 const PortfolioScreen: React.FC = () => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const dispatch = useAppDispatch();
   const items = useAppSelector(selectItems);
   const prices = useAppSelector(selectPrices);
@@ -44,13 +45,15 @@ const PortfolioScreen: React.FC = () => {
   const currentCurrency = CURRENCIES[currentCurrencyIndex];
   const totalValue = useAppSelector(selectTotalIn(currentCurrency));
 
-  const groupedItems = items.reduce((acc, item) => {
-    if (!acc[item.type]) {
-      acc[item.type] = [];
-    }
-    acc[item.type].push(item);
-    return acc;
-  }, {} as Record<AssetType, PortfolioItem[]>);
+  const groupedItems = useMemo(() => {
+    return items.reduce((acc, item) => {
+      if (!acc[item.type]) {
+        acc[item.type] = [];
+      }
+      acc[item.type].push(item);
+      return acc;
+    }, {} as Record<AssetType, PortfolioItem[]>);
+  }, [items]);
 
   const handleAddItem = (type: AssetType, amount: number, description?: string) => {
     dispatch(addItem({ type, amount, description }));
@@ -70,7 +73,8 @@ const PortfolioScreen: React.FC = () => {
       const currentTotal = groupItems.reduce((sum, item) => sum + item.amount, 0);
       const newAmount = currentTotal + amount;
 
-      dispatch(updateItemAmount({ type: selectedAssetType, newAmount, description }));
+      const finalDescription = description || t('amountIncreased');
+      dispatch(updateItemAmount({ type: selectedAssetType, newAmount, description: finalDescription }));
       hapticFeedback.medium();
       hapticFeedback.success();
     }
@@ -105,7 +109,8 @@ const PortfolioScreen: React.FC = () => {
       const currentTotal = groupItems.reduce((sum, item) => sum + item.amount, 0);
       const newAmount = currentTotal - amountToRemove;
       
-      dispatch(updateItemAmount({ type: selectedAssetType, newAmount: Math.max(0, newAmount), description }));
+      const finalDescription = description || t('amountDecreased');
+      dispatch(updateItemAmount({ type: selectedAssetType, newAmount: Math.max(0, newAmount), description: finalDescription }));
       hapticFeedback.heavy();
     }
   };
@@ -187,10 +192,7 @@ const PortfolioScreen: React.FC = () => {
                   <View style={styles.totalCardBody}>
                     <View style={styles.totalValueContainer}>
                       <Text style={styles.totalValue}>
-                        {totalValue.toLocaleString('tr-TR', {
-                          minimumFractionDigits: 2,
-                          maximumFractionDigits: 2,
-                        })}
+                        {formatCurrency(totalValue, i18n.language)}
                       </Text>
                       <Text style={styles.totalCurrencySymbol}>
                         {getCurrencySymbol(currency)}
@@ -273,10 +275,10 @@ const PortfolioScreen: React.FC = () => {
       return valueTL;
     }
     if (targetCurrency === 'USD') {
-      return valueTL / prices.usd;
+      return prices.usd > 0 ? valueTL / prices.usd : 0;
     }
     if (targetCurrency === 'EUR') {
-      return valueTL / prices.eur;
+      return prices.eur > 0 ? valueTL / prices.eur : 0;
     }
     if (targetCurrency === 'ALTIN') {
       const gramEquivalents: Record<string, number> = {
@@ -289,7 +291,7 @@ const PortfolioScreen: React.FC = () => {
       if (gramEquivalents[itemType]) {
         return itemAmount * gramEquivalents[itemType];
       } else {
-        return valueTL / prices['24_ayar'];
+        return prices['24_ayar'] > 0 ? valueTL / prices['24_ayar'] : 0;
       }
     }
     return valueTL;
@@ -336,19 +338,13 @@ const PortfolioScreen: React.FC = () => {
           <View style={styles.assetContent}>
             <Text style={styles.assetName}>{t(`assetTypes.${type}`)}</Text>
             <Text style={styles.assetAmount}>
-              {totalAmount.toLocaleString('tr-TR', {
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2,
-              })}{getDefaultUnit(type) && ' '}{getDefaultUnit(type)}
+              {formatCurrency(totalAmount, i18n.language)}{getDefaultUnit(type) && ' '}{getDefaultUnit(type)}
             </Text>
           </View>
           
           <View style={styles.assetValueContainer}>
             <Text style={styles.assetValue}>
-              {convertedValue.toLocaleString('tr-TR', {
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2,
-              })} {currencySymbol}
+              {formatCurrency(convertedValue, i18n.language)} {currencySymbol}
             </Text>
           </View>
         </TouchableOpacity>

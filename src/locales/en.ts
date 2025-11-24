@@ -105,5 +105,9 @@ export default {
   financialDisclaimer: 'Financial Disclaimer',
   priceDataInfo: 'About price information',
   disclaimerText: 'Prices shown in this app are for informational purposes only. It is recommended to seek professional financial advice before making investment decisions. Real-time market data is obtained from finans.truncgil.com API.',
-  dataSource: 'Data Source'
+  dataSource: 'Data Source',
+  
+  // Amount update descriptions
+  amountIncreased: 'Amount increased',
+  amountDecreased: 'Amount decreased'
 };

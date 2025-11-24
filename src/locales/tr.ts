@@ -105,5 +105,9 @@ export default {
   financialDisclaimer: 'Finansal Uyarı',
   priceDataInfo: 'Fiyat bilgileri hakkında',
   disclaimerText: 'Bu uygulamada gösterilen fiyatlar sadece bilgilendirme amaçlıdır. Yatırım kararlarınızı vermeden önce profesyonel finansal danışmanlık almanız önerilir. Gerçek zamanlı piyasa verileri finans.truncgil.com API\'sinden alınmaktadır.',
-  dataSource: 'Veri Kaynağı'
+  dataSource: 'Veri Kaynağı',
+  
+  // Amount update descriptions
+  amountIncreased: 'Miktar artırıldı',
+  amountDecreased: 'Miktar azaltıldı'
 };

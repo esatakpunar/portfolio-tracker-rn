@@ -7,7 +7,7 @@ import { PersistGate } from 'redux-persist/integration/react';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { StyleSheet, View, ActivityIndicator } from 'react-native';
 
-import { store, persistor } from './src/store';
+import { store, persistor, AppDispatch } from './src/store';
 import { initializeI18n } from './src/locales';
 import { fetchPrices } from './src/store/portfolioSlice';
 import BottomTabNavigator from './src/navigation/BottomTabNavigator';
@@ -22,7 +22,7 @@ export default function App() {
       try {
         await initializeI18n();
         // loadInitialData is handled by redux-persist now
-        store.dispatch(fetchPrices() as any);
+        (store.dispatch as AppDispatch)(fetchPrices());
         setIsReady(true);
       } catch (error) {
         // Handle initialization error silently in production
@@ -60,14 +60,13 @@ export default function App() {
 }
 
 const AppContent: React.FC = () => {
-  const { toasts, fadeAnim, removeToast } = useToast();
+  const { toasts, removeToast } = useToast();
 
   return (
     <View style={styles.container}>
       <BottomTabNavigator />
       <ToastNotification 
         toasts={toasts} 
-        fadeAnim={fadeAnim} 
         onRemove={removeToast} 
       />
       <StatusBar style="light" />

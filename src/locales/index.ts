@@ -28,7 +28,9 @@ const getInitialLanguage = async (): Promise<string> => {
       return saved;
     }
   } catch (error) {
-    console.log('Error loading saved language:', error);
+    if (__DEV__) {
+      console.log('Error loading saved language:', error);
+    }
   }
 
   const deviceLanguages = getLocales();
@@ -61,7 +63,9 @@ export const saveLanguage = async (languageCode: string) => {
   try {
     await AsyncStorage.setItem(LANGUAGE_KEY, languageCode);
   } catch (error) {
-    console.log('Error saving language:', error);
+    if (__DEV__) {
+      console.log('Error saving language:', error);
+    }
   }
 };
 

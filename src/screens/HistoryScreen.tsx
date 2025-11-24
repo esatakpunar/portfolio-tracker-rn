@@ -11,35 +11,12 @@ import { useAppSelector } from '../hooks/useRedux';
 import { selectHistory } from '../store/portfolioSlice';
 import { colors, spacing, borderRadius, fontSize, fontWeight } from '../theme';
 import { getAssetIcon, getAssetColor } from '../utils/assetUtils';
+import { formatRelativeDate, formatCurrency } from '../utils/formatUtils';
 import { HistoryItem } from '../types';
 
 const HistoryScreen: React.FC = () => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const history = useAppSelector(selectHistory);
-
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    const now = new Date();
-    const diff = now.getTime() - date.getTime();
-    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-    
-    if (days === 0) {
-      return date.toLocaleString('tr-TR', {
-        hour: '2-digit',
-        minute: '2-digit',
-      });
-    } else if (days === 1) {
-      return t('yesterday');
-    } else if (days < 7) {
-      return `${days} ${t('daysAgo')}`;
-    } else {
-      return date.toLocaleString('tr-TR', {
-        day: '2-digit',
-        month: 'short',
-        year: 'numeric',
-      });
-    }
-  };
 
 
   const renderHistoryItem = ({ item }: { item: HistoryItem }) => {
@@ -90,13 +67,12 @@ const HistoryScreen: React.FC = () => {
               styles.historyAmount,
               { color: isAdd ? colors.success : colors.error }
             ]}>
-              {isAdd ? '+' : '−'}{item.item.amount.toLocaleString('tr-TR', {
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2,
-              })}
+              {isAdd ? '+' : '−'}{formatCurrency(item.item.amount, i18n.language)}
             </Text>
           </View>
-          <Text style={styles.historyDate}>{formatDate(item.date)}</Text>
+          <Text style={styles.historyDate}>
+            {formatRelativeDate(item.date, i18n.language, t)}
+          </Text>
         </View>
       </View>
     );
@@ -125,7 +101,7 @@ const HistoryScreen: React.FC = () => {
         <FlatList
           data={history}
           renderItem={renderHistoryItem}
-          keyExtractor={(item, index) => `${item.date}-${index}`}
+          keyExtractor={(item) => item.item.id || `${item.date}-${item.type}-${item.item.type}`}
           contentContainerStyle={styles.listContainer}
           showsVerticalScrollIndicator={false}
         />

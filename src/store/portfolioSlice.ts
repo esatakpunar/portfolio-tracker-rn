@@ -28,15 +28,27 @@ const initialState: PortfolioState = {
   currentLanguage: 'tr'
 };
 
+// Race condition prevention
+let isFetchingPrices = false;
+
 export const fetchPrices = createAsyncThunk(
   'portfolio/fetchPrices',
   async (_, { rejectWithValue }) => {
+    if (isFetchingPrices) {
+      return rejectWithValue('Already fetching prices');
+    }
+    
+    isFetchingPrices = true;
     try {
       const prices = await fetchPricesFromAPI();
       return prices;
     } catch (error) {
-      console.error('Error fetching prices:', error);
+      if (__DEV__) {
+        console.error('Error fetching prices:', error);
+      }
       return rejectWithValue('Failed to fetch prices');
+    } finally {
+      isFetchingPrices = false;
     }
   }
 );
@@ -132,77 +144,29 @@ const portfolioSlice = createSlice({
           type: 'update',
           item: newItem,
           date: new Date().toISOString(),
-          description: description || 'Miktar artırıldı',
+          description: description || undefined, // Description will be set in component level with i18n
           previousAmount: currentTotal
         });
       } else {
         // Removing assets (difference is negative)
+        // Use LIFO (Last In First Out) - remove from the end
         const amountToRemove = Math.abs(difference);
         let remainingToRemove = amountToRemove;
         
-        // Create a new items array to avoid complex in-place splicing issues
-        const newItems: PortfolioItem[] = [];
-        const removedItems: PortfolioItem[] = []; // Track what we removed for history if needed
-        
-        // Keep items that are not of this type
-        state.items.forEach(item => {
-          if (item.type !== type) {
-            newItems.push(item);
-          }
-        });
-        
-        // Process items of this type (oldest first or newest first? usually FIFO or LIFO. 
-        // The previous implementation was iterating backwards (LIFO removal). Let's stick to that for consistency.)
-        // Actually, iterating backwards is good for removing from the end.
-        
-        // Let's sort itemsOfType by date descending (newest first) to remove newest first? 
-        // Or just use the order they are in.
-        // The previous implementation iterated backwards: `for (let i = itemsOfType.length - 1; ...)`
-        
-        const itemsToProcess = [...itemsOfType]; // Copy
-        
-        // We want to remove `remainingToRemove` from `itemsToProcess` starting from the end
-        for (let i = itemsToProcess.length - 1; i >= 0; i--) {
-          const item = itemsToProcess[i];
-          
-          if (remainingToRemove <= 0) {
-            newItems.push(item); // Keep the rest
-            continue;
-          }
-          
-          if (item.amount <= remainingToRemove) {
-            // Remove this entire item
-            remainingToRemove = safeSubtract(remainingToRemove, item.amount);
-            // Don't push to newItems
-          } else {
-            // Partial removal
-            const newAmount = safeSubtract(item.amount, remainingToRemove);
-            remainingToRemove = 0;
-            newItems.push({ ...item, amount: newAmount });
-          }
-        }
-        
-        // Reconstruct state.items. 
-        // Note: The order in newItems might be mixed up because we separated by type.
-        // To preserve order, we should have iterated the main list.
-        // Let's try a safer approach that preserves order.
-        
-        // Reset logic:
-        remainingToRemove = amountToRemove;
-        // We iterate backwards through the main list to find items of this type
+        // Iterate backwards through the main list to find items of this type
         for (let i = state.items.length - 1; i >= 0; i--) {
           const item = state.items[i];
           if (item.type === type && remainingToRemove > 0) {
-             if (item.amount <= remainingToRemove) {
-               // Remove entire item
-               remainingToRemove = safeSubtract(remainingToRemove, item.amount);
-               state.items.splice(i, 1);
-             } else {
-               // Reduce amount
-               const newItemAmount = safeSubtract(item.amount, remainingToRemove);
-               state.items[i].amount = newItemAmount;
-               remainingToRemove = 0;
-             }
+            if (item.amount <= remainingToRemove) {
+              // Remove entire item
+              remainingToRemove = safeSubtract(remainingToRemove, item.amount);
+              state.items.splice(i, 1);
+            } else {
+              // Reduce amount
+              const newItemAmount = safeSubtract(item.amount, remainingToRemove);
+              state.items[i].amount = newItemAmount;
+              remainingToRemove = 0;
+            }
           }
         }
         
@@ -215,7 +179,7 @@ const portfolioSlice = createSlice({
             date: new Date().toISOString() 
           },
           date: new Date().toISOString(),
-          description: description || 'Miktar azaltıldı',
+          description: description || undefined, // Description will be set in component level with i18n
           previousAmount: currentTotal
         });
       }
@@ -234,14 +198,21 @@ const portfolioSlice = createSlice({
       state.history = [];
     },
     
-    setPrices: (state, action: PayloadAction<Prices>) => {
+    setPrices: (state, action: PayloadAction<Partial<Prices>>) => {
+      // Merge strategy: only update provided prices, keep others unchanged
       state.prices = { ...state.prices, ...action.payload };
     }
   },
   extraReducers: (builder) => {
-    builder.addCase(fetchPrices.fulfilled, (state, action) => {
-      state.prices = { ...state.prices, ...action.payload };
-    });
+    builder
+      .addCase(fetchPrices.fulfilled, (state, action) => {
+        // Merge new prices with existing ones
+        state.prices = { ...state.prices, ...action.payload };
+      })
+      .addCase(fetchPrices.rejected, (state) => {
+        // Keep existing prices on error - no state change needed
+        // Error is handled in the component
+      });
   }
 });
 

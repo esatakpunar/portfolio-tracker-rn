@@ -12,9 +12,11 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import { useAppSelector, useAppDispatch } from '../hooks/useRedux';
 import { selectPrices, resetAll, setLanguage, selectLanguage, fetchPrices } from '../store/portfolioSlice';
+import { AppDispatch } from '../store';
 import { colors, spacing, borderRadius, fontSize, fontWeight, shadows } from '../theme';
 import { availableLanguages, saveLanguage } from '../locales';
 import { getAssetIcon, getAssetColor } from '../utils/assetUtils';
+import { formatCurrency } from '../utils/formatUtils';
 import { AssetType } from '../types';
 import { hapticFeedback } from '../utils/haptics';
 
@@ -30,8 +32,13 @@ const SettingsScreen: React.FC = () => {
     hapticFeedback.light();
     setIsRefreshingPrices(true);
     try {
-      await dispatch(fetchPrices() as any);
-      hapticFeedback.success();
+      const result = await (dispatch as AppDispatch)(fetchPrices());
+      if (fetchPrices.fulfilled.match(result)) {
+        hapticFeedback.success();
+      } else {
+        hapticFeedback.error();
+        Alert.alert(t('error'), t('pricesUpdateFailed'));
+      }
     } catch (error) {
       hapticFeedback.error();
       Alert.alert(t('error'), t('pricesUpdateFailed'));
@@ -97,10 +104,7 @@ const SettingsScreen: React.FC = () => {
         ) : (
           <View style={styles.priceValueContainer}>
             <Text style={styles.priceValue}>
-              {value.toLocaleString('tr-TR', {
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2,
-              })}
+              {formatCurrency(value, i18n.language)}
             </Text>
             <Text style={styles.priceCurrency}>₺</Text>
           </View>

@@ -105,5 +105,9 @@ export default {
   financialDisclaimer: 'Finanzielle Haftungsausschluss',
   priceDataInfo: 'Über Preisinformationen',
   disclaimerText: 'Die in dieser App angezeigten Preise dienen nur zu Informationszwecken. Es wird empfohlen, professionelle Finanzberatung einzuholen, bevor Sie Investitionsentscheidungen treffen. Echtzeit-Marktdaten werden von der finans.truncgil.com API bezogen.',
-  dataSource: 'Datenquelle'
+  dataSource: 'Datenquelle',
+  
+  // Amount update descriptions
+  amountIncreased: 'Menge erhöht',
+  amountDecreased: 'Menge verringert'
 };
