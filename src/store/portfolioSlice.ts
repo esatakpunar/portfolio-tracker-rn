@@ -184,11 +184,10 @@ const portfolioSlice = createSlice({
         state.items.push(newItem);
         
         state.history.unshift({
-          type: 'update',
+          type: 'add',
           item: newItem,
           date: new Date().toISOString(),
           description: description || undefined, // Description will be set in component level with i18n
-          previousAmount: currentTotal
         });
       } else {
         // Removing assets (difference is negative)
@@ -214,7 +213,7 @@ const portfolioSlice = createSlice({
         }
         
         state.history.unshift({
-          type: 'update',
+          type: 'remove',
           item: { 
             type, 
             amount: amountToRemove, // Show how much was removed (positive number)
@@ -223,7 +222,6 @@ const portfolioSlice = createSlice({
           },
           date: new Date().toISOString(),
           description: description || undefined, // Description will be set in component level with i18n
-          previousAmount: currentTotal
         });
       }
     },
