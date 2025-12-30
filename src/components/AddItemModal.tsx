@@ -34,7 +34,7 @@ const assetTypes: AssetType[] = [
   'gumus'
 ];
 
-const AddItemModal: React.FC<AddItemModalProps> = ({ visible, onClose, onAdd }) => {
+const AddItemModal: React.FC<AddItemModalProps> = React.memo(({ visible, onClose, onAdd }) => {
   const { t } = useTranslation();
   const [selectedType, setSelectedType] = useState<AssetType>('22_ayar');
   const [amount, setAmount] = useState('');
@@ -227,7 +227,9 @@ const AddItemModal: React.FC<AddItemModalProps> = ({ visible, onClose, onAdd }) 
       </KeyboardAvoidingView>
     </Modal>
   );
-};
+});
+
+AddItemModal.displayName = 'AddItemModal';
 
 const styles = StyleSheet.create({
   modalOverlay: {

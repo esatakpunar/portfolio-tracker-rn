@@ -14,12 +14,11 @@ import { getAssetIcon, getAssetColor } from '../utils/assetUtils';
 import { formatRelativeDate, formatCurrency } from '../utils/formatUtils';
 import { HistoryItem } from '../types';
 
-const HistoryScreen: React.FC = () => {
+const HistoryScreen: React.FC = React.memo(() => {
   const { t, i18n } = useTranslation();
   const history = useAppSelector(selectHistory);
 
-
-  const renderHistoryItem = ({ item }: { item: HistoryItem }) => {
+  const renderHistoryItem = React.useCallback(({ item }: { item: HistoryItem }) => {
     const isAdd = item.type === 'add';
     const assetColor = getAssetColor(item.item.type);
     
@@ -107,11 +106,17 @@ const HistoryScreen: React.FC = () => {
           keyExtractor={(item) => item.item.id || `${item.date}-${item.type}-${item.item.type}`}
           contentContainerStyle={styles.listContainer}
           showsVerticalScrollIndicator={false}
+          removeClippedSubviews={true}
+          maxToRenderPerBatch={10}
+          windowSize={5}
+          initialNumToRender={10}
         />
       )}
     </SafeAreaView>
   );
-};
+});
+
+HistoryScreen.displayName = 'HistoryScreen';
 
 const styles = StyleSheet.create({
   container: {

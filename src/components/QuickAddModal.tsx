@@ -24,7 +24,7 @@ interface QuickAddModalProps {
   currentAmount: number;
 }
 
-const QuickAddModal: React.FC<QuickAddModalProps> = ({
+const QuickAddModal: React.FC<QuickAddModalProps> = React.memo(({
   visible,
   onClose,
   onAdd,
@@ -184,7 +184,9 @@ const QuickAddModal: React.FC<QuickAddModalProps> = ({
       </KeyboardAvoidingView>
     </Modal>
   );
-};
+});
+
+QuickAddModal.displayName = 'QuickAddModal';
 
 const styles = StyleSheet.create({
   modalOverlay: {

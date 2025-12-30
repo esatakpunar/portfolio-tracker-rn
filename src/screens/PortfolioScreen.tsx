@@ -1,4 +1,4 @@
-import React, { useState, useRef, useMemo } from 'react';
+import React, { useState, useRef, useMemo, useCallback } from 'react';
 import {
   View,
   StyleSheet,
@@ -26,7 +26,7 @@ import { formatCurrency } from '../utils/formatUtils';
 const { width } = Dimensions.get('window');
 const CURRENCIES: CurrencyType[] = ['TL', 'USD', 'EUR', 'ALTIN'];
 
-const PortfolioScreen: React.FC = () => {
+const PortfolioScreen: React.FC = React.memo(() => {
   const { t, i18n } = useTranslation();
   const dispatch = useAppDispatch();
   const items = useAppSelector(selectItems);
@@ -75,23 +75,23 @@ const PortfolioScreen: React.FC = () => {
     }, {} as Record<AssetType, PortfolioItem[]>);
   }, [items]);
 
-  const handleAddItem = (type: AssetType, amount: number, description?: string) => {
+  const handleAddItem = useCallback((type: AssetType, amount: number, description?: string) => {
     // Validate inputs
     if (!type || isNaN(amount) || !isFinite(amount) || amount <= 0) {
       return;
     }
     dispatch(addItem({ type, amount, description }));
     hapticFeedback.success();
-  };
+  }, [dispatch]);
 
-  const handleCardPress = (type: AssetType, totalAmount: number) => {
+  const handleCardPress = useCallback((type: AssetType, totalAmount: number) => {
     hapticFeedback.light();
     setSelectedAssetType(type);
     setSelectedAssetAmount(totalAmount);
     setShowQuickAddModal(true);
-  };
+  }, []);
 
-  const handleQuickAdd = (amount: number, description?: string) => {
+  const handleQuickAdd = useCallback((amount: number, description?: string) => {
     if (selectedAssetType) {
       // Validate amount
       if (isNaN(amount) || !isFinite(amount) || amount <= 0) {
@@ -118,32 +118,32 @@ const PortfolioScreen: React.FC = () => {
       hapticFeedback.medium();
       hapticFeedback.success();
     }
-  };
+  }, [selectedAssetType, groupedItems, t, dispatch]);
 
-  const closeAllSwipeables = () => {
+  const closeAllSwipeables = useCallback(() => {
     if (currentlyOpenSwipeable.current) {
       swipeableRefs.current[currentlyOpenSwipeable.current]?.close();
       currentlyOpenSwipeable.current = null;
     }
-  };
+  }, []);
 
-  const handleSwipeableWillOpen = (type: AssetType) => {
+  const handleSwipeableWillOpen = useCallback((type: AssetType) => {
     if (currentlyOpenSwipeable.current && currentlyOpenSwipeable.current !== type) {
       swipeableRefs.current[currentlyOpenSwipeable.current]?.close();
     }
     currentlyOpenSwipeable.current = type;
-  };
+  }, []);
 
-  const handleEditPress = (type: AssetType, totalAmount: number) => {
+  const handleEditPress = useCallback((type: AssetType, totalAmount: number) => {
     hapticFeedback.light();
     setSelectedAssetType(type);
     setSelectedAssetAmount(totalAmount);
     setShowQuickRemoveModal(true);
     swipeableRefs.current[type]?.close();
     currentlyOpenSwipeable.current = null;
-  };
+  }, []);
 
-  const handleQuickRemove = (amountToRemove: number, description?: string) => {
+  const handleQuickRemove = useCallback((amountToRemove: number, description?: string) => {
     if (selectedAssetType) {
       // Validate amountToRemove
       if (isNaN(amountToRemove) || !isFinite(amountToRemove) || amountToRemove <= 0) {
@@ -169,16 +169,16 @@ const PortfolioScreen: React.FC = () => {
       dispatch(updateItemAmount({ type: selectedAssetType, newAmount, description: finalDescription }));
       hapticFeedback.heavy();
     }
-  };
+  }, [selectedAssetType, groupedItems, t, dispatch]);
 
-  const handleDeletePress = (type: AssetType, totalAmount: number) => {
+  const handleDeletePress = useCallback((type: AssetType, totalAmount: number) => {
     hapticFeedback.light();
     setSelectedAssetType(type);
     setSelectedAssetAmount(totalAmount);
     setShowQuickRemoveModal(true);
     swipeableRefs.current[type]?.close();
     currentlyOpenSwipeable.current = null;
-  };
+  }, []);
 
   const getCurrencyIcon = (currency: CurrencyType): string => {
     const icons: Record<CurrencyType, string> = {
@@ -200,7 +200,7 @@ const PortfolioScreen: React.FC = () => {
     return colors_map[currency];
   };
 
-  const renderCurrencySlider = () => {
+  const renderCurrencySlider = useCallback(() => {
     return (
       <View style={styles.sliderContainer}>
         <FlatList
@@ -277,7 +277,7 @@ const PortfolioScreen: React.FC = () => {
         </View>
       </View>
     );
-  };
+  }, [safeTotalValue, safeCurrencyIndex, currentCurrencyIndex, t, i18n.language]);
 
   const getAssetIcon = (type: AssetType) => {
     const iconMap: Record<AssetType, string> = {
@@ -376,7 +376,7 @@ const PortfolioScreen: React.FC = () => {
     return symbols[currency];
   };
 
-  const renderAssetGroup = (type: AssetType, groupItems: PortfolioItem[]) => {
+  const renderAssetGroup = useCallback((type: AssetType, groupItems: PortfolioItem[]) => {
     // Safety check: empty array
     if (!groupItems || groupItems.length === 0) {
       return null;
@@ -451,7 +451,7 @@ const PortfolioScreen: React.FC = () => {
         </TouchableOpacity>
       </SwipeableAssetItem>
     );
-  };
+  }, [prices, currentCurrency, handleEditPress, handleDeletePress, handleSwipeableWillOpen, handleCardPress, t, i18n.language]);
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
@@ -781,5 +781,7 @@ const styles = StyleSheet.create({
     lineHeight: 16,
   },
 });
+
+PortfolioScreen.displayName = 'PortfolioScreen';
 
 export default PortfolioScreen;

@@ -24,7 +24,7 @@ interface QuickRemoveModalProps {
   currentAmount: number;
 }
 
-const QuickRemoveModal: React.FC<QuickRemoveModalProps> = ({
+const QuickRemoveModal: React.FC<QuickRemoveModalProps> = React.memo(({
   visible,
   onClose,
   onRemove,
@@ -215,7 +215,9 @@ const QuickRemoveModal: React.FC<QuickRemoveModalProps> = ({
       </KeyboardAvoidingView>
     </Modal>
   );
-};
+});
+
+QuickRemoveModal.displayName = 'QuickRemoveModal';
 
 const styles = StyleSheet.create({
   modalOverlay: {

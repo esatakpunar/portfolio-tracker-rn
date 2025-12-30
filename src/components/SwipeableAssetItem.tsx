@@ -15,20 +15,21 @@ interface SwipeableItemProps {
   children: React.ReactNode;
 }
 
-const SwipeableAssetItem = forwardRef<Swipeable, SwipeableItemProps>(({
-  item,
-  pricePerUnit,
-  onEdit,
-  onDelete,
-  onSwipeableWillOpen,
-  children,
-}, ref) => {
-  const { t } = useTranslation();
+const SwipeableAssetItem = React.memo(
+  forwardRef<Swipeable, SwipeableItemProps>(({
+    item,
+    pricePerUnit,
+    onEdit,
+    onDelete,
+    onSwipeableWillOpen,
+    children,
+  }, ref) => {
+    const { t } = useTranslation();
 
-  const renderRightActions = (
-    progress: Animated.AnimatedInterpolation<number>,
-    dragX: Animated.AnimatedInterpolation<number>
-  ) => {
+    const renderRightActions = React.useCallback((
+      progress: Animated.AnimatedInterpolation<number>,
+      dragX: Animated.AnimatedInterpolation<number>
+    ) => {
     const opacity = dragX.interpolate({
       inputRange: [-80, -20, 0],
       outputRange: [1, 0.9, 0],
@@ -54,7 +55,7 @@ const SwipeableAssetItem = forwardRef<Swipeable, SwipeableItemProps>(({
         </TouchableOpacity>
       </Animated.View>
     );
-  };
+  }, [onDelete, t]);
 
   return (
     <Swipeable
@@ -68,7 +69,19 @@ const SwipeableAssetItem = forwardRef<Swipeable, SwipeableItemProps>(({
       {children}
     </Swipeable>
   );
-});
+  }),
+  (prevProps, nextProps) => {
+    // Custom comparison: only re-render if item or pricePerUnit changes
+    return (
+      prevProps.item.id === nextProps.item.id &&
+      prevProps.item.amount === nextProps.item.amount &&
+      prevProps.item.type === nextProps.item.type &&
+      prevProps.pricePerUnit === nextProps.pricePerUnit
+    );
+  }
+);
+
+SwipeableAssetItem.displayName = 'SwipeableAssetItem';
 
 const styles = StyleSheet.create({
   rightAction: {

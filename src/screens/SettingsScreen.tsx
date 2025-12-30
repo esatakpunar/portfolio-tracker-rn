@@ -20,7 +20,7 @@ import { formatCurrency } from '../utils/formatUtils';
 import { AssetType } from '../types';
 import { hapticFeedback } from '../utils/haptics';
 
-const SettingsScreen: React.FC = () => {
+const SettingsScreen: React.FC = React.memo(() => {
   const { t, i18n } = useTranslation();
   const dispatch = useAppDispatch();
   const prices = useAppSelector(selectPrices);
@@ -241,7 +241,9 @@ const SettingsScreen: React.FC = () => {
       </ScrollView>
     </SafeAreaView>
   );
-};
+});
+
+SettingsScreen.displayName = 'SettingsScreen';
 
 const styles = StyleSheet.create({
   container: {
