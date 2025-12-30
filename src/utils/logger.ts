@@ -6,6 +6,7 @@
  */
 
 import { captureException, captureMessage } from '../config/sentry';
+import { isDevelopment } from './env';
 
 type LogLevel = 'debug' | 'info' | 'warn' | 'error';
 
@@ -17,9 +18,7 @@ class Logger {
   private isDevelopment: boolean;
 
   constructor() {
-    // __DEV__ React Native'de global olarak tanımlıdır
-    // Güvenli kontrol için typeof kontrolü yapıyoruz
-    this.isDevelopment = typeof __DEV__ !== 'undefined' ? __DEV__ : false;
+    this.isDevelopment = isDevelopment();
   }
 
   /**

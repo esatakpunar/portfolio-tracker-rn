@@ -7,6 +7,7 @@
 
 import * as Sentry from '@sentry/react-native';
 import { logger } from '../utils/logger';
+import { isDevelopment } from '../utils/env';
 
 const SENTRY_DSN = process.env.EXPO_PUBLIC_SENTRY_DSN || '';
 
@@ -15,7 +16,7 @@ const SENTRY_DSN = process.env.EXPO_PUBLIC_SENTRY_DSN || '';
  * Sadece production'da ve DSN varsa aktif
  */
 export const initializeSentry = () => {
-  const isDev = typeof __DEV__ !== 'undefined' ? __DEV__ : false;
+  const isDev = isDevelopment();
   
   // Development'ta Sentry'yi disable edebiliriz (optional)
   if (isDev && !process.env.EXPO_PUBLIC_ENABLE_SENTRY_IN_DEV) {

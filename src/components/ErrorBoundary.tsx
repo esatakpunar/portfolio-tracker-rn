@@ -4,6 +4,7 @@ import { Text } from './Text';
 import { colors, spacing, borderRadius, fontSize, fontWeight } from '../theme';
 import { logger } from '../utils/logger';
 import { captureException } from '../config/sentry';
+import { isDevelopment } from '../utils/env';
 
 interface Props {
   children: ReactNode;
@@ -61,7 +62,7 @@ class ErrorBoundary extends Component<Props, State> {
             <Text style={styles.emoji}>⚠️</Text>
             <Text style={styles.title}>Something went wrong</Text>
             <Text style={styles.message}>
-              {(typeof __DEV__ !== 'undefined' ? __DEV__ : false) && this.state.error
+              {isDevelopment() && this.state.error
                 ? this.state.error.message
                 : 'An unexpected error occurred. Please restart the app.'}
             </Text>
