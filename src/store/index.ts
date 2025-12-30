@@ -4,6 +4,7 @@ import portfolioReducer, { initialState } from './portfolioSlice';
 import { logger } from '../utils/logger';
 import { secureStorage, migrateToSecureStorage } from './secureStorage';
 import { migrateState, validateState } from './migrations';
+import { raceConditionMiddleware } from './middleware/raceConditionMiddleware';
 
 const CURRENT_VERSION = 1; // State structure değişikliklerinde artırılmalı
 
@@ -87,7 +88,7 @@ export const store = configureStore({
       serializableCheck: {
         ignoredActions: [FLUSH, REHYDRATE, PAUSE, PERSIST, PURGE, REGISTER],
       },
-    }),
+    }).concat(raceConditionMiddleware),
 });
 
 export const persistor = persistStore(store);
