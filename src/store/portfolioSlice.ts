@@ -1,8 +1,9 @@
-import { createSlice, PayloadAction, createAsyncThunk } from '@reduxjs/toolkit';
+import { createSlice, PayloadAction, createAsyncThunk, createSelector } from '@reduxjs/toolkit';
 import { PortfolioItem, HistoryItem, Prices, AssetType, CurrencyType } from '../types';
 import { fetchPrices as fetchPricesFromAPI, getDefaultPrices } from '../services/priceService';
 import { safeAdd, safeSubtract } from '../utils/numberUtils';
 import { logger } from '../utils/logger';
+import { RootState } from './index';
 
 interface PortfolioState {
   items: PortfolioItem[];
@@ -294,52 +295,112 @@ export const {
   setPrices
 } = portfolioSlice.actions;
 
-export const selectItems = (state: { portfolio: PortfolioState }) => state.portfolio.items;
-export const selectPrices = (state: { portfolio: PortfolioState }) => state.portfolio.prices;
-export const selectHistory = (state: { portfolio: PortfolioState }) => state.portfolio.history;
-export const selectLanguage = (state: { portfolio: PortfolioState }) => state.portfolio.currentLanguage;
+// ═══════════════════════════════════════════════════════════════
+// BASE SELECTORS - Memoization için base selector'lar
+// ═══════════════════════════════════════════════════════════════
 
-export const selectTotalTL = (state: { portfolio: PortfolioState }) => {
-  if (!state.portfolio?.items || state.portfolio.items.length === 0) {
-    return 0;
-  }
-  return state.portfolio.items.reduce((sum, item) => {
-    if (!item || !item.type || isNaN(item.amount)) {
-      return sum;
-    }
-    return sum + getItemValueInTL(item, state.portfolio.prices);
-  }, 0);
-};
+/**
+ * Base selector'lar - State'in direkt slice'larını döndürür
+ * Bu selector'lar memoization için kullanılacak
+ */
+const selectPortfolioState = (state: RootState) => state.portfolio;
 
-export const selectTotalIn = (currency: CurrencyType) => (state: { portfolio: PortfolioState }) => {
-  if (!state.portfolio?.items || state.portfolio.items.length === 0) {
-    return 0;
-  }
-  
-  const gramEquivalents: Record<string, number> = {
-    'ceyrek': 1.75,
-    'tam': 7,
-    '22_ayar': 1,
-    '24_ayar': 1,
-  };
-  
-  return state.portfolio.items.reduce((sum, item) => {
-    if (!item || !item.type || isNaN(item.amount) || !isFinite(item.amount)) {
-      return sum;
+export const selectItems = createSelector(
+  [selectPortfolioState],
+  (portfolio) => portfolio.items
+);
+
+export const selectPrices = createSelector(
+  [selectPortfolioState],
+  (portfolio) => portfolio.prices
+);
+
+export const selectHistory = createSelector(
+  [selectPortfolioState],
+  (portfolio) => portfolio.history
+);
+
+export const selectLanguage = createSelector(
+  [selectPortfolioState],
+  (portfolio) => portfolio.currentLanguage
+);
+
+// ═══════════════════════════════════════════════════════════════
+// COMPUTED SELECTORS - Memoized computed selector'lar
+// ═══════════════════════════════════════════════════════════════
+
+/**
+ * Total TL value selector - Memoized
+ * Items veya prices değişmediği sürece cache'den döner
+ */
+export const selectTotalTL = createSelector(
+  [selectItems, selectPrices],
+  (items, prices) => {
+    if (!items || items.length === 0) {
+      return 0;
     }
-    
-    if (currency === 'ALTIN' && gramEquivalents[item.type]) {
-      return sum + (item.amount * gramEquivalents[item.type]);
-    } else {
-      const valueTL = getItemValueInTL(item, state.portfolio.prices);
-      const convertedValue = convertFromTL(valueTL, currency, state.portfolio.prices);
-      // Check for NaN or Infinity
-      if (isNaN(convertedValue) || !isFinite(convertedValue)) {
+    return items.reduce((sum, item) => {
+      if (!item || !item.type || isNaN(item.amount)) {
         return sum;
       }
-      return sum + convertedValue;
-    }
-  }, 0);
+      return sum + getItemValueInTL(item, prices);
+    }, 0);
+  }
+);
+
+/**
+ * Total in currency selector - Parametreli memoized selector
+ * Items veya prices değişmediği sürece cache'den döner
+ * Currency parametresi için factory function pattern kullanıyoruz
+ */
+const selectTotalInBase = createSelector(
+  [selectItems, selectPrices],
+  (items, prices) => {
+    // Base computation - currency'ye göre total hesapla
+    // Bu fonksiyon currency parametresi alan bir fonksiyon döndürür
+    return (currency: CurrencyType): number => {
+      if (!items || items.length === 0) {
+        return 0;
+      }
+      
+      const gramEquivalents: Record<string, number> = {
+        'ceyrek': 1.75,
+        'tam': 7,
+        '22_ayar': 1,
+        '24_ayar': 1,
+      };
+      
+      return items.reduce((sum, item) => {
+        if (!item || !item.type || isNaN(item.amount) || !isFinite(item.amount)) {
+          return sum;
+        }
+        
+        if (currency === 'ALTIN' && gramEquivalents[item.type]) {
+          return sum + (item.amount * gramEquivalents[item.type]);
+        } else {
+          const valueTL = getItemValueInTL(item, prices);
+          const convertedValue = convertFromTL(valueTL, currency, prices);
+          // Check for NaN or Infinity
+          if (isNaN(convertedValue) || !isFinite(convertedValue)) {
+            return sum;
+          }
+          return sum + convertedValue;
+        }
+      }, 0);
+    };
+  }
+);
+
+/**
+ * Parametreli selector factory
+ * Currency parametresi ile total değeri döndürür
+ * Memoization: items ve prices değişmediği sürece aynı fonksiyon döner
+ */
+export const selectTotalIn = (currency: CurrencyType) => {
+  return (state: RootState) => {
+    const totalInBase = selectTotalInBase(state);
+    return totalInBase(currency);
+  };
 };
 
 export default portfolioSlice.reducer;

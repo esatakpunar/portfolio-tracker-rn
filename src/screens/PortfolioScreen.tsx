@@ -49,7 +49,13 @@ const PortfolioScreen: React.FC = () => {
   }, [currentCurrencyIndex]);
   
   const currentCurrency = CURRENCIES[safeCurrencyIndex] || CURRENCIES[0];
-  const totalValue = useAppSelector(selectTotalIn(currentCurrency));
+  
+  // Memoize selector to prevent recreation on every render
+  const selectTotalInCurrency = useMemo(
+    () => selectTotalIn(currentCurrency),
+    [currentCurrency]
+  );
+  const totalValue = useAppSelector(selectTotalInCurrency);
   
   // Validate totalValue
   const safeTotalValue = useMemo(() => {
