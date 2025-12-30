@@ -16,6 +16,7 @@ import ToastNotification from './src/components/ToastNotification';
 import ErrorBoundary from './src/components/ErrorBoundary';
 import { initializeSentry } from './src/config/sentry';
 import { logger } from './src/utils/logger';
+import { migrateToSecureStorage } from './src/store/secureStorage';
 
 export default function App() {
   const [isReady, setIsReady] = useState(false);
@@ -29,6 +30,9 @@ export default function App() {
   useEffect(() => {
     const initialize = async () => {
       try {
+        // Migrate data from AsyncStorage to SecureStore (if needed)
+        await migrateToSecureStorage();
+        
         await initializeI18n();
         setIsReady(true);
       } catch (error) {

@@ -1,12 +1,12 @@
 import { configureStore } from '@reduxjs/toolkit';
 import { persistStore, persistReducer, FLUSH, REHYDRATE, PAUSE, PERSIST, PURGE, REGISTER } from 'redux-persist';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import portfolioReducer, { initialState } from './portfolioSlice';
 import { logger } from '../utils/logger';
+import { secureStorage, migrateToSecureStorage } from './secureStorage';
 
 const persistConfig = {
   key: 'root',
-  storage: AsyncStorage,
+  storage: secureStorage, // Secure storage kullan (encrypted)
   whitelist: ['portfolio'], // Only persist portfolio slice
   version: 1, // Version kontrolü - state structure değişikliklerinde artırılmalı
   migrate: (state: any) => {
