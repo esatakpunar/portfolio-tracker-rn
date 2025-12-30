@@ -16,6 +16,8 @@ export interface ApiConfig {
   timeout: number;
   retryAttempts: number;
   retryDelay: number;
+  cacheTTL: number; // Cache time to live in milliseconds
+  cacheStaleThreshold: number; // Cache stale threshold in milliseconds (for stale-while-revalidate)
 }
 
 /**
@@ -83,6 +85,34 @@ const getRetryDelay = (): number => {
 };
 
 /**
+ * Get cache TTL from environment
+ */
+const getCacheTTL = (): number => {
+  const envTTL = process.env.EXPO_PUBLIC_API_CACHE_TTL;
+  if (envTTL) {
+    const parsed = parseInt(envTTL, 10);
+    if (!isNaN(parsed) && parsed > 0) {
+      return parsed;
+    }
+  }
+  return 5 * 60 * 1000; // Default 5 minutes
+};
+
+/**
+ * Get cache stale threshold from environment
+ */
+const getCacheStaleThreshold = (): number => {
+  const envThreshold = process.env.EXPO_PUBLIC_API_CACHE_STALE_THRESHOLD;
+  if (envThreshold) {
+    const parsed = parseInt(envThreshold, 10);
+    if (!isNaN(parsed) && parsed > 0) {
+      return parsed;
+    }
+  }
+  return 2 * 60 * 1000; // Default 2 minutes (cache is stale after 2 minutes)
+};
+
+/**
  * API Configuration
  * Environment variables'den veya default değerlerden oluşturulur
  */
@@ -91,6 +121,8 @@ export const apiConfig: ApiConfig = {
   timeout: getApiTimeout(),
   retryAttempts: getRetryAttempts(),
   retryDelay: getRetryDelay(),
+  cacheTTL: getCacheTTL(),
+  cacheStaleThreshold: getCacheStaleThreshold(),
 };
 
 /**
@@ -111,6 +143,8 @@ if (isDevelopment()) {
     timeout: apiConfig.timeout,
     retryAttempts: apiConfig.retryAttempts,
     retryDelay: apiConfig.retryDelay,
+    cacheTTL: apiConfig.cacheTTL,
+    cacheStaleThreshold: apiConfig.cacheStaleThreshold,
   });
 }
 

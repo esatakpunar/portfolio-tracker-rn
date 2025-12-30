@@ -4,6 +4,7 @@ import { logger } from '../utils/logger';
 import { safeValidateApiResponse, safeValidatePrices } from '../schemas';
 import { getApiUrl, apiConfig } from '../config/api';
 import { retry } from '../utils/retry';
+import { getCachedData, setCachedData, isCached, getCacheAge } from './cacheService';
 
 const DEFAULT_PRICES: Prices = {
   '22_ayar': 2300,
@@ -54,9 +55,14 @@ const parsePrice = (value: string | number | null | undefined, fallback: number)
 };
 
 /**
- * Fetch prices from API with retry mechanism
+ * Cache key for prices
  */
-export const fetchPrices = async (currentPrices?: Prices): Promise<Prices> => {
+const PRICES_CACHE_KEY = 'prices';
+
+/**
+ * Fetch fresh prices from API (internal function)
+ */
+const fetchFreshPrices = async (currentPrices?: Prices): Promise<Prices> => {
   const API_URL = getApiUrl('today.json');
   
   try {
@@ -168,6 +174,76 @@ export const fetchPrices = async (currentPrices?: Prices): Promise<Prices> => {
     logger.warn('[PRICE_SERVICE] API hata - Mock data kullanılıyor (sadece ilk açılış, persist edilmeyecek)');
     return DEFAULT_PRICES;
   }
+};
+
+/**
+ * Fetch prices from API with caching and stale-while-revalidate pattern
+ * 
+ * Strategy:
+ * 1. Check cache first
+ * 2. If cache exists and is fresh, return cached data immediately
+ * 3. If cache exists but is stale, return stale data immediately and fetch fresh data in background
+ * 4. If no cache, fetch fresh data
+ * 
+ * @param currentPrices Current prices from Redux state (used as fallback)
+ * @returns Promise<Prices> - Fresh or cached prices
+ */
+export const fetchPrices = async (currentPrices?: Prices): Promise<Prices> => {
+  // Check cache first
+  const cached = getCachedData<Prices>(PRICES_CACHE_KEY);
+  
+  if (cached) {
+    // Cache exists - check if it's stale
+    const cacheAge = getCacheAge(PRICES_CACHE_KEY);
+    const isStale = cacheAge !== null && cacheAge > apiConfig.cacheStaleThreshold;
+    
+    if (!isStale) {
+      // Cache is fresh - return immediately
+      logger.debug('[PRICE_SERVICE] Using fresh cache', { cacheAge });
+      return cached;
+    }
+    
+    // Cache is stale - return stale data immediately and fetch fresh in background
+    logger.debug('[PRICE_SERVICE] Using stale cache, fetching fresh data in background', { cacheAge });
+    
+    // Fetch fresh data in background (don't await)
+    fetchFreshPrices(currentPrices)
+      .then((freshPrices) => {
+        // Validate fresh prices before caching
+        const validation = safeValidatePrices(freshPrices);
+        if (validation.success) {
+          // Don't cache mock data
+          const isMockData = JSON.stringify(freshPrices) === JSON.stringify(DEFAULT_PRICES);
+          if (!isMockData) {
+            setCachedData(PRICES_CACHE_KEY, freshPrices, apiConfig.cacheTTL);
+            logger.debug('[PRICE_SERVICE] Fresh data cached in background');
+          }
+        }
+      })
+      .catch((error) => {
+        // Ignore background fetch errors - we already have stale data
+        logger.debug('[PRICE_SERVICE] Background fetch failed, using stale cache', { error });
+      });
+    
+    // Return stale data immediately
+    return cached;
+  }
+  
+  // No cache - fetch fresh data
+  logger.debug('[PRICE_SERVICE] No cache, fetching fresh data');
+  const freshPrices = await fetchFreshPrices(currentPrices);
+  
+  // Cache fresh data (if not mock)
+  const validation = safeValidatePrices(freshPrices);
+  if (validation.success) {
+    const isMockData = JSON.stringify(freshPrices) === JSON.stringify(DEFAULT_PRICES);
+    if (!isMockData) {
+      setCachedData(PRICES_CACHE_KEY, freshPrices, apiConfig.cacheTTL);
+      logger.debug('[PRICE_SERVICE] Fresh data cached');
+    }
+  }
+  
+  return freshPrices;
 };
 
 export const getDefaultPrices = (): Prices => DEFAULT_PRICES;
