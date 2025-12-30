@@ -96,6 +96,8 @@ export default {
   loading: 'Yükleniyor...',
   error: 'Hata oluştu',
   success: 'Başarılı',
+  somethingWentWrong: 'Bir şeyler yanlış gitti',
+  tryAgain: 'Tekrar Dene',
   
   currentMarketPrices: 'Güncel piyasa fiyatları',
   dangerZone: 'Tehlikeli Bölge',

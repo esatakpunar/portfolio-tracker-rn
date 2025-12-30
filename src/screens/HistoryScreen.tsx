@@ -7,6 +7,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import { Text } from '../components/Text';
+import EmptyState from '../components/EmptyState';
 import { useAppSelector } from '../hooks/useRedux';
 import { selectHistory } from '../store/portfolioSlice';
 import { colors, spacing, borderRadius, fontSize, fontWeight } from '../theme';
@@ -90,15 +91,11 @@ const HistoryScreen: React.FC = React.memo(() => {
       </View>
 
       {history.length === 0 ? (
-        <View style={styles.emptyState}>
-          <View style={styles.emptyIconContainer}>
-            <Text style={styles.emptyIcon}>📋</Text>
-          </View>
-          <Text style={styles.emptyStateTitle}>{t('noHistory')}</Text>
-          <Text style={styles.emptyStateSubtitle}>
-            {t('noHistorySubtitle')}
-          </Text>
-        </View>
+        <EmptyState
+          icon="📋"
+          title={t('noHistory')}
+          subtitle={t('noHistorySubtitle')}
+        />
       ) : (
         <FlatList
           data={history}
