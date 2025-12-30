@@ -434,6 +434,10 @@ const PortfolioScreen: React.FC = React.memo(() => {
           style={styles.assetCard}
           activeOpacity={0.7}
           onPress={() => handleCardPress(type, totalAmount)}
+          accessible={true}
+          accessibilityRole="button"
+          accessibilityLabel={t(`assetTypes.${type}`)}
+          accessibilityHint={t('tapToViewDetails') || `${t('total')}: ${formatCurrency(convertedValue, i18n.language)} ${currencySymbol}`}
         >
           <View style={[styles.assetIcon, getAssetIconStyle(type)]}>
             <Text style={styles.assetIconText}>{getAssetIcon(type)}</Text>

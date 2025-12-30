@@ -48,6 +48,10 @@ const SwipeableAssetItem = React.memo(
           style={styles.deleteButton}
           onPress={onDelete}
           activeOpacity={0.8}
+          accessible={true}
+          accessibilityRole="button"
+          accessibilityLabel={t('delete')}
+          accessibilityHint={t('swipeToDelete') || t('deleteItem')}
         >
           <Animated.View style={{ transform: [{ scale }] }}>
             <Text style={styles.deleteText}>{t('delete')}</Text>
