@@ -3,6 +3,7 @@ import { View, StyleSheet, TouchableOpacity } from 'react-native';
 import { Text } from './Text';
 import { colors, spacing, borderRadius, fontSize, fontWeight } from '../theme';
 import { logger } from '../utils/logger';
+import { captureException } from '../config/sentry';
 
 interface Props {
   children: ReactNode;
@@ -32,6 +33,11 @@ class ErrorBoundary extends Component<Props, State> {
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     logger.error('ErrorBoundary caught an error', error, {
+      componentStack: errorInfo.componentStack,
+    });
+    
+    // Sentry'ye error gönder
+    captureException(error, {
       componentStack: errorInfo.componentStack,
     });
   }

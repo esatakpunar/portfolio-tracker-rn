@@ -5,6 +5,8 @@
  * Development'ta console'a yazar
  */
 
+import { captureException, captureMessage } from '../config/sentry';
+
 type LogLevel = 'debug' | 'info' | 'warn' | 'error';
 
 interface LogContext {
@@ -37,13 +39,13 @@ class Logger {
   }
 
   /**
-   * Warning log - development'ta console, production'da Sentry (optional)
+   * Warning log - development'ta console, production'da Sentry
    */
   warn(message: string, context?: LogContext): void {
     if (this.isDevelopment) {
       console.warn(`[WARN] ${message}`, context || '');
     } else {
-      // Production'da Sentry'ye gönder (Sentry kurulduktan sonra aktif olacak)
+      // Production'da Sentry'ye gönder
       this.sendToSentry('warning', message, context);
     }
   }
@@ -56,25 +58,20 @@ class Logger {
       console.error(`[ERROR] ${message}`, error || '', context || '');
     } else {
       // Production'da Sentry'ye gönder
-      this.sendToSentry('error', message, { error, ...context });
+      if (error instanceof Error) {
+        captureException(error, { message, ...context });
+      } else {
+        this.sendToSentry('error', message, { error, ...context });
+      }
     }
   }
 
   /**
-   * Sentry'ye error gönder (Sentry kurulduktan sonra implement edilecek)
+   * Sentry'ye error gönder
    */
   private sendToSentry(level: LogLevel, message: string, context?: LogContext): void {
-    // Sentry integration Issue #4'te eklenecek
-    // Şimdilik placeholder
     try {
-      // @ts-ignore - Sentry henüz kurulmadı
-      if (typeof Sentry !== 'undefined') {
-        // @ts-ignore
-        Sentry.captureMessage(message, {
-          level,
-          extra: context,
-        });
-      }
+      captureMessage(message, level as any, context);
     } catch (e) {
       // Sentry yoksa sessizce geç
     }

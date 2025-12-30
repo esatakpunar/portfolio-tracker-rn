@@ -14,10 +14,17 @@ import BottomTabNavigator from './src/navigation/BottomTabNavigator';
 import { useToast } from './src/hooks/useToast';
 import ToastNotification from './src/components/ToastNotification';
 import ErrorBoundary from './src/components/ErrorBoundary';
+import { initializeSentry } from './src/config/sentry';
+import { logger } from './src/utils/logger';
 
 export default function App() {
   const [isReady, setIsReady] = useState(false);
   const [isRehydrated, setIsRehydrated] = useState(false);
+
+  // Initialize Sentry on app start
+  useEffect(() => {
+    initializeSentry();
+  }, []);
 
   useEffect(() => {
     const initialize = async () => {
@@ -26,9 +33,7 @@ export default function App() {
         setIsReady(true);
       } catch (error) {
         // Handle initialization error silently in production
-        if (__DEV__) {
-          console.error('Error initializing app:', error);
-        }
+        logger.error('Error initializing app', error);
         setIsReady(true);
       }
     };
@@ -39,9 +44,7 @@ export default function App() {
   // Rehydrate tamamlandıktan sonra fetchPrices çağır
   useEffect(() => {
     if (isRehydrated && isReady) {
-      if (__DEV__) {
-        console.log('[APP] Rehydrate tamamlandı, fetchPrices çağrılıyor');
-      }
+      logger.debug('[APP] Rehydrate tamamlandı, fetchPrices çağrılıyor');
       (store.dispatch as AppDispatch)(fetchPrices());
     }
   }, [isRehydrated, isReady]);
@@ -62,9 +65,7 @@ export default function App() {
             loading={<ActivityIndicator size="large" color="#A78BFA" />}
             persistor={persistor}
             onBeforeLift={() => {
-              if (__DEV__) {
-                console.log('[APP] PersistGate onBeforeLift - Rehydrate tamamlandı');
-              }
+              logger.debug('[APP] PersistGate onBeforeLift - Rehydrate tamamlandı');
               setIsRehydrated(true);
             }}
           >

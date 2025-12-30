@@ -2052,6 +2052,110 @@
     component-type "^1.2.1"
     join-component "^1.1.0"
 
+"@sentry-internal/browser-utils@10.30.0":
+  version "10.30.0"
+  resolved "https://registry.npmjs.org/@sentry-internal/browser-utils/-/browser-utils-10.30.0.tgz"
+  integrity sha512-dVsHTUbvgaLNetWAQC6yJFnmgD0xUbVgCkmzNB7S28wIP570GcZ4cxFGPOkXbPx6dEBUfoOREeXzLqjJLtJPfg==
+  dependencies:
+    "@sentry/core" "10.30.0"
+
+"@sentry-internal/feedback@10.30.0":
+  version "10.30.0"
+  resolved "https://registry.npmjs.org/@sentry-internal/feedback/-/feedback-10.30.0.tgz"
+  integrity sha512-+bnQZ6SNF265nTXrRlXTmq5Ila1fRfraDOAahlOT/VM4j6zqCvNZzmeDD9J6IbxiAdhlp/YOkrG3zbr5vgYo0A==
+  dependencies:
+    "@sentry/core" "10.30.0"
+
+"@sentry-internal/replay-canvas@10.30.0":
+  version "10.30.0"
+  resolved "https://registry.npmjs.org/@sentry-internal/replay-canvas/-/replay-canvas-10.30.0.tgz"
+  integrity sha512-RIlIz+XQ4DUWaN60CjfmicJq2O2JRtDKM5lw0wB++M5ha0TBh6rv+Ojf6BDgiV3LOQ7lZvCM57xhmNUtrGmelg==
+  dependencies:
+    "@sentry-internal/replay" "10.30.0"
+    "@sentry/core" "10.30.0"
+
+"@sentry-internal/replay@10.30.0":
+  version "10.30.0"
+  resolved "https://registry.npmjs.org/@sentry-internal/replay/-/replay-10.30.0.tgz"
+  integrity sha512-Pj/fMIZQkXzIw6YWpxKWUE5+GXffKq6CgXwHszVB39al1wYz1gTIrTqJqt31IBLIihfCy8XxYddglR2EW0BVIQ==
+  dependencies:
+    "@sentry-internal/browser-utils" "10.30.0"
+    "@sentry/core" "10.30.0"
+
+"@sentry/babel-plugin-component-annotate@4.6.1":
+  version "4.6.1"
+  resolved "https://registry.npmjs.org/@sentry/babel-plugin-component-annotate/-/babel-plugin-component-annotate-4.6.1.tgz"
+  integrity sha512-aSIk0vgBqv7PhX6/Eov+vlI4puCE0bRXzUG5HdCsHBpAfeMkI8Hva6kSOusnzKqs8bf04hU7s3Sf0XxGTj/1AA==
+
+"@sentry/browser@10.30.0":
+  version "10.30.0"
+  resolved "https://registry.npmjs.org/@sentry/browser/-/browser-10.30.0.tgz"
+  integrity sha512-7M/IJUMLo0iCMLNxDV/OHTPI0WKyluxhCcxXJn7nrCcolu8A1aq9R8XjKxm0oTCO8ht5pz8bhGXUnYJj4eoEBA==
+  dependencies:
+    "@sentry-internal/browser-utils" "10.30.0"
+    "@sentry-internal/feedback" "10.30.0"
+    "@sentry-internal/replay" "10.30.0"
+    "@sentry-internal/replay-canvas" "10.30.0"
+    "@sentry/core" "10.30.0"
+
+"@sentry/cli-darwin@2.58.4":
+  version "2.58.4"
+  resolved "https://registry.npmjs.org/@sentry/cli-darwin/-/cli-darwin-2.58.4.tgz"
+  integrity sha512-kbTD+P4X8O+nsNwPxCywtj3q22ecyRHWff98rdcmtRrvwz8CKi/T4Jxn/fnn2i4VEchy08OWBuZAqaA5Kh2hRQ==
+
+"@sentry/cli@2.58.4":
+  version "2.58.4"
+  resolved "https://registry.npmjs.org/@sentry/cli/-/cli-2.58.4.tgz"
+  integrity sha512-ArDrpuS8JtDYEvwGleVE+FgR+qHaOp77IgdGSacz6SZy6Lv90uX0Nu4UrHCQJz8/xwIcNxSqnN22lq0dH4IqTg==
+  dependencies:
+    https-proxy-agent "^5.0.0"
+    node-fetch "^2.6.7"
+    progress "^2.0.3"
+    proxy-from-env "^1.1.0"
+    which "^2.0.2"
+  optionalDependencies:
+    "@sentry/cli-darwin" "2.58.4"
+    "@sentry/cli-linux-arm" "2.58.4"
+    "@sentry/cli-linux-arm64" "2.58.4"
+    "@sentry/cli-linux-i686" "2.58.4"
+    "@sentry/cli-linux-x64" "2.58.4"
+    "@sentry/cli-win32-arm64" "2.58.4"
+    "@sentry/cli-win32-i686" "2.58.4"
+    "@sentry/cli-win32-x64" "2.58.4"
+
+"@sentry/core@10.30.0":
+  version "10.30.0"
+  resolved "https://registry.npmjs.org/@sentry/core/-/core-10.30.0.tgz"
+  integrity sha512-IfNuqIoGVO9pwphwbOptAEJJI1SCAfewS5LBU1iL7hjPBHYAnE8tCVzyZN+pooEkQQ47Q4rGanaG1xY8mjTT1A==
+
+"@sentry/react-native@^7.8.0":
+  version "7.8.0"
+  resolved "https://registry.npmjs.org/@sentry/react-native/-/react-native-7.8.0.tgz"
+  integrity sha512-0YMD0ObuGPbJVfHCBaYTfmRtS7tUd64W2GMNPA3b6rGlVlMQlL7bfdkCUouVBZzFDJYLV8ik1PzJKPWunKHCvw==
+  dependencies:
+    "@sentry/babel-plugin-component-annotate" "4.6.1"
+    "@sentry/browser" "10.30.0"
+    "@sentry/cli" "2.58.4"
+    "@sentry/core" "10.30.0"
+    "@sentry/react" "10.30.0"
+    "@sentry/types" "10.30.0"
+
+"@sentry/react@10.30.0":
+  version "10.30.0"
+  resolved "https://registry.npmjs.org/@sentry/react/-/react-10.30.0.tgz"
+  integrity sha512-3co0QwAU9VrCVBWgpRf/4G19MwzR+DM0sDe9tgN7P3pv/tMlEHhnPFv88nPfuSa2W8uVCpHehvV+GnUPF4V7Ag==
+  dependencies:
+    "@sentry/browser" "10.30.0"
+    "@sentry/core" "10.30.0"
+    hoist-non-react-statics "^3.3.2"
+
+"@sentry/types@10.30.0":
+  version "10.30.0"
+  resolved "https://registry.npmjs.org/@sentry/types/-/types-10.30.0.tgz"
+  integrity sha512-tSyzG/JunWjbuQDDwP3DKgt8KP23ZSuNUEudMSv2jCF/956o8ksamPeidCTSVMXoEyTt5tvimWNeNvUFIFq3EA==
+  dependencies:
+    "@sentry/core" "10.30.0"
+
 "@shopify/react-native-skia@>=1.2.3":
   version "2.3.0"
   resolved "https://registry.npmjs.org/@shopify/react-native-skia/-/react-native-skia-2.3.0.tgz"
@@ -3799,7 +3903,7 @@ expo-updates-interface@~2.0.0:
   resolved "https://registry.npmjs.org/expo-updates-interface/-/expo-updates-interface-2.0.0.tgz"
   integrity sha512-pTzAIufEZdVPKql6iMi5ylVSPqV1qbEopz9G6TSECQmnNde2nwq42PxdFBaUEd8IZJ/fdJLQnOT3m6+XJ5s7jg==
 
-expo@*, expo@54.0.17:
+expo@*, expo@>=49.0.0, expo@54.0.17:
   version "54.0.17"
   resolved "https://registry.npmjs.org/expo/-/expo-54.0.17.tgz"
   integrity sha512-MLIobliRuHxFSXGxn8J77dbV9lkYpQQYJF4I6VF5QcvSNMHmLu74s34G4zX7YFoLOdnPXlyomBSRsghqY5OQJA==
@@ -4266,7 +4370,7 @@ hermes-parser@0.32.0:
   dependencies:
     hermes-estree "0.32.0"
 
-hoist-non-react-statics@^3.3.0:
+hoist-non-react-statics@^3.3.0, hoist-non-react-statics@^3.3.2:
   version "3.3.2"
   resolved "https://registry.npmjs.org/hoist-non-react-statics/-/hoist-non-react-statics-3.3.2.tgz"
   integrity sha512-/gGivxi8JPKWNm/W0jSmzcMPpfpPLc3dY/6GxhX2hQ9iGj3aDfklV4ET7NjKpSinLpJ5vafa9iiGIEZg10SfBw==
@@ -4309,6 +4413,14 @@ http-errors@2.0.0:
     setprototypeof "1.2.0"
     statuses "2.0.1"
     toidentifier "1.0.1"
+
+https-proxy-agent@^5.0.0:
+  version "5.0.1"
+  resolved "https://registry.npmjs.org/https-proxy-agent/-/https-proxy-agent-5.0.1.tgz"
+  integrity sha512-dFcAjpTQFgoLMzC2VwU+C/CbS7uRL0lWmxDITmqm7C+7F0Odmj6s9l6alZc6AELXhrnggM2CeWSXHGOdX2YtwA==
+  dependencies:
+    agent-base "6"
+    debug "4"
 
 https-proxy-agent@^7.0.5:
   version "7.0.6"
@@ -5577,7 +5689,7 @@ nested-error-stacks@~2.0.1:
   resolved "https://registry.npmjs.org/nested-error-stacks/-/nested-error-stacks-2.0.1.tgz"
   integrity sha512-SrQrok4CATudVzBS7coSz26QRSmlK9TzzoFbeKfcPBUFPjcQM9Rqvr/DlJkOrwI/0KcgvMub1n1g5Jt9EgRn4A==
 
-node-fetch@^2.6.1, node-fetch@2.6.7:
+node-fetch@^2.6.1, node-fetch@^2.6.7, node-fetch@2.6.7:
   version "2.6.7"
   resolved "https://registry.npmjs.org/node-fetch/-/node-fetch-2.6.7.tgz"
   integrity sha512-ZjMPFEfVx5j+y2yF35Kzx5sF7kDzxuDj6ziH4FFbOp87zKDZNx8yExJIb05OGF4Nlt9IHFIMBkRl41VdvcNdbQ==
@@ -6130,7 +6242,7 @@ react-native-worklets@>=0.5.0:
     convert-source-map "^2.0.0"
     semver "7.7.2"
 
-react-native@*, "react-native@^0.0.0-0 || >=0.65 <1.0", "react-native@>= 0.50.0", react-native@>=0.78, react-native@0.81.4:
+react-native@*, "react-native@^0.0.0-0 || >=0.65 <1.0", "react-native@>= 0.50.0", react-native@>=0.65.0, react-native@>=0.78, react-native@0.81.4:
   version "0.81.4"
   resolved "https://registry.npmjs.org/react-native/-/react-native-0.81.4.tgz"
   integrity sha512-bt5bz3A/+Cv46KcjV0VQa+fo7MKxs17RCcpzjftINlen4ZDUl0I6Ut+brQ2FToa5oD0IB0xvQHfmsg2EDqsZdQ==
@@ -6190,7 +6302,7 @@ react-refresh@^0.14.0, react-refresh@^0.14.2, "react-refresh@>=0.14.0 <1.0.0":
   resolved "https://registry.npmjs.org/react-refresh/-/react-refresh-0.14.2.tgz"
   integrity sha512-jCvmsr+1IUSMUyzOkRcvnVbX3ZYC6g9TDrDbFuFmRDq7PD4yaGbLKNQL6k2jnArV8hjYxh7hVhAZB6s9HDGpZA==
 
-react@*, "react@^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0", "react@^16.9.0 || ^17.0.0 || ^18 || ^19", "react@^18.0 || ^19", react@^19.0.0, react@^19.1.0, "react@> 16.7.0", "react@>= 16.8.0", "react@>= 18.2.0", react@>=16.8, react@>=17.0.0, react@>=18.0, react@>=19.0, react@19.1.0:
+react@*, "react@^16.14.0 || 17.x || 18.x || 19.x", "react@^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0", "react@^16.9.0 || ^17.0.0 || ^18 || ^19", "react@^18.0 || ^19", react@^19.0.0, react@^19.1.0, "react@> 16.7.0", "react@>= 16.8.0", "react@>= 18.2.0", react@>=16.8, react@>=17.0.0, react@>=18.0, react@>=19.0, react@19.1.0:
   version "19.1.0"
   resolved "https://registry.npmjs.org/react/-/react-19.1.0.tgz"
   integrity sha512-FS+XFBNvn3GTAWq26joslQgWNoFu08F4kl0J4CgdNKADkdSGXQyTCnKteIAJy96Br6YbpEU1LSzV5dYtjMkMDg==
@@ -7194,7 +7306,7 @@ whatwg-url@^5.0.0:
     tr46 "~0.0.3"
     webidl-conversions "^3.0.0"
 
-which@^2.0.1:
+which@^2.0.1, which@^2.0.2:
   version "2.0.2"
   resolved "https://registry.npmjs.org/which/-/which-2.0.2.tgz"
   integrity sha512-BLI3Tl1TW3Pvl70l3yq3Y64i+awpwXqsGBYWkkqMtnbXgrMD+yj7rhW0kuEDxzJaYXGjEW5ogapKNMEKNMjibA==
