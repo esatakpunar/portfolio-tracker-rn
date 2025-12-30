@@ -15,8 +15,10 @@ const SENTRY_DSN = process.env.EXPO_PUBLIC_SENTRY_DSN || '';
  * Sadece production'da ve DSN varsa aktif
  */
 export const initializeSentry = () => {
+  const isDev = typeof __DEV__ !== 'undefined' ? __DEV__ : false;
+  
   // Development'ta Sentry'yi disable edebiliriz (optional)
-  if (__DEV__ && !process.env.EXPO_PUBLIC_ENABLE_SENTRY_IN_DEV) {
+  if (isDev && !process.env.EXPO_PUBLIC_ENABLE_SENTRY_IN_DEV) {
     return;
   }
 
@@ -29,9 +31,9 @@ export const initializeSentry = () => {
   try {
     Sentry.init({
       dsn: SENTRY_DSN,
-      environment: __DEV__ ? 'development' : 'production',
+      environment: isDev ? 'development' : 'production',
       enableAutoSessionTracking: true,
-      tracesSampleRate: __DEV__ ? 1.0 : 0.1, // Production'da %10 sampling
+      tracesSampleRate: isDev ? 1.0 : 0.1, // Production'da %10 sampling
       // PII (Personally Identifiable Information) filtering
       beforeSend(event, hint) {
         // Sensitive data'yı filtrele

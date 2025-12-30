@@ -61,7 +61,7 @@ class ErrorBoundary extends Component<Props, State> {
             <Text style={styles.emoji}>⚠️</Text>
             <Text style={styles.title}>Something went wrong</Text>
             <Text style={styles.message}>
-              {__DEV__ && this.state.error
+              {(typeof __DEV__ !== 'undefined' ? __DEV__ : false) && this.state.error
                 ? this.state.error.message
                 : 'An unexpected error occurred. Please restart the app.'}
             </Text>

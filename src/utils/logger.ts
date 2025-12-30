@@ -17,7 +17,9 @@ class Logger {
   private isDevelopment: boolean;
 
   constructor() {
-    this.isDevelopment = __DEV__;
+    // __DEV__ React Native'de global olarak tanımlıdır
+    // Güvenli kontrol için typeof kontrolü yapıyoruz
+    this.isDevelopment = typeof __DEV__ !== 'undefined' ? __DEV__ : false;
   }
 
   /**
