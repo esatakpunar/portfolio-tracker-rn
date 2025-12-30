@@ -3,27 +3,56 @@ import { persistStore, persistReducer, FLUSH, REHYDRATE, PAUSE, PERSIST, PURGE, 
 import portfolioReducer, { initialState } from './portfolioSlice';
 import { logger } from '../utils/logger';
 import { secureStorage, migrateToSecureStorage } from './secureStorage';
+import { migrateState, validateState } from './migrations';
+
+const CURRENT_VERSION = 1; // State structure değişikliklerinde artırılmalı
 
 const persistConfig = {
   key: 'root',
   storage: secureStorage, // Secure storage kullan (encrypted)
   whitelist: ['portfolio'], // Only persist portfolio slice
-  version: 1, // Version kontrolü - state structure değişikliklerinde artırılmalı
-  migrate: (state: any) => {
-    // Eski state format'ını yeni formata çevir
-    if (state && state.portfolio) {
-      // State validation - eğer portfolio state geçerliyse kullan
-      if (
-        Array.isArray(state.portfolio.items) &&
-        typeof state.portfolio.prices === 'object' &&
-        Array.isArray(state.portfolio.history)
-      ) {
-        return Promise.resolve(state);
+  version: CURRENT_VERSION, // Version kontrolü - state structure değişikliklerinde artırılmalı
+  migrate: async (state: any) => {
+    try {
+      // State validation
+      if (!validateState(state)) {
+        logger.warn('[REDUX_PERSIST] State validation failed, using initialState');
+        return {
+          _persist: {
+            version: CURRENT_VERSION,
+            rehydrated: false,
+          },
+          portfolio: initialState,
+        };
       }
+
+      // Migration uygula
+      const migratedState = await migrateState(state, CURRENT_VERSION);
+      
+      // Migration sonrası tekrar validate et
+      if (!validateState(migratedState)) {
+        logger.warn('[REDUX_PERSIST] State validation failed after migration, using initialState');
+        return {
+          _persist: {
+            version: CURRENT_VERSION,
+            rehydrated: false,
+          },
+          portfolio: initialState,
+        };
+      }
+
+      return migratedState;
+    } catch (error) {
+      logger.error('[REDUX_PERSIST] Migration error', error);
+      // Hata durumunda initialState kullan
+      return {
+        _persist: {
+          version: CURRENT_VERSION,
+          rehydrated: false,
+        },
+        portfolio: initialState,
+      };
     }
-    // Eğer state bozuksa veya format uyumsuzsa, initialState kullan
-    logger.warn('[REDUX_PERSIST] State format uyumsuz, initialState kullanılıyor');
-    return Promise.resolve({ portfolio: initialState });
   },
   onRehydrateStorage: () => {
     // Rehydrate başladı
