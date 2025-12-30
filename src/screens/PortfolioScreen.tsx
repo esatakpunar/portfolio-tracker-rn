@@ -288,35 +288,40 @@ const PortfolioScreen: React.FC = React.memo(() => {
     );
   }, [safeTotalValue, safeCurrencyIndex, currentCurrencyIndex, t, i18n.language]);
 
-  const getAssetIcon = (type: AssetType) => {
-    const iconMap: Record<AssetType, string> = {
-      'tl': '₺',
-      'usd': '$',
-      'eur': '€',
-      'gumus': '₲',
-      'tam': '₲',
-      'ceyrek': '₲',
-      '22_ayar': '₲',
-      '24_ayar': '₲',
-    };
-    return iconMap[type] || '₲';
-  };
+  // Memoize asset icon map
+  const assetIconMap = useMemo<Record<AssetType, string>>(() => ({
+    'tl': '₺',
+    'usd': '$',
+    'eur': '€',
+    'gumus': '₲',
+    'tam': '₲',
+    'ceyrek': '₲',
+    '22_ayar': '₲',
+    '24_ayar': '₲',
+  }), []);
 
-  const getAssetIconStyle = (type: AssetType) => {
-    const styleMap: Record<AssetType, any> = {
-      'tl': styles.iconTL,
-      'usd': styles.iconUSD,
-      'eur': styles.iconEUR,
-      'gumus': styles.iconSilver,
-      'tam': styles.iconGold,
-      'ceyrek': styles.iconGold,
-      '22_ayar': styles.iconGold,
-      '24_ayar': styles.iconGold,
-    };
-    return styleMap[type] || styles.iconDefault;
-  };
+  const getAssetIcon = useCallback((type: AssetType) => {
+    return assetIconMap[type] || '₲';
+  }, [assetIconMap]);
 
-  const getDefaultUnit = (type: AssetType) => {
+  // Memoize asset icon style map
+  const assetIconStyleMap = useMemo<Record<AssetType, any>>(() => ({
+    'tl': styles.iconTL,
+    'usd': styles.iconUSD,
+    'eur': styles.iconEUR,
+    'gumus': styles.iconSilver,
+    'tam': styles.iconGold,
+    'ceyrek': styles.iconGold,
+    '22_ayar': styles.iconGold,
+    '24_ayar': styles.iconGold,
+  }), []);
+
+  const getAssetIconStyle = useCallback((type: AssetType) => {
+    return assetIconStyleMap[type] || styles.iconDefault;
+  }, [assetIconStyleMap]);
+
+  // Memoize default unit function
+  const getDefaultUnit = useCallback((type: AssetType) => {
     if (type === 'tl') {
       return '₺';
     }
@@ -330,9 +335,10 @@ const PortfolioScreen: React.FC = React.memo(() => {
       return t('units.piece');
     }
     return t('units.gram');
-  };
+  }, [t]);
 
-  const convertToTargetCurrency = (
+  // Memoize currency conversion function
+  const convertToTargetCurrency = useCallback((
     valueTL: number, 
     targetCurrency: CurrencyType, 
     itemType: AssetType,
