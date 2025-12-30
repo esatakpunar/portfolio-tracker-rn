@@ -208,6 +208,15 @@ const PortfolioScreen: React.FC = React.memo(() => {
           horizontal
           pagingEnabled
           showsHorizontalScrollIndicator={false}
+          getItemLayout={(_, index) => ({
+            length: width,
+            offset: width * index,
+            index,
+          })}
+          removeClippedSubviews={true}
+          maxToRenderPerBatch={4}
+          windowSize={3}
+          initialNumToRender={2}
           onMomentumScrollEnd={(event) => {
             const index = Math.round(event.nativeEvent.contentOffset.x / width);
             // Bounds check to prevent invalid index

@@ -110,6 +110,15 @@ const HistoryScreen: React.FC = React.memo(() => {
           maxToRenderPerBatch={10}
           windowSize={5}
           initialNumToRender={10}
+          getItemLayout={(_, index) => {
+            // Approximate item height: padding (16*2) + content (~60) + marginBottom (12) = ~104
+            const ITEM_HEIGHT = 104;
+            return {
+              length: ITEM_HEIGHT,
+              offset: ITEM_HEIGHT * index,
+              index,
+            };
+          }}
         />
       )}
     </SafeAreaView>
