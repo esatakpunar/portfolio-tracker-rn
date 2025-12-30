@@ -2,8 +2,7 @@ import axios from 'axios';
 import { Prices } from '../types';
 import { logger } from '../utils/logger';
 import { safeValidateApiResponse, safeValidatePrices } from '../schemas';
-
-const API_URL = 'https://finans.truncgil.com/v4/today.json';
+import { getApiUrl } from '../config/api';
 
 const DEFAULT_PRICES: Prices = {
   '22_ayar': 2300,
@@ -56,6 +55,8 @@ const parsePrice = (value: string | number | null | undefined, fallback: number)
 // Legacy validateApiResponse removed - using Zod validation instead
 
 export const fetchPrices = async (currentPrices?: Prices): Promise<Prices> => {
+  const API_URL = getApiUrl('today.json');
+  
   try {
     // LOG: API call başladı
     logger.debug('[PRICE_SERVICE] API call başladı', { url: API_URL });
