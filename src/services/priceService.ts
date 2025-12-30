@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { Prices } from '../types';
+import { logger } from '../utils/logger';
 
 const API_URL = 'https://finans.truncgil.com/v4/today.json';
 
@@ -75,9 +76,7 @@ const validateApiResponse = (data: any): data is ApiResponse => {
 export const fetchPrices = async (currentPrices?: Prices): Promise<Prices> => {
   try {
     // LOG: API call başladı
-    if (__DEV__) {
-      console.log('[PRICE_SERVICE] API call başladı:', API_URL);
-    }
+    logger.debug('[PRICE_SERVICE] API call başladı', { url: API_URL });
     
     const response = await axios.get<ApiResponse>(API_URL, {
       timeout: 10000, // 10 second timeout
@@ -90,9 +89,7 @@ export const fetchPrices = async (currentPrices?: Prices): Promise<Prices> => {
     }
     
     // LOG: API başarılı
-    if (__DEV__) {
-      console.log('[PRICE_SERVICE] API başarılı:', response.data);
-    }
+    logger.debug('[PRICE_SERVICE] API başarılı', { data: response.data });
     
     const data = response.data;
     
@@ -121,7 +118,7 @@ export const fetchPrices = async (currentPrices?: Prices): Promise<Prices> => {
   } catch (error) {
     // LOG: API hata - kritik log
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    console.error('[PRICE_SERVICE] API HATA - Fallback kullanılıyor:', {
+    logger.error('[PRICE_SERVICE] API HATA - Fallback kullanılıyor', error, {
       error: errorMessage,
       hasCurrentPrices: !!currentPrices,
       isCurrentPricesMock: currentPrices ? JSON.stringify(currentPrices) === JSON.stringify(DEFAULT_PRICES) : false,
@@ -139,17 +136,13 @@ export const fetchPrices = async (currentPrices?: Prices): Promise<Prices> => {
       const isCurrentPricesMock = JSON.stringify(currentPrices) === JSON.stringify(DEFAULT_PRICES);
       
       if (currentPricesValid && !isCurrentPricesMock) {
-        if (__DEV__) {
-          console.log('[PRICE_SERVICE] API hata - Cached prices kullanılıyor (mock değil)');
-        }
+        logger.debug('[PRICE_SERVICE] API hata - Cached prices kullanılıyor (mock değil)');
         return currentPrices; // Cached gerçek veri
       }
     }
     
     // Son çare: Mock data (ama sadece ilk açılışta, persist edilmeyecek)
-    if (__DEV__) {
-      console.warn('[PRICE_SERVICE] API hata - Mock data kullanılıyor (sadece ilk açılış, persist edilmeyecek)');
-    }
+    logger.warn('[PRICE_SERVICE] API hata - Mock data kullanılıyor (sadece ilk açılış, persist edilmeyecek)');
     return DEFAULT_PRICES;
   }
 };

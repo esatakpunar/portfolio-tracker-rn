@@ -2,6 +2,7 @@ import { createSlice, PayloadAction, createAsyncThunk } from '@reduxjs/toolkit';
 import { PortfolioItem, HistoryItem, Prices, AssetType, CurrencyType } from '../types';
 import { fetchPrices as fetchPricesFromAPI, getDefaultPrices } from '../services/priceService';
 import { safeAdd, safeSubtract } from '../utils/numberUtils';
+import { logger } from '../utils/logger';
 
 interface PortfolioState {
   items: PortfolioItem[];
@@ -46,9 +47,7 @@ export const fetchPrices = createAsyncThunk(
       const prices = await fetchPricesFromAPI(currentPrices);
       return prices;
     } catch (error) {
-      if (__DEV__) {
-        console.error('Error fetching prices:', error);
-      }
+      logger.error('Error fetching prices', error);
       return rejectWithValue('Failed to fetch prices');
     } finally {
       isFetchingPrices = false;
@@ -259,9 +258,7 @@ const portfolioSlice = createSlice({
         if (isMockData) {
           // Mock data - sadece state'e yazma, persist etme
           // Mevcut prices'ı koru (eğer varsa gerçek veri)
-          if (__DEV__) {
-            console.warn('[PORTFOLIO] Mock data alındı, persist edilmiyor - mevcut prices korunuyor');
-          }
+          logger.warn('[PORTFOLIO] Mock data alındı, persist edilmiyor - mevcut prices korunuyor');
           return; // State'i değiştirme, mevcut prices'ı koru
         }
         
@@ -276,17 +273,13 @@ const portfolioSlice = createSlice({
           // Merge new prices with existing ones
           state.prices = { ...state.prices, ...validatedPrices };
           
-          if (__DEV__) {
-            console.log('[PORTFOLIO] Gerçek API verisi alındı ve persist ediliyor');
-          }
+          logger.debug('[PORTFOLIO] Gerçek API verisi alındı ve persist ediliyor');
         }
       })
       .addCase(fetchPrices.rejected, (state) => {
         // Keep existing prices on error - no state change needed
         // Error is handled in the component
-        if (__DEV__) {
-          console.warn('[PORTFOLIO] fetchPrices rejected - mevcut prices korunuyor');
-        }
+        logger.warn('[PORTFOLIO] fetchPrices rejected - mevcut prices korunuyor');
       });
   }
 });

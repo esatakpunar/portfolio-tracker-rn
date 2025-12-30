@@ -2,6 +2,7 @@ import i18n from 'i18next';
 import { initReactI18next } from 'react-i18next';
 import { getLocales } from 'expo-localization';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { logger } from '../utils/logger';
 
 import tr from './tr';
 import en from './en';
@@ -28,9 +29,7 @@ const getInitialLanguage = async (): Promise<string> => {
       return saved;
     }
   } catch (error) {
-    if (__DEV__) {
-      console.log('Error loading saved language:', error);
-    }
+    logger.debug('Error loading saved language', { error });
   }
 
   const deviceLanguages = getLocales();
@@ -63,9 +62,7 @@ export const saveLanguage = async (languageCode: string) => {
   try {
     await AsyncStorage.setItem(LANGUAGE_KEY, languageCode);
   } catch (error) {
-    if (__DEV__) {
-      console.log('Error saving language:', error);
-    }
+    logger.debug('Error saving language', { error });
   }
 };
 

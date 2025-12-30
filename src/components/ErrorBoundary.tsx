@@ -2,6 +2,7 @@ import React, { Component, ErrorInfo, ReactNode } from 'react';
 import { View, StyleSheet, TouchableOpacity } from 'react-native';
 import { Text } from './Text';
 import { colors, spacing, borderRadius, fontSize, fontWeight } from '../theme';
+import { logger } from '../utils/logger';
 
 interface Props {
   children: ReactNode;
@@ -30,10 +31,9 @@ class ErrorBoundary extends Component<Props, State> {
   }
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-    if (__DEV__) {
-      console.error('ErrorBoundary caught an error:', error, errorInfo);
-    }
-    // In production, you might want to log this to an error reporting service
+    logger.error('ErrorBoundary caught an error', error, {
+      componentStack: errorInfo.componentStack,
+    });
   }
 
   handleReset = () => {
