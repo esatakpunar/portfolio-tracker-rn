@@ -1,18 +1,9 @@
 import axios from 'axios';
 import { Prices } from '../types';
 import { logger } from '../utils/logger';
+import { safeValidateApiResponse, safeValidatePrices } from '../schemas';
 
 const API_URL = 'https://finans.truncgil.com/v4/today.json';
-
-interface ApiResponse {
-  USD?: { Buying: string };
-  EUR?: { Buying: string };
-  GUMUS?: { Buying: string };
-  TAMALTIN?: { Buying: string };
-  CEYREKALTIN?: { Buying: string };
-  YIA?: { Buying: string }; // 22 ayar
-  GRA?: { Buying: string }; // 24 ayar (gram altın)
-}
 
 const DEFAULT_PRICES: Prices = {
   '22_ayar': 2300,
@@ -62,36 +53,31 @@ const parsePrice = (value: string | number | null | undefined, fallback: number)
   return fallback;
 };
 
-/**
- * Validates API response structure
- */
-const validateApiResponse = (data: any): data is ApiResponse => {
-  if (!data || typeof data !== 'object') {
-    return false;
-  }
-  // Basic validation - check if it has expected structure
-  return true;
-};
+// Legacy validateApiResponse removed - using Zod validation instead
 
 export const fetchPrices = async (currentPrices?: Prices): Promise<Prices> => {
   try {
     // LOG: API call başladı
     logger.debug('[PRICE_SERVICE] API call başladı', { url: API_URL });
     
-    const response = await axios.get<ApiResponse>(API_URL, {
+    const response = await axios.get(API_URL, {
       timeout: 10000, // 10 second timeout
       validateStatus: (status) => status === 200, // Only accept 200 status
     });
     
-    // Validate response structure
-    if (!validateApiResponse(response.data)) {
+    // Validate API response with Zod
+    const apiValidation = safeValidateApiResponse(response.data);
+    if (!apiValidation.success) {
+      logger.warn('[PRICE_SERVICE] API response validation failed', {
+        error: apiValidation.error?.issues,
+      });
       throw new Error('Invalid API response structure');
     }
     
     // LOG: API başarılı
     logger.debug('[PRICE_SERVICE] API başarılı', { data: response.data });
     
-    const data = response.data;
+    const data = apiValidation.data!;
     
     const prices: Prices = {
       usd: parsePrice(data.USD?.Buying, currentPrices?.usd || DEFAULT_PRICES.usd),
@@ -104,12 +90,12 @@ export const fetchPrices = async (currentPrices?: Prices): Promise<Prices> => {
       tl: 1,
     };
     
-    // Validate all prices are valid numbers
-    const allPricesValid = Object.values(prices).every(
-      (price) => typeof price === 'number' && !isNaN(price) && price >= 0
-    );
-    
-    if (!allPricesValid) {
+    // Validate parsed prices with Zod
+    const pricesValidation = safeValidatePrices(prices);
+    if (!pricesValidation.success) {
+      logger.warn('[PRICE_SERVICE] Parsed prices validation failed', {
+        error: pricesValidation.error?.issues,
+      });
       throw new Error('Invalid price values in response');
     }
     
@@ -127,17 +113,15 @@ export const fetchPrices = async (currentPrices?: Prices): Promise<Prices> => {
     
     // KRİTİK DEĞİŞİKLİK: Mock data yerine cached prices kullan
     if (currentPrices && Object.keys(currentPrices).length > 0) {
-      // Validate current prices before using as fallback
-      const currentPricesValid = Object.values(currentPrices).every(
-        (price) => typeof price === 'number' && !isNaN(price) && price >= 0 && price > 0
-      );
+      // Validate current prices with Zod before using as fallback
+      const currentPricesValidation = safeValidatePrices(currentPrices);
       
       // Eğer currentPrices geçerli ve mock data değilse, onu kullan
       const isCurrentPricesMock = JSON.stringify(currentPrices) === JSON.stringify(DEFAULT_PRICES);
       
-      if (currentPricesValid && !isCurrentPricesMock) {
+      if (currentPricesValidation.success && !isCurrentPricesMock) {
         logger.debug('[PRICE_SERVICE] API hata - Cached prices kullanılıyor (mock değil)');
-        return currentPrices; // Cached gerçek veri
+        return currentPricesValidation.data!; // Cached gerçek veri (validated)
       }
     }
     

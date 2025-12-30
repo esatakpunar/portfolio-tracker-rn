@@ -1,6 +1,46 @@
 /**
  * Validation utility functions for user inputs
+ * 
+ * Zod schema'ları ile runtime validation
  */
+
+import { z } from 'zod';
+
+/**
+ * Amount validation schema
+ */
+export const amountSchema = z
+  .string()
+  .min(1, 'Amount cannot be empty')
+  .refine(
+    (val) => {
+      const normalized = val.replace(',', '.');
+      const num = parseFloat(normalized);
+      return !isNaN(num) && num > 0;
+    },
+    { message: 'Invalid number format or must be greater than 0' }
+  )
+  .refine(
+    (val) => {
+      const normalized = val.replace(',', '.');
+      const num = parseFloat(normalized);
+      return num <= 1e12; // Max 1 trillion
+    },
+    { message: 'Amount exceeds maximum limit' }
+  );
+
+/**
+ * Remove amount validation schema (with current amount context)
+ */
+export const removeAmountSchema = (currentAmount: number) =>
+  amountSchema.refine(
+    (val) => {
+      const normalized = val.replace(',', '.');
+      const num = parseFloat(normalized);
+      return num <= currentAmount;
+    },
+    { message: 'Amount exceeds current amount' }
+  );
 
 /**
  * Validates if a string represents a valid positive number
