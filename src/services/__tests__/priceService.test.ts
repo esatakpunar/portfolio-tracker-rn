@@ -56,18 +56,26 @@ describe('priceService', () => {
 
       mockAxios.onGet('https://finans.truncgil.com/v4/today.json').reply(500);
 
-      const prices = await fetchPrices(currentPrices);
+      // Retry mekanizması var, bu yüzden timeout artır
+      const prices = await Promise.race([
+        fetchPrices(currentPrices),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 10000)),
+      ]);
 
       expect(prices).toEqual(currentPrices);
-    });
+    }, 15000); // 15 second timeout
 
     it('should use default prices when API fails and no currentPrices', async () => {
       mockAxios.onGet('https://finans.truncgil.com/v4/today.json').reply(500);
 
-      const prices = await fetchPrices();
+      // Retry mekanizması var, bu yüzden timeout artır
+      const prices = await Promise.race([
+        fetchPrices(),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 10000)),
+      ]);
 
       expect(prices).toEqual(getDefaultPrices());
-    });
+    }, 15000); // 15 second timeout
 
     it('should handle invalid API response structure', async () => {
       mockAxios.onGet('https://finans.truncgil.com/v4/today.json').reply(200, {});
@@ -81,11 +89,15 @@ describe('priceService', () => {
     it('should handle network timeout', async () => {
       mockAxios.onGet('https://finans.truncgil.com/v4/today.json').timeout();
 
-      const prices = await fetchPrices();
+      // Retry mekanizması var, bu yüzden timeout artır
+      const prices = await Promise.race([
+        fetchPrices(),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 10000)),
+      ]);
 
       // Should fallback
       expect(prices).toBeDefined();
-    });
+    }, 15000); // 15 second timeout
 
     it('should parse string prices correctly', async () => {
       const mockResponse = {

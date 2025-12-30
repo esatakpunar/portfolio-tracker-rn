@@ -2,7 +2,8 @@ import axios from 'axios';
 import { Prices } from '../types';
 import { logger } from '../utils/logger';
 import { safeValidateApiResponse, safeValidatePrices } from '../schemas';
-import { getApiUrl } from '../config/api';
+import { getApiUrl, apiConfig } from '../config/api';
+import { retry } from '../utils/retry';
 
 const DEFAULT_PRICES: Prices = {
   '22_ayar': 2300,
@@ -52,57 +53,94 @@ const parsePrice = (value: string | number | null | undefined, fallback: number)
   return fallback;
 };
 
-// Legacy validateApiResponse removed - using Zod validation instead
-
+/**
+ * Fetch prices from API with retry mechanism
+ */
 export const fetchPrices = async (currentPrices?: Prices): Promise<Prices> => {
   const API_URL = getApiUrl('today.json');
   
   try {
-    // LOG: API call başladı
-    logger.debug('[PRICE_SERVICE] API call başladı', { url: API_URL });
-    
-    const response = await axios.get(API_URL, {
-      timeout: 10000, // 10 second timeout
-      validateStatus: (status) => status === 200, // Only accept 200 status
-    });
-    
-    // Validate API response with Zod
-    const apiValidation = safeValidateApiResponse(response.data);
-    if (!apiValidation.success) {
-      logger.warn('[PRICE_SERVICE] API response validation failed', {
-        error: apiValidation.error?.issues,
-      });
-      throw new Error('Invalid API response structure');
-    }
-    
-    // LOG: API başarılı
-    logger.debug('[PRICE_SERVICE] API başarılı', { data: response.data });
-    
-    const data = apiValidation.data!;
-    
-    const prices: Prices = {
-      usd: parsePrice(data.USD?.Buying, currentPrices?.usd || DEFAULT_PRICES.usd),
-      eur: parsePrice(data.EUR?.Buying, currentPrices?.eur || DEFAULT_PRICES.eur),
-      gumus: parsePrice(data.GUMUS?.Buying, currentPrices?.gumus || DEFAULT_PRICES.gumus),
-      tam: parsePrice(data.TAMALTIN?.Buying, currentPrices?.tam || DEFAULT_PRICES.tam),
-      ceyrek: parsePrice(data.CEYREKALTIN?.Buying, currentPrices?.ceyrek || DEFAULT_PRICES.ceyrek),
-      '22_ayar': parsePrice(data.YIA?.Buying, currentPrices?.['22_ayar'] || DEFAULT_PRICES['22_ayar']),
-      '24_ayar': parsePrice(data.GRA?.Buying, currentPrices?.['24_ayar'] || DEFAULT_PRICES['24_ayar']),
-      tl: 1,
-    };
-    
-    // Validate parsed prices with Zod
-    const pricesValidation = safeValidatePrices(prices);
-    if (!pricesValidation.success) {
-      logger.warn('[PRICE_SERVICE] Parsed prices validation failed', {
-        error: pricesValidation.error?.issues,
-      });
-      throw new Error('Invalid price values in response');
-    }
-    
-    // Prices updated successfully - gerçek API verisi
-    return prices;
-  } catch (error) {
+    // Retry wrapper ile API call'ı wrap et
+    return await retry(
+      async () => {
+        // LOG: API call başladı
+        logger.debug('[PRICE_SERVICE] API call başladı', { url: API_URL });
+        
+        const response = await axios.get(API_URL, {
+          timeout: apiConfig.timeout,
+          validateStatus: (status) => status === 200, // Only accept 200 status
+        });
+        
+        // Validate API response with Zod
+        const apiValidation = safeValidateApiResponse(response.data);
+        if (!apiValidation.success) {
+          logger.warn('[PRICE_SERVICE] API response validation failed', {
+            error: apiValidation.error?.issues,
+          });
+          throw new Error('Invalid API response structure');
+        }
+        
+        // LOG: API başarılı
+        logger.debug('[PRICE_SERVICE] API başarılı', { data: response.data });
+        
+        const data = apiValidation.data!;
+        
+        const prices: Prices = {
+          usd: parsePrice(data.USD?.Buying, currentPrices?.usd || DEFAULT_PRICES.usd),
+          eur: parsePrice(data.EUR?.Buying, currentPrices?.eur || DEFAULT_PRICES.eur),
+          gumus: parsePrice(data.GUMUS?.Buying, currentPrices?.gumus || DEFAULT_PRICES.gumus),
+          tam: parsePrice(data.TAMALTIN?.Buying, currentPrices?.tam || DEFAULT_PRICES.tam),
+          ceyrek: parsePrice(data.CEYREKALTIN?.Buying, currentPrices?.ceyrek || DEFAULT_PRICES.ceyrek),
+          '22_ayar': parsePrice(data.YIA?.Buying, currentPrices?.['22_ayar'] || DEFAULT_PRICES['22_ayar']),
+          '24_ayar': parsePrice(data.GRA?.Buying, currentPrices?.['24_ayar'] || DEFAULT_PRICES['24_ayar']),
+          tl: 1,
+        };
+        
+        // Validate parsed prices with Zod
+        const pricesValidation = safeValidatePrices(prices);
+        if (!pricesValidation.success) {
+          logger.warn('[PRICE_SERVICE] Parsed prices validation failed', {
+            error: pricesValidation.error?.issues,
+          });
+          throw new Error('Invalid price values in response');
+        }
+        
+        // Prices updated successfully - gerçek API verisi
+        return prices;
+      },
+      {
+        maxRetries: apiConfig.retryAttempts,
+        initialDelay: apiConfig.retryDelay,
+        retryableErrors: (error: unknown) => {
+          // Retry on network errors, timeouts, and 5xx errors
+          if (axios.isAxiosError(error)) {
+            // Network error or timeout
+            if (!error.response) {
+              return true;
+            }
+            // 5xx server errors
+            if (error.response.status >= 500 && error.response.status < 600) {
+              return true;
+            }
+            // Don't retry on 4xx client errors
+            return false;
+          }
+          // Retry on other errors (network issues, etc.)
+          if (error instanceof Error) {
+            const message = error.message.toLowerCase();
+            return (
+              message.includes('network') ||
+              message.includes('timeout') ||
+              message.includes('econnrefused') ||
+              message.includes('enotfound')
+            );
+          }
+          return false;
+        },
+      }
+    );
+  } catch (error: unknown) {
+    // Retry failed - use fallback
     // LOG: API hata - kritik log
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     logger.error('[PRICE_SERVICE] API HATA - Fallback kullanılıyor', error, {
