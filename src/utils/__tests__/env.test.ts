@@ -50,20 +50,35 @@ describe('env utils', () => {
     });
 
     it('should handle errors gracefully', () => {
-      // Mock to throw error
-      const originalGlobal = global;
-      Object.defineProperty(global, '__DEV__', {
-        get: () => {
-          throw new Error('Test error');
-        },
-      });
+      // Mock global.__DEV__ to throw error when accessed
+      const originalDev = (global as any).__DEV__;
+      try {
+        // Delete first to avoid redefine error
+        delete (global as any).__DEV__;
+        
+        // Create a getter that throws
+        let accessCount = 0;
+        Object.defineProperty(global, '__DEV__', {
+          get: () => {
+            accessCount++;
+            if (accessCount === 1) {
+              throw new Error('Test error');
+            }
+            return originalDev;
+          },
+          configurable: true,
+        });
 
-      expect(isDevelopment()).toBe(true); // Should return true as fallback
-
-      // Restore
-      Object.defineProperty(global, '__DEV__', {
-        get: () => originalGlobal.__DEV__,
-      });
+        // First call should throw and return fallback
+        const result = isDevelopment();
+        expect(result).toBe(true); // Should return true as fallback
+      } finally {
+        // Clean up
+        delete (global as any).__DEV__;
+        if (originalDev !== undefined) {
+          (global as any).__DEV__ = originalDev;
+        }
+      }
     });
   });
 

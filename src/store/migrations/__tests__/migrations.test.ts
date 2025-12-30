@@ -6,6 +6,15 @@ import { migrateState, validateState } from '../index';
 import { PersistedState } from '../types';
 import { initialState } from '../../portfolioSlice';
 
+// Mock logger to suppress console output
+jest.mock('../../../utils/logger', () => ({
+  logger: {
+    debug: jest.fn(),
+    warn: jest.fn(),
+    error: jest.fn(),
+  },
+}));
+
 describe('migrations', () => {
   describe('migrateState', () => {
     it('should return initialState when state is undefined', async () => {

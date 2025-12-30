@@ -135,6 +135,8 @@ export const validateState = (state: PersistedState | undefined): boolean => {
   if (
     !Array.isArray(portfolio.items) ||
     typeof portfolio.prices !== 'object' ||
+    portfolio.prices === null ||
+    Array.isArray(portfolio.prices) || // Array is object but we need plain object
     !Array.isArray(portfolio.history) ||
     typeof portfolio.currentLanguage !== 'string'
   ) {
