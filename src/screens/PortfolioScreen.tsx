@@ -381,15 +381,9 @@ const PortfolioScreen: React.FC = React.memo(() => {
     return valueTL;
   };
 
-  const getCurrencySymbol = (currency: CurrencyType): string => {
-    const symbols: Record<CurrencyType, string> = {
-      'TL': '₺',
-      'USD': '$',
-      'EUR': '€',
-      'ALTIN': '₲',
-    };
-    return symbols[currency];
-  };
+  const getCurrencySymbol = useCallback((currency: CurrencyType): string => {
+    return currencySymbolMap[currency];
+  }, [currencySymbolMap]);
 
   const renderAssetGroup = useCallback((type: AssetType, groupItems: PortfolioItem[]) => {
     // Safety check: empty array
