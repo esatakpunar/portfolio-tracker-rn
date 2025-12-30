@@ -74,6 +74,11 @@ const validateApiResponse = (data: any): data is ApiResponse => {
 
 export const fetchPrices = async (currentPrices?: Prices): Promise<Prices> => {
   try {
+    // LOG: API call başladı
+    if (__DEV__) {
+      console.log('[PRICE_SERVICE] API call başladı:', API_URL);
+    }
+    
     const response = await axios.get<ApiResponse>(API_URL, {
       timeout: 10000, // 10 second timeout
       validateStatus: (status) => status === 200, // Only accept 200 status
@@ -82,6 +87,11 @@ export const fetchPrices = async (currentPrices?: Prices): Promise<Prices> => {
     // Validate response structure
     if (!validateApiResponse(response.data)) {
       throw new Error('Invalid API response structure');
+    }
+    
+    // LOG: API başarılı
+    if (__DEV__) {
+      console.log('[PRICE_SERVICE] API başarılı:', response.data);
     }
     
     const data = response.data;
@@ -106,26 +116,40 @@ export const fetchPrices = async (currentPrices?: Prices): Promise<Prices> => {
       throw new Error('Invalid price values in response');
     }
     
-    // Prices updated successfully
+    // Prices updated successfully - gerçek API verisi
     return prices;
   } catch (error) {
-    // Error fetching prices, fallback to cached or default prices
-    if (__DEV__) {
-      console.error('Error fetching prices:', error);
-    }
+    // LOG: API hata - kritik log
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    console.error('[PRICE_SERVICE] API HATA - Fallback kullanılıyor:', {
+      error: errorMessage,
+      hasCurrentPrices: !!currentPrices,
+      isCurrentPricesMock: currentPrices ? JSON.stringify(currentPrices) === JSON.stringify(DEFAULT_PRICES) : false,
+      timestamp: new Date().toISOString()
+    });
     
-    // Fallback to current prices or defaults
+    // KRİTİK DEĞİŞİKLİK: Mock data yerine cached prices kullan
     if (currentPrices && Object.keys(currentPrices).length > 0) {
       // Validate current prices before using as fallback
       const currentPricesValid = Object.values(currentPrices).every(
-        (price) => typeof price === 'number' && !isNaN(price) && price >= 0
+        (price) => typeof price === 'number' && !isNaN(price) && price >= 0 && price > 0
       );
       
-      if (currentPricesValid) {
-        return currentPrices;
+      // Eğer currentPrices geçerli ve mock data değilse, onu kullan
+      const isCurrentPricesMock = JSON.stringify(currentPrices) === JSON.stringify(DEFAULT_PRICES);
+      
+      if (currentPricesValid && !isCurrentPricesMock) {
+        if (__DEV__) {
+          console.log('[PRICE_SERVICE] API hata - Cached prices kullanılıyor (mock değil)');
+        }
+        return currentPrices; // Cached gerçek veri
       }
     }
     
+    // Son çare: Mock data (ama sadece ilk açılışta, persist edilmeyecek)
+    if (__DEV__) {
+      console.warn('[PRICE_SERVICE] API hata - Mock data kullanılıyor (sadece ilk açılış, persist edilmeyecek)');
+    }
     return DEFAULT_PRICES;
   }
 };

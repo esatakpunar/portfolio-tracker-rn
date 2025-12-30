@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
-  Text,
   StyleSheet,
   Modal,
   TouchableOpacity,
@@ -12,6 +11,7 @@ import {
   ScrollView,
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
+import { Text } from './Text';
 import { colors, spacing, borderRadius, fontSize, fontWeight, shadows } from '../theme';
 import { getAssetIcon, getAssetUnit } from '../utils/assetUtils';
 import { validateAmount } from '../utils/validationUtils';

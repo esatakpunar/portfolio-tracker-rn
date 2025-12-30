@@ -17,13 +17,12 @@ import ErrorBoundary from './src/components/ErrorBoundary';
 
 export default function App() {
   const [isReady, setIsReady] = useState(false);
+  const [isRehydrated, setIsRehydrated] = useState(false);
 
   useEffect(() => {
     const initialize = async () => {
       try {
         await initializeI18n();
-        // loadInitialData is handled by redux-persist now
-        (store.dispatch as AppDispatch)(fetchPrices());
         setIsReady(true);
       } catch (error) {
         // Handle initialization error silently in production
@@ -37,6 +36,16 @@ export default function App() {
     initialize();
   }, []);
 
+  // Rehydrate tamamlandıktan sonra fetchPrices çağır
+  useEffect(() => {
+    if (isRehydrated && isReady) {
+      if (__DEV__) {
+        console.log('[APP] Rehydrate tamamlandı, fetchPrices çağrılıyor');
+      }
+      (store.dispatch as AppDispatch)(fetchPrices());
+    }
+  }, [isRehydrated, isReady]);
+
   if (!isReady) {
     return (
       <View style={[styles.container, styles.loadingContainer]}>
@@ -49,7 +58,16 @@ export default function App() {
     <ErrorBoundary>
       <GestureHandlerRootView style={styles.container}>
         <Provider store={store}>
-          <PersistGate loading={null} persistor={persistor}>
+          <PersistGate 
+            loading={<ActivityIndicator size="large" color="#A78BFA" />}
+            persistor={persistor}
+            onBeforeLift={() => {
+              if (__DEV__) {
+                console.log('[APP] PersistGate onBeforeLift - Rehydrate tamamlandı');
+              }
+              setIsRehydrated(true);
+            }}
+          >
             <SafeAreaProvider>
               <NavigationContainer>
                 <AppContent />

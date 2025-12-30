@@ -1,7 +1,8 @@
 import React, { forwardRef } from 'react';
-import { View, Text, StyleSheet, Animated, TouchableOpacity } from 'react-native';
+import { View, StyleSheet, Animated, TouchableOpacity } from 'react-native';
 import { Swipeable } from 'react-native-gesture-handler';
 import { useTranslation } from 'react-i18next';
+import { Text } from './Text';
 import { colors, spacing, borderRadius, fontSize, fontWeight } from '../theme';
 import { PortfolioItem } from '../types';
 

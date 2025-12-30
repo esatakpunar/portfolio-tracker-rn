@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
-  Text,
   StyleSheet,
   Modal,
   TouchableOpacity,
@@ -11,6 +10,7 @@ import {
   Animated,
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
+import { Text } from './Text';
 import { colors, spacing, borderRadius, fontSize, fontWeight, shadows } from '../theme';
 import { validateRemoveAmount } from '../utils/validationUtils';
 import { formatCurrency } from '../utils/formatUtils';

@@ -1,12 +1,12 @@
 import React from 'react';
 import {
   View,
-  Text,
   StyleSheet,
   FlatList,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
+import { Text } from '../components/Text';
 import { useAppSelector } from '../hooks/useRedux';
 import { selectHistory } from '../store/portfolioSlice';
 import { colors, spacing, borderRadius, fontSize, fontWeight } from '../theme';

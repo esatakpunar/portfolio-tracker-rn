@@ -1,7 +1,6 @@
 import React, { useState, useRef, useMemo } from 'react';
 import {
   View,
-  Text,
   StyleSheet,
   ScrollView,
   TouchableOpacity,
@@ -12,6 +11,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Swipeable } from 'react-native-gesture-handler';
 import { useTranslation } from 'react-i18next';
+import { Text } from '../components/Text';
 import { useAppSelector, useAppDispatch } from '../hooks/useRedux';
 import { addItem, updateItemAmount, selectItems, selectPrices, selectTotalIn } from '../store/portfolioSlice';
 import { colors, spacing, borderRadius, fontSize, fontWeight, shadows } from '../theme';
