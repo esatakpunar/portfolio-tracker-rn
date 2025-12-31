@@ -1,10 +1,83 @@
-import axios from 'axios';
+import axios, { AxiosInstance } from 'axios';
 import { Prices } from '../types';
 import { logger } from '../utils/logger';
 import { safeValidateApiResponse, safeValidatePrices } from '../schemas';
 import { getApiUrl, apiConfig } from '../config/api';
 import { retry } from '../utils/retry';
 import { getCachedData, setCachedData, isCached, getCacheAge } from './cacheService';
+
+/**
+ * Create axios instance with default config for React Native
+ * React Native'de network istekleri için özel config
+ */
+const createAxiosInstance = (): AxiosInstance => {
+  const instance = axios.create({
+    timeout: apiConfig.timeout,
+    headers: {
+      'Accept': 'application/json',
+      'Content-Type': 'application/json',
+      'User-Agent': 'PortfolioTracker/1.0',
+    },
+    // React Native için özel ayarlar
+    validateStatus: (status) => status === 200,
+    responseType: 'json',
+    maxRedirects: 5,
+  });
+
+  // Request interceptor - log requests in dev
+  instance.interceptors.request.use(
+    (config) => {
+      if (typeof __DEV__ !== 'undefined' && __DEV__) {
+        logger.debug('[AXIOS] Request', {
+          method: config.method,
+          url: config.url,
+        });
+      }
+      return config;
+    },
+    (error) => {
+      logger.error('[AXIOS] Request error', error);
+      return Promise.reject(error);
+    }
+  );
+
+  // Response interceptor - log responses and handle errors
+  instance.interceptors.response.use(
+    (response) => {
+      if (typeof __DEV__ !== 'undefined' && __DEV__) {
+        logger.debug('[AXIOS] Response', {
+          status: response.status,
+          url: response.config.url,
+          dataType: typeof response.data,
+        });
+      }
+      return response;
+    },
+    (error) => {
+      // Enhanced error logging
+      if (axios.isAxiosError(error)) {
+        logger.warn('[AXIOS] Response error', {
+          message: error.message,
+          code: error.code,
+          url: error.config?.url,
+          response: error.response ? {
+            status: error.response.status,
+            statusText: error.response.statusText,
+          } : null,
+          request: error.request ? 'Request made but no response' : null,
+        });
+      } else {
+        logger.error('[AXIOS] Unknown error', error);
+      }
+      return Promise.reject(error);
+    }
+  );
+
+  return instance;
+};
+
+// Global axios instance
+const axiosInstance = createAxiosInstance();
 
 const DEFAULT_PRICES: Prices = {
   '22_ayar': 2300,
@@ -72,11 +145,7 @@ const fetchFreshPrices = async (currentPrices?: Prices): Promise<Prices> => {
         // LOG: API call başladı
         logger.debug('[PRICE_SERVICE] API call başladı', { url: API_URL });
         
-        const response = await axios.get(API_URL, {
-          timeout: apiConfig.timeout,
-          validateStatus: (status) => status === 200, // Only accept 200 status
-          responseType: 'json', // Ensure JSON parsing
-        });
+        const response = await axiosInstance.get(API_URL);
         
         // Parse response data if it's a string
         let responseData = response.data;
@@ -161,12 +230,43 @@ const fetchFreshPrices = async (currentPrices?: Prices): Promise<Prices> => {
   } catch (error: unknown) {
     // Retry failed - use fallback
     // LOG: API hata - kritik log
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    let errorMessage = 'Unknown error';
+    let errorDetails: any = {};
+    
+    if (axios.isAxiosError(error)) {
+      errorMessage = error.message;
+      errorDetails = {
+        code: error.code,
+        response: error.response ? {
+          status: error.response.status,
+          statusText: error.response.statusText,
+          data: typeof error.response.data === 'string' ? error.response.data.substring(0, 200) : error.response.data,
+        } : null,
+        request: error.request ? {
+          method: error.request.method,
+          url: error.request.url,
+        } : null,
+        config: {
+          url: error.config?.url,
+          method: error.config?.method,
+          timeout: error.config?.timeout,
+        },
+      };
+    } else if (error instanceof Error) {
+      errorMessage = error.message;
+      errorDetails = {
+        name: error.name,
+        stack: error.stack?.substring(0, 500),
+      };
+    }
+    
     logger.error('[PRICE_SERVICE] API HATA - Fallback kullanılıyor', error, {
       error: errorMessage,
+      errorDetails,
       hasCurrentPrices: !!currentPrices,
       isCurrentPricesMock: currentPrices ? JSON.stringify(currentPrices) === JSON.stringify(DEFAULT_PRICES) : false,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
+      url: API_URL,
     });
     
     // KRİTİK DEĞİŞİKLİK: Mock data yerine cached prices kullan
