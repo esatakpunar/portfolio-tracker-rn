@@ -3,10 +3,12 @@
  * 
  * Production'da error tracking için Sentry kullanılır
  * Development'ta Sentry disabled (optional)
+ * 
+ * NOTE: Logger import'u yok - require cycle'ı önlemek için
+ * Logger kullanmak yerine console.log kullanıyoruz (sadece initialization sırasında)
  */
 
 import * as Sentry from '@sentry/react-native';
-import { logger } from '../utils/logger';
 import { isDevelopment } from '../utils/env';
 
 const SENTRY_DSN = process.env.EXPO_PUBLIC_SENTRY_DSN || '';
@@ -25,7 +27,10 @@ export const initializeSentry = () => {
 
   // DSN yoksa Sentry'yi başlatma
   if (!SENTRY_DSN) {
-    logger.warn('[SENTRY] DSN not configured, Sentry disabled');
+    // Logger henüz hazır olmayabilir, console.log kullan
+    if (isDev) {
+      console.warn('[SENTRY] DSN not configured, Sentry disabled');
+    }
     return;
   }
 
@@ -48,10 +53,16 @@ export const initializeSentry = () => {
       },
     });
 
-    logger.debug('[SENTRY] Initialized successfully');
+    // Logger henüz hazır olmayabilir, console.log kullan
+    if (isDev) {
+      console.debug('[SENTRY] Initialized successfully');
+    }
   } catch (error) {
     // Sentry initialization hatası - sessizce geç
-    logger.error('[SENTRY] Initialization failed', error);
+    // Logger henüz hazır olmayabilir, console.error kullan
+    if (isDev) {
+      console.error('[SENTRY] Initialization failed', error);
+    }
   }
 };
 

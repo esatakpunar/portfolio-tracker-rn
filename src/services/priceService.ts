@@ -75,10 +75,23 @@ const fetchFreshPrices = async (currentPrices?: Prices): Promise<Prices> => {
         const response = await axios.get(API_URL, {
           timeout: apiConfig.timeout,
           validateStatus: (status) => status === 200, // Only accept 200 status
+          responseType: 'json', // Ensure JSON parsing
         });
         
+        // Parse response data if it's a string
+        let responseData = response.data;
+        if (typeof responseData === 'string') {
+          try {
+            responseData = JSON.parse(responseData);
+            logger.debug('[PRICE_SERVICE] Parsed JSON string response');
+          } catch (parseError) {
+            logger.warn('[PRICE_SERVICE] Failed to parse JSON string', { parseError });
+            throw new Error('Invalid JSON response');
+          }
+        }
+        
         // Validate API response with Zod
-        const apiValidation = safeValidateApiResponse(response.data);
+        const apiValidation = safeValidateApiResponse(responseData);
         if (!apiValidation.success) {
           logger.warn('[PRICE_SERVICE] API response validation failed', {
             error: apiValidation.error?.issues,
@@ -87,7 +100,7 @@ const fetchFreshPrices = async (currentPrices?: Prices): Promise<Prices> => {
         }
         
         // LOG: API başarılı
-        logger.debug('[PRICE_SERVICE] API başarılı', { data: response.data });
+        logger.debug('[PRICE_SERVICE] API başarılı', { data: responseData });
         
         const data = apiValidation.data!;
         
