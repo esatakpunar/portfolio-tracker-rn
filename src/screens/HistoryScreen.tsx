@@ -79,7 +79,7 @@ const HistoryScreen: React.FC = React.memo(() => {
         </View>
       </View>
     );
-  };
+  }, [t, i18n.language]);
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>

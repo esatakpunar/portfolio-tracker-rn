@@ -379,7 +379,15 @@ const PortfolioScreen: React.FC = React.memo(() => {
       }
     }
     return valueTL;
-  };
+  }, [prices]);
+
+  // Memoize currency symbol map
+  const currencySymbolMap = useMemo<Record<CurrencyType, string>>(() => ({
+    'TL': '₺',
+    'USD': '$',
+    'EUR': '€',
+    'ALTIN': '₲',
+  }), []);
 
   const getCurrencySymbol = useCallback((currency: CurrencyType): string => {
     return currencySymbolMap[currency];
@@ -546,7 +554,9 @@ const PortfolioScreen: React.FC = React.memo(() => {
       />
     </SafeAreaView>
   );
-};
+});
+
+PortfolioScreen.displayName = 'PortfolioScreen';
 
 const styles = StyleSheet.create({
   container: {
@@ -794,7 +804,5 @@ const styles = StyleSheet.create({
     lineHeight: 16,
   },
 });
-
-PortfolioScreen.displayName = 'PortfolioScreen';
 
 export default PortfolioScreen;
