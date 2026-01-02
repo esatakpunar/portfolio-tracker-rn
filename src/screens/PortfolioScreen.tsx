@@ -217,6 +217,22 @@ export const PortfolioScreen: React.FC = React.memo(() => {
     }
   }, [dispatch]);
 
+  // Get currency price helper function
+  const getCurrencyPrice = useCallback((currency: CurrencyType): number | null => {
+    switch (currency) {
+      case 'TL':
+        return null; // TL'de fiyat gösterilmiyor
+      case 'USD':
+        return prices.usd || null;
+      case 'EUR':
+        return prices.eur || null;
+      case 'ALTIN':
+        return prices['24_ayar'] || null;
+      default:
+        return null;
+    }
+  }, [prices]);
+
 
   const renderCurrencySlider = useCallback(() => {
     return (
@@ -270,7 +286,17 @@ export const PortfolioScreen: React.FC = React.memo(() => {
                     </View>
                     <View style={styles.currencyInfo}>
                       <Text style={styles.totalLabel}>{t('total')}</Text>
-                      <Text style={styles.currencyLabel}>{t(`currencies.${currency}`)}</Text>
+                      <View style={styles.currencyNameRow}>
+                        <Text style={styles.currencyLabel}>{t(`currencies.${currency}`)}</Text>
+                        {getCurrencyPrice(currency) !== null && (
+                          <>
+                            <Text style={styles.currencySeparator}> • </Text>
+                            <Text style={styles.currencyPrice}>
+                              {formatCurrency(getCurrencyPrice(currency)!, i18n.language)} ₺
+                            </Text>
+                          </>
+                        )}
+                      </View>
                     </View>
                   </View>
                   
@@ -304,7 +330,7 @@ export const PortfolioScreen: React.FC = React.memo(() => {
         </View>
       </View>
     );
-  }, [safeTotalValue, safeCurrencyIndex, currentCurrencyIndex, t, i18n.language]);
+  }, [safeTotalValue, safeCurrencyIndex, currentCurrencyIndex, t, i18n.language, getCurrencyPrice]);
 
   // Memoize asset icon map
   const assetIconMap = useMemo<Record<AssetType, string>>(() => ({
