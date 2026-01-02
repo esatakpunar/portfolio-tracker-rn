@@ -81,6 +81,8 @@ export default {
   settingsSubtitle: 'Anwendungseinstellungen',
   refreshPrices: 'Preise aktualisieren',
   refresh: 'Aktualisieren',
+  refreshing: 'Wird aktualisiert...',
+  pullToRefresh: 'Zum Aktualisieren nach unten ziehen',
   resetAllData: 'Alle Daten zurücksetzen',
   language: 'Sprache',
   

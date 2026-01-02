@@ -81,6 +81,8 @@ export default {
   settingsSubtitle: 'Uygulama ayarları',
   refreshPrices: 'Fiyatları Yenile',
   refresh: 'Yenile',
+  refreshing: 'Yenileniyor...',
+  pullToRefresh: 'Yenilemek için aşağı çekin',
   resetAllData: 'Tüm Verileri Sıfırla',
   language: 'Dil',
   

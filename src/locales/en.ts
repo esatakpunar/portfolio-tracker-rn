@@ -81,6 +81,8 @@ export default {
   settingsSubtitle: 'Application settings',
   refreshPrices: 'Refresh Prices',
   refresh: 'Refresh',
+  refreshing: 'Refreshing...',
+  pullToRefresh: 'Pull down to refresh',
   resetAllData: 'Reset All Data',
   language: 'Language',
   
