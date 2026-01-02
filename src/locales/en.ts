@@ -109,5 +109,8 @@ export default {
   
   // Amount update descriptions
   amountIncreased: 'Amount increased',
-  amountDecreased: 'Amount decreased'
+  amountDecreased: 'Amount decreased',
+  
+  // Network status
+  offlineMessage: 'No internet connection'
 };

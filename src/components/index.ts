@@ -7,3 +7,4 @@ export { Text, default as TextComponent } from './Text';
 export { default as LoadingState } from './LoadingState';
 export { default as ErrorState } from './ErrorState';
 export { default as EmptyState } from './EmptyState';
+export { OfflineIndicator } from './OfflineIndicator';

@@ -5,6 +5,7 @@ import { safeValidateApiResponse, safeValidatePrices } from '../schemas';
 import { getApiUrl, apiConfig } from '../config/api';
 import { retry } from '../utils/retry';
 import { getCachedData, setCachedData, isCached, getCacheAge } from './cacheService';
+import NetInfo from '@react-native-community/netinfo';
 
 /**
  * Create axios instance with default config for React Native

@@ -12,6 +12,7 @@ import { initializeI18n } from './src/locales';
 import { fetchPrices } from './src/store/portfolioSlice';
 import BottomTabNavigator from './src/navigation/BottomTabNavigator';
 import { useToast } from './src/hooks/useToast';
+import { OfflineIndicator } from './src/components';
 import ToastNotification from './src/components/ToastNotification';
 import ErrorBoundary from './src/components/ErrorBoundary';
 import { initializeSentry } from './src/config/sentry';
@@ -90,6 +91,7 @@ const AppContent: React.FC = () => {
 
   return (
     <View style={styles.container}>
+      <OfflineIndicator />
       <BottomTabNavigator />
       <ToastNotification 
         toasts={toasts} 

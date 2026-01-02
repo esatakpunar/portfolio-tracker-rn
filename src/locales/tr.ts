@@ -111,5 +111,8 @@ export default {
   
   // Amount update descriptions
   amountIncreased: 'Miktar artırıldı',
-  amountDecreased: 'Miktar azaltıldı'
+  amountDecreased: 'Miktar azaltıldı',
+  
+  // Network status
+  offlineMessage: 'İnternet bağlantısı yok'
 };
