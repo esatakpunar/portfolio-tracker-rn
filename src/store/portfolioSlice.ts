@@ -145,6 +145,12 @@ const portfolioSlice = createSlice({
       if (state.history.length > STORAGE_LIMITS.HISTORY_CLEANUP_THRESHOLD) {
         state.history = cleanupHistory(state.history, STORAGE_LIMITS.MAX_HISTORY_ITEMS);
       }
+      
+      // Track analytics
+      analytics.trackBusinessEvent('portfolio_item_added', {
+        asset_type: type,
+        amount: amount,
+      });
     },
     
     removeItem: (state, action: PayloadAction<string>) => {

@@ -245,6 +245,12 @@ const fetchFreshPrices = async (currentPrices?: Prices, signal?: AbortSignal): P
         }
         
         // Prices updated successfully - gerçek API verisi
+        const pricesDuration = performanceMonitor.endTimer('api_fetch_prices');
+        if (pricesDuration) {
+          performanceMonitor.trackApiCall(API_URL, pricesDuration, true);
+          analytics.trackPerformance('api_fetch_prices', pricesDuration, { success: true });
+        }
+        
         return prices;
       },
       {
