@@ -192,9 +192,9 @@ const fetchFreshPrices = async (currentPrices?: Prices, signal?: AbortSignal): P
         // LOG: API call başladı
         logger.debug('[PRICE_SERVICE] API call başladı', { url: API_URL });
         
-        const response = await axiosInstance.get(API_URL, {
-          signal, // AbortController signal for cancellation
-        });
+        // Create axios config with signal if provided
+        const axiosConfig = signal ? { signal } : {};
+        const response = await axiosInstance.get(API_URL, axiosConfig);
         
         // Parse response data if it's a string
         let responseData = response.data;
