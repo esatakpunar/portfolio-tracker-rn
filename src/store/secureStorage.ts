@@ -58,6 +58,25 @@ export const secureStorage = {
    */
   setItem: async (key: string, value: string): Promise<void> => {
     try {
+      // Check storage quota before storing
+      const quotaCheck = await checkStorageQuota();
+      
+      if (quotaCheck.isOverLimit) {
+        logger.warn('[SECURE_STORAGE] Storage quota exceeded, attempting cleanup', {
+          estimatedSize: quotaCheck.estimatedSize,
+          percentage: quotaCheck.percentage.toFixed(2),
+        });
+        // Storage overflow - throw error to prevent data loss
+        throw new Error(`Storage quota exceeded (${quotaCheck.percentage.toFixed(2)}%)`);
+      }
+      
+      if (quotaCheck.isNearLimit) {
+        logger.warn('[SECURE_STORAGE] Storage quota near limit', {
+          estimatedSize: quotaCheck.estimatedSize,
+          percentage: quotaCheck.percentage.toFixed(2),
+        });
+      }
+      
       if (isSecureStoreAvailable && SecureStore) {
         // SecureStore kullan
         const secureKey = getSecureKey(key);
@@ -69,6 +88,12 @@ export const secureStorage = {
         logger.debug(`[SECURE_STORAGE] Item stored in AsyncStorage (fallback): ${key}`);
       }
     } catch (error) {
+      // Check if it's a quota error
+      if (error instanceof Error && error.message.includes('quota')) {
+        logger.error(`[SECURE_STORAGE] Storage quota error: ${key}`, error);
+        // Re-throw with more context
+        throw new Error(`Storage quota exceeded. Please clean up history or remove unused data.`);
+      }
       logger.error(`[SECURE_STORAGE] Failed to store item: ${key}`, error);
       throw error;
     }

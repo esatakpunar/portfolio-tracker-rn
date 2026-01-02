@@ -4,6 +4,7 @@ import { fetchPrices as fetchPricesFromAPI, getDefaultPrices } from '../services
 import { safeAdd, safeSubtract } from '../utils/numberUtils';
 import { logger } from '../utils/logger';
 import { RootState } from './index';
+import { cleanupHistory, STORAGE_LIMITS } from '../utils/storageUtils';
 
 interface PortfolioState {
   items: PortfolioItem[];
@@ -131,12 +132,18 @@ const portfolioSlice = createSlice({
       
       state.items.push(newItem);
       
+      // Add to history
       state.history.unshift({
         type: 'add',
         item: newItem,
         date: new Date().toISOString(),
         description: newItem.description || ''
       });
+      
+      // Cleanup history if it exceeds threshold
+      if (state.history.length > STORAGE_LIMITS.HISTORY_CLEANUP_THRESHOLD) {
+        state.history = cleanupHistory(state.history, STORAGE_LIMITS.MAX_HISTORY_ITEMS);
+      }
     },
     
     removeItem: (state, action: PayloadAction<string>) => {
@@ -151,6 +158,11 @@ const portfolioSlice = createSlice({
           item: removed,
           date: new Date().toISOString()
         });
+        
+        // Cleanup history if it exceeds threshold
+        if (state.history.length > STORAGE_LIMITS.HISTORY_CLEANUP_THRESHOLD) {
+          state.history = cleanupHistory(state.history, STORAGE_LIMITS.MAX_HISTORY_ITEMS);
+        }
       }
     },
     
@@ -189,6 +201,11 @@ const portfolioSlice = createSlice({
           date: new Date().toISOString(),
           description: description || undefined, // Description will be set in component level with i18n
         });
+        
+        // Cleanup history if it exceeds threshold
+        if (state.history.length > STORAGE_LIMITS.HISTORY_CLEANUP_THRESHOLD) {
+          state.history = cleanupHistory(state.history, STORAGE_LIMITS.MAX_HISTORY_ITEMS);
+        }
       } else {
         // Removing assets (difference is negative)
         // Use LIFO (Last In First Out) - remove from the end
@@ -223,6 +240,11 @@ const portfolioSlice = createSlice({
           date: new Date().toISOString(),
           description: description || undefined, // Description will be set in component level with i18n
         });
+        
+        // Cleanup history if it exceeds threshold
+        if (state.history.length > STORAGE_LIMITS.HISTORY_CLEANUP_THRESHOLD) {
+          state.history = cleanupHistory(state.history, STORAGE_LIMITS.MAX_HISTORY_ITEMS);
+        }
       }
     },
     
