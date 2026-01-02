@@ -32,7 +32,7 @@ const SettingsScreen: React.FC = React.memo(() => {
     hapticFeedback.light();
     setIsRefreshingPrices(true);
     try {
-      const result = await (dispatch as AppDispatch)(fetchPrices());
+      const result = await dispatch(fetchPrices());
       if (fetchPrices.fulfilled.match(result)) {
         hapticFeedback.success();
       } else {

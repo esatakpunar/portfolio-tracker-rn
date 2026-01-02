@@ -513,10 +513,15 @@ const PortfolioScreen: React.FC = React.memo(() => {
             ) : (
               <View>
                 {Object.entries(groupedItems)
-                  .filter(([_, groupItems]) => groupItems && groupItems.length > 0)
-                  .map(([type, groupItems]) =>
-                    renderAssetGroup(type as AssetType, groupItems)
-                  )}
+                  .filter(([type, groupItems]) => {
+                    // Type guard ile güvenli kontrol
+                    return isAssetType(type) && groupItems && groupItems.length > 0;
+                  })
+                  .map(([type, groupItems]) => {
+                    // Type guard sonrası type assertion güvenli
+                    const assetType = type as AssetType; // Type guard ile zaten kontrol edildi
+                    return renderAssetGroup(assetType, groupItems);
+                  })}
               </View>
             )}
           </View>

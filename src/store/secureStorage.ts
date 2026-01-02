@@ -17,7 +17,7 @@ import { logger } from '../utils/logger';
  * SecureStore'un mevcut olup olmadığını kontrol et
  * Expo Go'da native modüller mevcut değil, bu yüzden fallback gerekli
  */
-let SecureStore: any = null;
+let SecureStore: typeof import('expo-secure-store') | null = null;
 let isSecureStoreAvailable = false;
 
 try {

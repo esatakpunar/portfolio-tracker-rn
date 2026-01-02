@@ -5,6 +5,7 @@ import { logger } from '../utils/logger';
 import { secureStorage, migrateToSecureStorage } from './secureStorage';
 import { migrateState, validateState } from './migrations';
 import { raceConditionMiddleware } from './middleware/raceConditionMiddleware';
+import { PersistedState } from './migrations/types';
 
 const CURRENT_VERSION = 1; // State structure değişikliklerinde artırılmalı
 
@@ -13,7 +14,7 @@ const persistConfig = {
   storage: secureStorage, // Secure storage kullan (encrypted)
   whitelist: ['portfolio'], // Only persist portfolio slice
   version: CURRENT_VERSION, // Version kontrolü - state structure değişikliklerinde artırılmalı
-  migrate: async (state: any) => {
+  migrate: async (state: PersistedState | undefined) => {
     try {
       // State validation
       if (!validateState(state)) {

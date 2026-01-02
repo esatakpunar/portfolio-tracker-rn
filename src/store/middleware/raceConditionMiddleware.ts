@@ -85,11 +85,11 @@ export const raceConditionMiddleware: Middleware = () => (next) => (action) => {
     // If the action returns a promise (async thunk), handle it
     if (result && typeof result.then === 'function') {
       return result
-        .then((resolved: any) => {
+        .then((resolved: unknown) => {
           unlockAction(actionType);
           return resolved;
         })
-        .catch((error: any) => {
+        .catch((error: unknown) => {
           unlockAction(actionType);
           logger.error(`[RACE_CONDITION] Action failed: ${actionType}`, error);
           throw error;

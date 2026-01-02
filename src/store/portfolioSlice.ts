@@ -43,7 +43,7 @@ export const fetchPrices = createAsyncThunk(
     isFetchingPrices = true;
     try {
       // Get current prices from state to pass as fallback
-      const state = getState() as { portfolio: PortfolioState };
+      const state = getState() as RootState;
       const currentPrices = state?.portfolio?.prices;
       const prices = await fetchPricesFromAPI(currentPrices);
       return prices;
