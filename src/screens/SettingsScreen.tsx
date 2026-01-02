@@ -6,7 +6,6 @@ import {
   TouchableOpacity,
   Alert,
   ActivityIndicator,
-  Modal,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
@@ -20,7 +19,6 @@ import { getAssetIcon, getAssetColor } from '../utils/assetUtils';
 import { formatCurrency } from '../utils/formatUtils';
 import { AssetType } from '../types';
 import { hapticFeedback } from '../utils/haptics';
-import PrivacyPolicyScreen from './PrivacyPolicyScreen';
 
 export const SettingsScreen: React.FC = React.memo(() => {
   const { t, i18n } = useTranslation();
@@ -29,7 +27,6 @@ export const SettingsScreen: React.FC = React.memo(() => {
   const currentLanguage = useAppSelector(selectLanguage);
   const [showLanguagePicker, setShowLanguagePicker] = useState(false);
   const [isRefreshingPrices, setIsRefreshingPrices] = useState(false);
-  const [showPrivacyPolicy, setShowPrivacyPolicy] = useState(false);
 
   const handleRefreshPrices = async () => {
     hapticFeedback.light();
@@ -222,46 +219,6 @@ export const SettingsScreen: React.FC = React.memo(() => {
 
         <View style={styles.section}>
           <View style={styles.sectionHeaderContainer}>
-            <View style={[styles.sectionIconWrapper, { backgroundColor: colors.info + '20' }]}>
-              <Text style={styles.sectionIcon}>🔒</Text>
-            </View>
-            <View style={styles.sectionHeaderContent}>
-              <Text style={styles.sectionTitle}>{t('privacyPolicy')}</Text>
-              <Text style={styles.sectionSubtitle}>{t('privacyPolicySubtitle')}</Text>
-            </View>
-          </View>
-          
-          <TouchableOpacity
-            style={styles.privacyButton}
-            onPress={() => {
-              hapticFeedback.light();
-              setShowPrivacyPolicy(true);
-            }}
-            accessible={true}
-            accessibilityLabel={t('privacyPolicy')}
-            accessibilityHint={t('privacyPolicySubtitle')}
-            accessibilityRole="button"
-          >
-            <View style={styles.privacyButtonContent}>
-              <Text style={styles.privacyButtonIcon}>📄</Text>
-              <Text style={styles.privacyButtonText}>{t('privacyPolicy')}</Text>
-            </View>
-          </TouchableOpacity>
-          
-          <View style={styles.dataCollectionInfo}>
-            <Text style={styles.dataCollectionTitle}>{t('privacy.dataCollection')}</Text>
-            <Text style={styles.dataCollectionText}>
-              {t('privacy.localDataText')}
-            </Text>
-            <Text style={styles.dataCollectionSubtitle}>{t('privacy.noDataCollection')}</Text>
-            <Text style={styles.dataCollectionText}>
-              {t('privacy.noDataCollectionText')}
-            </Text>
-          </View>
-        </View>
-
-        <View style={styles.section}>
-          <View style={styles.sectionHeaderContainer}>
             <View style={[styles.sectionIconWrapper, { backgroundColor: colors.error + '20' }]}>
               <Text style={styles.sectionIcon}>⚠️</Text>
             </View>
@@ -286,15 +243,6 @@ export const SettingsScreen: React.FC = React.memo(() => {
           </TouchableOpacity>
         </View>
       </ScrollView>
-
-      <Modal
-        visible={showPrivacyPolicy}
-        animationType="slide"
-        presentationStyle="pageSheet"
-        onRequestClose={() => setShowPrivacyPolicy(false)}
-      >
-        <PrivacyPolicyScreen onClose={() => setShowPrivacyPolicy(false)} />
-      </Modal>
     </SafeAreaView>
   );
 });
@@ -542,57 +490,6 @@ const styles = StyleSheet.create({
     fontSize: fontSize.xs,
     color: colors.textMuted,
     fontStyle: 'italic',
-  },
-  privacyButton: {
-    backgroundColor: colors.glassBackground,
-    borderWidth: 2,
-    borderColor: colors.info,
-    borderRadius: borderRadius.xl,
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.lg,
-    marginBottom: spacing.lg,
-    ...shadows.glass,
-  },
-  privacyButtonContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  privacyButtonIcon: {
-    fontSize: 20,
-    marginRight: spacing.sm,
-  },
-  privacyButtonText: {
-    fontSize: fontSize.base,
-    fontWeight: fontWeight.bold,
-    color: colors.textPrimary,
-  },
-  dataCollectionInfo: {
-    backgroundColor: colors.glassBackground,
-    borderRadius: borderRadius.xl,
-    borderWidth: 1,
-    borderColor: colors.glassBorder,
-    padding: spacing.lg,
-    marginTop: spacing.md,
-  },
-  dataCollectionTitle: {
-    fontSize: fontSize.base,
-    fontWeight: fontWeight.semibold,
-    color: colors.textPrimary,
-    marginBottom: spacing.sm,
-  },
-  dataCollectionSubtitle: {
-    fontSize: fontSize.sm,
-    fontWeight: fontWeight.semibold,
-    color: colors.textPrimary,
-    marginTop: spacing.md,
-    marginBottom: spacing.sm,
-  },
-  dataCollectionText: {
-    fontSize: fontSize.sm,
-    color: colors.textSecondary,
-    lineHeight: 20,
-    marginBottom: spacing.xs,
   },
 });
 
