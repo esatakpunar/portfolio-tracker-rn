@@ -288,6 +288,13 @@ const fetchFreshPrices = async (currentPrices?: Prices, signal?: AbortSignal): P
       }
     );
   } catch (error: unknown) {
+    // Track API failure
+    const pricesDuration = performanceMonitor.endTimer('api_fetch_prices');
+    if (pricesDuration) {
+      performanceMonitor.trackApiCall(API_URL, pricesDuration, false);
+      analytics.trackPerformance('api_fetch_prices', pricesDuration, { success: false });
+    }
+    
     // Retry failed - use fallback
     // LOG: API hata - kritik log
     let errorMessage = 'Unknown error';
