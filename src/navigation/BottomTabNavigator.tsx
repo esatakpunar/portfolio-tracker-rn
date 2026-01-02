@@ -2,9 +2,10 @@ import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { useTranslation } from 'react-i18next';
 import { StyleSheet } from 'react-native';
-import PortfolioScreen from '../screens/PortfolioScreen';
-import HistoryScreen from '../screens/HistoryScreen';
-import SettingsScreen from '../screens/SettingsScreen';
+// Lazy load screens for code splitting
+const PortfolioScreen = React.lazy(() => import('../screens/PortfolioScreen'));
+const HistoryScreen = React.lazy(() => import('../screens/HistoryScreen'));
+const SettingsScreen = React.lazy(() => import('../screens/SettingsScreen'));
 import TabIcon from '../components/TabIcon';
 import { colors, fontSize, spacing, fontWeight } from '../theme';
 
@@ -28,17 +29,29 @@ const BottomTabNavigator: React.FC = () => {
     >
       <Tab.Screen
         name="Portfolio"
-        component={PortfolioScreen}
+        children={() => (
+          <Suspense fallback={<ScreenLoader />}>
+            <PortfolioScreen />
+          </Suspense>
+        )}
         options={{ tabBarLabel: t('portfolio') }}
       />
       <Tab.Screen
         name="History"
-        component={HistoryScreen}
+        children={() => (
+          <Suspense fallback={<ScreenLoader />}>
+            <HistoryScreen />
+          </Suspense>
+        )}
         options={{ tabBarLabel: t('history') }}
       />
       <Tab.Screen
         name="Settings"
-        component={SettingsScreen}
+        children={() => (
+          <Suspense fallback={<ScreenLoader />}>
+            <SettingsScreen />
+          </Suspense>
+        )}
         options={{ tabBarLabel: t('settings') }}
       />
     </Tab.Navigator>

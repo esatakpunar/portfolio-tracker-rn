@@ -28,7 +28,7 @@ import { getCurrencyIcon, getCurrencyColor, getCurrencySymbol } from '../utils/c
 const { width } = Dimensions.get('window');
 const CURRENCIES: CurrencyType[] = ['TL', 'USD', 'EUR', 'ALTIN'];
 
-const PortfolioScreen: React.FC = React.memo(() => {
+export const PortfolioScreen: React.FC = React.memo(() => {
   const { t, i18n } = useTranslation();
   const dispatch = useAppDispatch();
   const items = useAppSelector(selectItems);

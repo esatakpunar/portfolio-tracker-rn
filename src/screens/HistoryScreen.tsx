@@ -15,7 +15,7 @@ import { getAssetIcon, getAssetColor } from '../utils/assetUtils';
 import { formatRelativeDate, formatCurrency } from '../utils/formatUtils';
 import { HistoryItem } from '../types';
 
-const HistoryScreen: React.FC = React.memo(() => {
+export const HistoryScreen: React.FC = React.memo(() => {
   const { t, i18n } = useTranslation();
   const history = useAppSelector(selectHistory);
 
