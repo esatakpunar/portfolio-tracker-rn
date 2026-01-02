@@ -1,16 +1,16 @@
 import axios from 'axios';
-import { Prices } from '../types';
+import { Prices, PriceChanges } from '../types';
 
 const API_URL = 'https://finans.truncgil.com/v4/today.json';
 
 interface ApiResponse {
-  USD?: { Buying: string };
-  EUR?: { Buying: string };
-  GUMUS?: { Buying: string };
-  TAMALTIN?: { Buying: string };
-  CEYREKALTIN?: { Buying: string };
-  YIA?: { Buying: string }; // 22 ayar
-  GRA?: { Buying: string }; // 24 ayar (gram altın)
+  USD?: { Buying: string; Change?: string | number };
+  EUR?: { Buying: string; Change?: string | number };
+  GUMUS?: { Buying: string; Change?: string | number };
+  TAMALTIN?: { Buying: string; Change?: string | number };
+  CEYREKALTIN?: { Buying: string; Change?: string | number };
+  YIA?: { Buying: string; Change?: string | number }; // 22 ayar
+  GRA?: { Buying: string; Change?: string | number }; // 24 ayar (gram altın)
 }
 
 const DEFAULT_PRICES: Prices = {
@@ -22,6 +22,17 @@ const DEFAULT_PRICES: Prices = {
   eur: 36,
   tl: 1,
   gumus: 30
+};
+
+const DEFAULT_CHANGES: PriceChanges = {
+  '22_ayar': 0,
+  '24_ayar': 0,
+  ceyrek: 0,
+  tam: 0,
+  usd: 0,
+  eur: 0,
+  tl: 0,
+  gumus: 0
 };
 
 /**
@@ -62,6 +73,45 @@ const parsePrice = (value: string | number | null | undefined, fallback: number)
 };
 
 /**
+ * Safely parses a change value from API response
+ * Handles positive, negative, and zero values
+ * Also handles cases where value might be number, string, null, or undefined
+ */
+const parseChange = (value: string | number | null | undefined, fallback: number): number => {
+  // Handle null or undefined
+  if (value == null) {
+    return fallback;
+  }
+  
+  // If already a number, validate it
+  if (typeof value === 'number') {
+    if (isNaN(value) || !isFinite(value)) {
+      return fallback;
+    }
+    return value;
+  }
+  
+  // If string, trim and parse
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    if (trimmed === '') {
+      return fallback;
+    }
+    // Remove % sign if present
+    const cleaned = trimmed.replace('%', '');
+    const parsed = Number(cleaned);
+    // Check for NaN or invalid numbers (0 is valid)
+    if (isNaN(parsed) || !isFinite(parsed)) {
+      return fallback;
+    }
+    return parsed;
+  }
+  
+  // For any other type, return fallback
+  return fallback;
+};
+
+/**
  * Validates API response structure
  */
 const validateApiResponse = (data: any): data is ApiResponse => {
@@ -72,7 +122,12 @@ const validateApiResponse = (data: any): data is ApiResponse => {
   return true;
 };
 
-export const fetchPrices = async (currentPrices?: Prices): Promise<Prices> => {
+export interface PriceData {
+  prices: Prices;
+  changes: PriceChanges;
+}
+
+export const fetchPrices = async (currentPrices?: Prices, currentChanges?: PriceChanges): Promise<PriceData> => {
   try {
     // LOG: API call başladı
     if (__DEV__) {
@@ -107,6 +162,17 @@ export const fetchPrices = async (currentPrices?: Prices): Promise<Prices> => {
       tl: 1,
     };
     
+    const changes: PriceChanges = {
+      usd: parseChange(data.USD?.Change, currentChanges?.usd ?? DEFAULT_CHANGES.usd),
+      eur: parseChange(data.EUR?.Change, currentChanges?.eur ?? DEFAULT_CHANGES.eur),
+      gumus: parseChange(data.GUMUS?.Change, currentChanges?.gumus ?? DEFAULT_CHANGES.gumus),
+      tam: parseChange(data.TAMALTIN?.Change, currentChanges?.tam ?? DEFAULT_CHANGES.tam),
+      ceyrek: parseChange(data.CEYREKALTIN?.Change, currentChanges?.ceyrek ?? DEFAULT_CHANGES.ceyrek),
+      '22_ayar': parseChange(data.YIA?.Change, currentChanges?.['22_ayar'] ?? DEFAULT_CHANGES['22_ayar']),
+      '24_ayar': parseChange(data.GRA?.Change, currentChanges?.['24_ayar'] ?? DEFAULT_CHANGES['24_ayar']),
+      tl: 0,
+    };
+    
     // Validate all prices are valid numbers
     const allPricesValid = Object.values(prices).every(
       (price) => typeof price === 'number' && !isNaN(price) && price >= 0
@@ -117,7 +183,7 @@ export const fetchPrices = async (currentPrices?: Prices): Promise<Prices> => {
     }
     
     // Prices updated successfully - gerçek API verisi
-    return prices;
+    return { prices, changes };
   } catch (error) {
     // LOG: API hata - kritik log
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
@@ -142,7 +208,10 @@ export const fetchPrices = async (currentPrices?: Prices): Promise<Prices> => {
         if (__DEV__) {
           console.log('[PRICE_SERVICE] API hata - Cached prices kullanılıyor (mock değil)');
         }
-        return currentPrices; // Cached gerçek veri
+        return { 
+          prices: currentPrices, 
+          changes: currentChanges || DEFAULT_CHANGES 
+        }; // Cached gerçek veri
       }
     }
     
@@ -150,8 +219,10 @@ export const fetchPrices = async (currentPrices?: Prices): Promise<Prices> => {
     if (__DEV__) {
       console.warn('[PRICE_SERVICE] API hata - Mock data kullanılıyor (sadece ilk açılış, persist edilmeyecek)');
     }
-    return DEFAULT_PRICES;
+    return { prices: DEFAULT_PRICES, changes: DEFAULT_CHANGES };
   }
 };
 
 export const getDefaultPrices = (): Prices => DEFAULT_PRICES;
+
+export const getDefaultChanges = (): PriceChanges => DEFAULT_CHANGES;

@@ -1,11 +1,12 @@
 import { createSlice, PayloadAction, createAsyncThunk } from '@reduxjs/toolkit';
-import { PortfolioItem, HistoryItem, Prices, AssetType, CurrencyType } from '../types';
-import { fetchPrices as fetchPricesFromAPI, getDefaultPrices } from '../services/priceService';
+import { PortfolioItem, HistoryItem, Prices, PriceChanges, AssetType, CurrencyType } from '../types';
+import { fetchPrices as fetchPricesFromAPI, getDefaultPrices, getDefaultChanges } from '../services/priceService';
 import { safeAdd, safeSubtract } from '../utils/numberUtils';
 
 interface PortfolioState {
   items: PortfolioItem[];
   prices: Prices;
+  priceChanges: PriceChanges;
   history: HistoryItem[];
   currentLanguage: string;
 }
@@ -21,9 +22,21 @@ const initialPrices: Prices = {
   gumus: 30
 };
 
+const initialChanges: PriceChanges = {
+  '22_ayar': 0,
+  '24_ayar': 0,
+  ceyrek: 0,
+  tam: 0,
+  usd: 0,
+  eur: 0,
+  tl: 0,
+  gumus: 0
+};
+
 export const initialState: PortfolioState = {
   items: [],
   prices: initialPrices,
+  priceChanges: initialChanges,
   history: [],
   currentLanguage: 'tr'
 };
@@ -40,11 +53,12 @@ export const fetchPrices = createAsyncThunk(
     
     isFetchingPrices = true;
     try {
-      // Get current prices from state to pass as fallback
+      // Get current prices and changes from state to pass as fallback
       const state = getState() as { portfolio: PortfolioState };
       const currentPrices = state?.portfolio?.prices;
-      const prices = await fetchPricesFromAPI(currentPrices);
-      return prices;
+      const currentChanges = state?.portfolio?.priceChanges;
+      const priceData = await fetchPricesFromAPI(currentPrices, currentChanges);
+      return priceData;
     } catch (error) {
       if (__DEV__) {
         console.error('Error fetching prices:', error);
@@ -252,9 +266,22 @@ const portfolioSlice = createSlice({
   extraReducers: (builder) => {
     builder
       .addCase(fetchPrices.fulfilled, (state, action) => {
+        // Check if payload is valid PriceData
+        if (!action.payload || typeof action.payload !== 'object' || !('prices' in action.payload) || !('changes' in action.payload)) {
+          if (__DEV__) {
+            console.warn('[PORTFOLIO] Invalid payload structure');
+          }
+          return;
+        }
+
+        const { prices, changes } = action.payload;
+        
         // Mock data kontrolü - eğer payload DEFAULT_PRICES ise persist etme
         const defaultPrices = getDefaultPrices();
-        const isMockData = action.payload && JSON.stringify(action.payload) === JSON.stringify(defaultPrices);
+        const defaultChanges = getDefaultChanges();
+        const isMockData = 
+          (prices && JSON.stringify(prices) === JSON.stringify(defaultPrices)) &&
+          (changes && JSON.stringify(changes) === JSON.stringify(defaultChanges));
         
         if (isMockData) {
           // Mock data - sadece state'e yazma, persist etme
@@ -266,19 +293,30 @@ const portfolioSlice = createSlice({
         }
         
         // Gerçek API verisi - persist et
-        if (action.payload && typeof action.payload === 'object') {
+        if (prices && typeof prices === 'object') {
           const validatedPrices: Partial<Prices> = {};
-          Object.entries(action.payload).forEach(([key, value]) => {
+          Object.entries(prices).forEach(([key, value]) => {
             if (typeof value === 'number' && !isNaN(value) && isFinite(value) && value >= 0) {
               validatedPrices[key as keyof Prices] = value;
             }
           });
           // Merge new prices with existing ones
           state.prices = { ...state.prices, ...validatedPrices };
-          
-          if (__DEV__) {
-            console.log('[PORTFOLIO] Gerçek API verisi alındı ve persist ediliyor');
-          }
+        }
+        
+        if (changes && typeof changes === 'object') {
+          const validatedChanges: Partial<PriceChanges> = {};
+          Object.entries(changes).forEach(([key, value]) => {
+            if (typeof value === 'number' && !isNaN(value) && isFinite(value)) {
+              validatedChanges[key as keyof PriceChanges] = value;
+            }
+          });
+          // Merge new changes with existing ones
+          state.priceChanges = { ...state.priceChanges, ...validatedChanges };
+        }
+        
+        if (__DEV__) {
+          console.log('[PORTFOLIO] Gerçek API verisi alındı ve persist ediliyor');
         }
       })
       .addCase(fetchPrices.rejected, (state) => {
@@ -303,6 +341,7 @@ export const {
 
 export const selectItems = (state: { portfolio: PortfolioState }) => state.portfolio.items;
 export const selectPrices = (state: { portfolio: PortfolioState }) => state.portfolio.prices;
+export const selectPriceChanges = (state: { portfolio: PortfolioState }) => state.portfolio.priceChanges;
 export const selectHistory = (state: { portfolio: PortfolioState }) => state.portfolio.history;
 export const selectLanguage = (state: { portfolio: PortfolioState }) => state.portfolio.currentLanguage;
 

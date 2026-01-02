@@ -68,6 +68,9 @@ export default {
   noChange: 'Değişiklik yok',
   
   total: 'Toplam',
+  currentValue: 'Güncel Fiyat',
+  totalAssets: 'Toplam Varlık',
+  asset: 'varlık',
   assets: 'Varlıklar',
   noAssets: 'Henüz varlık eklenmemiş',
   addFirstAsset: 'İlk varlığınızı ekleyin',

@@ -14,7 +14,7 @@ import { Swipeable } from 'react-native-gesture-handler';
 import { useTranslation } from 'react-i18next';
 import { Text } from '../components/Text';
 import { useAppSelector, useAppDispatch } from '../hooks/useRedux';
-import { addItem, updateItemAmount, selectItems, selectPrices, selectTotalIn, fetchPrices } from '../store/portfolioSlice';
+import { addItem, updateItemAmount, selectItems, selectPrices, selectPriceChanges, selectTotalIn, fetchPrices } from '../store/portfolioSlice';
 import { AppDispatch } from '../store';
 import { colors, spacing, borderRadius, fontSize, fontWeight, shadows } from '../theme';
 import { CurrencyType, AssetType, PortfolioItem } from '../types';
@@ -23,6 +23,7 @@ import QuickAddModal from '../components/QuickAddModal';
 import QuickRemoveModal from '../components/QuickRemoveModal';
 import SwipeableAssetItem from '../components/SwipeableAssetItem';
 import EmptyState from '../components/EmptyState';
+import PriceChangeIndicator from '../components/PriceChangeIndicator';
 import { hapticFeedback } from '../utils/haptics';
 import { formatCurrency } from '../utils/formatUtils';
 
@@ -34,6 +35,7 @@ const PortfolioScreen: React.FC = () => {
   const dispatch = useAppDispatch();
   const items = useAppSelector(selectItems);
   const prices = useAppSelector(selectPrices);
+  const priceChanges = useAppSelector(selectPriceChanges);
   
   const [currentCurrencyIndex, setCurrentCurrencyIndex] = useState(0);
   const [showAddModal, setShowAddModal] = useState(false);
@@ -271,7 +273,28 @@ const PortfolioScreen: React.FC = () => {
                         {getCurrencySymbol(currency)}
                       </Text>
                     </View>
-                    <View style={styles.valueUnderline} />
+                    <View style={styles.totalValueChangeContainer}>
+                      {currency !== 'TL' ? (
+                        <View style={styles.priceInfoContainer}>
+                          <Text style={styles.currentValueLabel}>{t('currentValue')}</Text>
+                          <View style={styles.priceInfoRow}>
+                            <Text style={styles.currentPriceText}>
+                              {formatCurrency(getCurrencyPrice(currency), i18n.language)} ₺
+                            </Text>
+                            <View style={styles.changeIndicatorWrapper}>
+                              <PriceChangeIndicator change={getCurrencyChange(currency)} />
+                            </View>
+                          </View>
+                        </View>
+                      ) : (
+                        <View style={styles.priceInfoContainer}>
+                          <Text style={styles.currentValueLabel}>{t('totalAssets')}</Text>
+                          <Text style={styles.totalAssetsText}>
+                            {items.length} {items.length === 1 ? t('asset') : t('assets')}
+                          </Text>
+                        </View>
+                      )}
+                    </View>
                   </View>
                 </View>
               </View>
@@ -389,6 +412,26 @@ const PortfolioScreen: React.FC = () => {
       'ALTIN': '₲',
     };
     return symbols[currency];
+  };
+
+  const getCurrencyChange = (currency: CurrencyType): number => {
+    const changeMap: Record<CurrencyType, keyof typeof priceChanges> = {
+      'TL': 'tl',
+      'USD': 'usd',
+      'EUR': 'eur',
+      'ALTIN': '24_ayar', // Gram altın için 24 ayar change değeri
+    };
+    return priceChanges[changeMap[currency]] ?? 0;
+  };
+
+  const getCurrencyPrice = (currency: CurrencyType): number => {
+    const priceMap: Record<CurrencyType, keyof typeof prices> = {
+      'TL': 'tl',
+      'USD': 'usd',
+      'EUR': 'eur',
+      'ALTIN': '24_ayar', // Gram altın için 24 ayar fiyatı
+    };
+    return prices[priceMap[currency]] ?? 0;
   };
 
   const renderAssetGroup = (type: AssetType, groupItems: PortfolioItem[]) => {
@@ -629,6 +672,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.glassBorder,
     overflow: 'hidden',
+    minHeight: 180,
     ...shadows.glass,
   },
   gradientOverlay: {
@@ -642,12 +686,12 @@ const styles = StyleSheet.create({
     transform: [{ translateX: 40 }, { translateY: -40 }],
   },
   totalCardContent: {
-    padding: spacing.xl,
+    padding: spacing.lg,
   },
   totalCardHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: spacing.xl,
+    marginBottom: spacing.lg,
   },
   currencyIconContainer: {
     width: 56,
@@ -681,21 +725,21 @@ const styles = StyleSheet.create({
     marginBottom: 2,
   },
   totalValue: {
-    fontSize: 42,
+    fontSize: 38,
     fontWeight: fontWeight.bold,
     color: colors.textPrimary,
     letterSpacing: -1,
-    lineHeight: 50,
+    lineHeight: 44,
   },
   totalCurrencySymbol: {
-    fontSize: 28,
+    fontSize: 24,
     fontWeight: fontWeight.semibold,
     color: colors.textSecondary,
     marginLeft: spacing.sm,
-    lineHeight: 50,
+    lineHeight: 44,
   },
   valueUnderline: {
-    width: 60,
+    alignSelf: 'stretch',
     height: 4,
     backgroundColor: colors.primaryStart,
     borderRadius: borderRadius.full,
@@ -815,6 +859,44 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
     textAlign: 'right',
     lineHeight: 16,
+  },
+  totalValueChangeContainer: {
+    marginTop: spacing.xs,
+    alignItems: 'flex-start',
+    alignSelf: 'stretch',
+    minHeight: 42,
+  },
+  priceInfoContainer: {
+    alignItems: 'flex-start',
+    alignSelf: 'stretch',
+  },
+  currentValueLabel: {
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.medium,
+    color: colors.textSecondary,
+    marginBottom: spacing.xs,
+  },
+  priceInfoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    width: '100%',
+  },
+  currentPriceText: {
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.medium,
+    color: colors.textSecondary,
+  },
+  changeIndicatorWrapper: {
+    marginLeft: spacing.sm,
+  },
+  emptyChangeIndicator: {
+    height: 20,
+  },
+  totalAssetsText: {
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.medium,
+    color: colors.textSecondary,
   },
 });
 

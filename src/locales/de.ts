@@ -68,6 +68,9 @@ export default {
   noChange: 'Keine Änderung',
   
   total: 'Gesamt',
+  currentValue: 'Aktueller Wert',
+  totalAssets: 'Gesamte Vermögenswerte',
+  asset: 'Vermögenswert',
   assets: 'Vermögenswerte',
   noAssets: 'Noch keine Vermögenswerte hinzugefügt',
   addFirstAsset: 'Fügen Sie Ihren ersten Vermögenswert hinzu',

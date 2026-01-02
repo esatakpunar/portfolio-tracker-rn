@@ -68,6 +68,9 @@ export default {
   noChange: 'No change',
   
   total: 'Total',
+  currentValue: 'Current Value',
+  totalAssets: 'Total Assets',
+  asset: 'asset',
   assets: 'Assets',
   noAssets: 'No assets added yet',
   addFirstAsset: 'Add your first asset',

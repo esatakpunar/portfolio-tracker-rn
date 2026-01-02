@@ -37,9 +37,21 @@ export interface Prices {
   gumus: number;
 }
 
+export interface PriceChanges {
+  '22_ayar': number;
+  '24_ayar': number;
+  ceyrek: number;
+  tam: number;
+  usd: number;
+  eur: number;
+  tl: number;
+  gumus: number;
+}
+
 export interface PortfolioState {
   items: PortfolioItem[];
   prices: Prices;
+  priceChanges: PriceChanges;
   history: HistoryItem[];
   currentLanguage: string;
 }

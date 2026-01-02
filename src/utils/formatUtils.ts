@@ -77,3 +77,26 @@ export const formatRelativeDate = (
   }
 };
 
+/**
+ * Formats a price change value with sign and percentage symbol
+ * - Positive values (>0): "+0.18%"
+ * - Negative values (<0): "-0.07%"
+ * - Zero values (=0): "0.00%"
+ */
+export const formatPriceChange = (change: number): string => {
+  if (isNaN(change) || !isFinite(change)) {
+    return '0.00%';
+  }
+  
+  // Format to 2 decimal places
+  const formatted = Math.abs(change).toFixed(2);
+  
+  if (change > 0) {
+    return `+${formatted}%`;
+  } else if (change < 0) {
+    return `-${formatted}%`;
+  } else {
+    return `${formatted}%`;
+  }
+};
+
