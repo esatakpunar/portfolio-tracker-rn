@@ -47,6 +47,7 @@ export default {
   descriptionPlaceholder: 'You can write a description',
   add: 'Add',
   cancel: 'Cancel',
+  ok: 'OK',
   
   confirmDelete: 'Confirm Delete',
   confirmDeleteMessage: 'Are you sure you want to delete this asset from your portfolio?',
@@ -121,6 +122,16 @@ export default {
   errorClient: 'An error occurred. Please try again.',
   errorValidation: 'Invalid data. Please check your information.',
   errorUnknown: 'An unexpected error occurred. Please try again.',
+  
+  // Error Boundary
+  errorBoundary: {
+    title: 'Something went wrong',
+    message: 'An unexpected error occurred. Please restart the app.',
+    tryAgain: 'Try Again',
+    restartApp: 'Restart App',
+    reportError: 'Report Error',
+    errorDetails: 'Error Details',
+  },
   
   // Validation messages
   validation: {

@@ -47,6 +47,7 @@ export default {
   descriptionPlaceholder: 'Açıklama yazabilirsiniz',
   add: 'Ekle',
   cancel: 'İptal',
+  ok: 'Tamam',
   
   confirmDelete: 'Silmeyi Onayla',
   confirmDeleteMessage: 'Bu varlığı portföyünüzden silmek istediğinizden emin misiniz?',
@@ -123,6 +124,16 @@ export default {
   errorClient: 'Bir hata oluştu. Lütfen tekrar deneyin.',
   errorValidation: 'Geçersiz veri. Lütfen bilgilerinizi kontrol edin.',
   errorUnknown: 'Beklenmeyen bir hata oluştu. Lütfen tekrar deneyin.',
+  
+  // Error Boundary
+  errorBoundary: {
+    title: 'Bir şeyler ters gitti',
+    message: 'Beklenmeyen bir hata oluştu. Lütfen uygulamayı yeniden başlatın.',
+    tryAgain: 'Tekrar Dene',
+    restartApp: 'Uygulamayı Yeniden Başlat',
+    reportError: 'Hatayı Bildir',
+    errorDetails: 'Hata Detayları',
+  },
   
   // Validation messages
   validation: {

@@ -47,6 +47,7 @@ export default {
   descriptionPlaceholder: 'Sie können eine Beschreibung schreiben',
   add: 'Hinzufügen',
   cancel: 'Abbrechen',
+  ok: 'OK',
   
   confirmDelete: 'Löschen bestätigen',
   confirmDeleteMessage: 'Sind Sie sicher, dass Sie diesen Vermögenswert aus Ihrem Portfolio löschen möchten?',
@@ -121,6 +122,16 @@ export default {
   errorClient: 'Ein Fehler ist aufgetreten. Bitte versuchen Sie es erneut.',
   errorValidation: 'Ungültige Daten. Bitte überprüfen Sie Ihre Informationen.',
   errorUnknown: 'Ein unerwarteter Fehler ist aufgetreten. Bitte versuchen Sie es erneut.',
+  
+  // Error Boundary
+  errorBoundary: {
+    title: 'Etwas ist schief gelaufen',
+    message: 'Ein unerwarteter Fehler ist aufgetreten. Bitte starten Sie die App neu.',
+    tryAgain: 'Erneut versuchen',
+    restartApp: 'App neu starten',
+    reportError: 'Fehler melden',
+    errorDetails: 'Fehlerdetails',
+  },
   
   // Validation messages
   validation: {

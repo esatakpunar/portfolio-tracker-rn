@@ -25,6 +25,41 @@ jest.mock('../../utils/env', () => ({
   isDevelopment: jest.fn(() => true),
 }));
 
+// Mock i18n
+jest.mock('react-i18next', () => ({
+  withTranslation: () => (Component: any) => (props: any) => {
+    const mockT = (key: string) => {
+      const translations: Record<string, string> = {
+        'errorBoundary.title': 'Something went wrong',
+        'errorBoundary.message': 'An unexpected error occurred. Please restart the app.',
+        'errorBoundary.tryAgain': 'Try Again',
+        'errorBoundary.restartApp': 'Restart App',
+        'errorBoundary.reportError': 'Report Error',
+        'errorBoundary.errorDetails': 'Error Details',
+        'cancel': 'Cancel',
+        'ok': 'OK',
+      };
+      return translations[key] || key;
+    };
+    return <Component {...props} t={mockT} />;
+  },
+  useTranslation: () => ({
+    t: (key: string) => {
+      const translations: Record<string, string> = {
+        'errorBoundary.title': 'Something went wrong',
+        'errorBoundary.message': 'An unexpected error occurred. Please restart the app.',
+        'errorBoundary.tryAgain': 'Try Again',
+        'errorBoundary.restartApp': 'Restart App',
+        'errorBoundary.reportError': 'Report Error',
+        'errorBoundary.errorDetails': 'Error Details',
+        'cancel': 'Cancel',
+        'ok': 'OK',
+      };
+      return translations[key] || key;
+    },
+  }),
+}));
+
 // Component that throws error
 const ThrowError = ({ shouldThrow }: { shouldThrow: boolean }) => {
   if (shouldThrow) {
