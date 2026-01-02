@@ -139,6 +139,28 @@ const PRICES_CACHE_KEY = 'prices';
 const fetchFreshPrices = async (currentPrices?: Prices): Promise<Prices> => {
   const API_URL = getApiUrl('today.json');
   
+  // Check network status before making API call
+  const networkState = await NetInfo.fetch();
+  if (!networkState.isConnected) {
+    logger.warn('[PRICE_SERVICE] Device is offline, using cached/fallback data');
+    // Return cached data or fallback
+    if (currentPrices && Object.keys(currentPrices).length > 0) {
+      const currentPricesValidation = safeValidatePrices(currentPrices);
+      const isCurrentPricesMock = JSON.stringify(currentPrices) === JSON.stringify(DEFAULT_PRICES);
+      if (currentPricesValidation.success && !isCurrentPricesMock) {
+        return currentPricesValidation.data!;
+      }
+    }
+    // Return cached data from cache service
+    const cached = getCachedData<Prices>(PRICES_CACHE_KEY);
+    if (cached) {
+      logger.debug('[PRICE_SERVICE] Using cached data (offline)');
+      return cached;
+    }
+    // Last resort: return default prices
+    return DEFAULT_PRICES;
+  }
+  
   try {
     // Retry wrapper ile API call'ı wrap et
     return await retry(
