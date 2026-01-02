@@ -132,5 +132,32 @@ export default {
     amountExceedsCurrent: 'Amount exceeds current amount',
     amountBelowMinimum: 'Amount is below minimum',
     amountAboveMaximum: 'Amount exceeds maximum'
+  },
+  
+  // Privacy & Legal
+  privacyPolicy: 'Privacy Policy',
+  privacyPolicySubtitle: 'Data protection and privacy information',
+  privacy: {
+    introduction: 'Introduction',
+    introductionText: 'Portfolio Tracker respects your privacy and is committed to protecting your personal information. This Privacy Policy explains how we collect, use, and safeguard information when you use our mobile application.',
+    dataCollection: 'Information We Collect',
+    localData: 'Data Stored Locally on Your Device',
+    localDataText: 'Our app stores the following information locally on your device:\n• Portfolio Data: Asset types, amounts, descriptions, and transaction history\n• User Preferences: Language selection (Turkish, English, German)\n• Price Data: Market prices fetched from external APIs (cached locally)',
+    noDataCollection: 'Information We Do NOT Collect',
+    noDataCollectionText: 'We do NOT collect, store, or transmit:\n• Personal identifiable information (name, email, phone number)\n• Device identifiers or advertising IDs\n• Location data\n• Contact information\n• Photos or files',
+    dataUsage: 'How We Use Your Information',
+    dataUsageText: '• Portfolio data is used solely to calculate and display your investment portfolio value\n• Language preferences are used to customize the app interface\n• Price data is used to provide current market values for your assets\n• Market prices are fetched from finans.truncgil.com API for informational purposes only',
+    dataStorage: 'Data Storage and Security',
+    dataStorageText: '• All your data is stored locally on your device\n• Data is not transmitted to our servers or any third parties\n• Data remains on your device until you delete the app or use the "Reset All" feature\n• We have no access to your data as it\'s stored locally',
+    thirdPartyServices: 'Third-Party Services',
+    thirdPartyServicesText: '• We use finans.truncgil.com API to fetch market prices\n• This is a public API that provides financial market data\n• No personal information is shared with this service',
+    yourRights: 'Your Rights',
+    yourRightsText: 'Since all data is stored locally on your device:\n• You have complete control over your data\n• You can delete your data at any time using the "Reset All" feature\n• You can uninstall the app to remove all data',
+    gdprCompliance: 'GDPR Compliance',
+    gdprComplianceText: 'This Privacy Policy complies with:\n• Apple App Store Review Guidelines\n• General Data Protection Regulation (GDPR) principles\n• California Consumer Privacy Act (CCPA) requirements\n\nNote: This app does not collect, store, or transmit any personal information. All data remains on your device and is under your complete control.',
+    contact: 'Contact Information',
+    contactText: 'If you have any questions about this Privacy Policy or our privacy practices, please contact us.',
+    lastUpdated: 'Last Updated',
+    lastUpdatedDate: 'January 2025'
   }
 };

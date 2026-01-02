@@ -134,5 +134,32 @@ export default {
     amountExceedsCurrent: 'Miktar mevcut miktardan fazla',
     amountBelowMinimum: 'Miktar minimum değerin altında',
     amountAboveMaximum: 'Miktar maksimum değeri aşıyor'
+  },
+  
+  // Privacy & Legal
+  privacyPolicy: 'Gizlilik Politikası',
+  privacyPolicySubtitle: 'Veri koruma ve gizlilik bilgileri',
+  privacy: {
+    introduction: 'Giriş',
+    introductionText: 'Portfolio Tracker gizliliğinize saygı duyar ve kişisel bilgilerinizi korumaya kararlıdır. Bu Gizlilik Politikası, mobil uygulamamızı kullandığınızda bilgileri nasıl topladığımızı, kullandığımızı ve koruduğumuzu açıklar.',
+    dataCollection: 'Toplanan Bilgiler',
+    localData: 'Cihazınızda Yerel Olarak Saklanan Veriler',
+    localDataText: 'Uygulamamız aşağıdaki bilgileri cihazınızda yerel olarak saklar:\n• Portföy Verileri: Varlık türleri, miktarlar, açıklamalar ve işlem geçmişi\n• Kullanıcı Tercihleri: Dil seçimi (Türkçe, İngilizce, Almanca)\n• Fiyat Verileri: Harici API\'lerden alınan piyasa fiyatları (yerel olarak önbelleğe alınır)',
+    noDataCollection: 'Toplanmayan Bilgiler',
+    noDataCollectionText: 'Aşağıdaki bilgileri toplamıyor, saklamıyor veya iletmiyoruz:\n• Kişisel tanımlayıcı bilgiler (isim, e-posta, telefon)\n• Cihaz tanımlayıcıları veya reklam kimlikleri\n• Konum verileri\n• İletişim bilgileri\n• Fotoğraflar veya dosyalar',
+    dataUsage: 'Bilgilerin Kullanımı',
+    dataUsageText: '• Portföy verileri yalnızca yatırım portföy değerinizi hesaplamak ve göstermek için kullanılır\n• Dil tercihleri uygulama arayüzünü özelleştirmek için kullanılır\n• Fiyat verileri varlıklarınız için güncel piyasa değerleri sağlamak için kullanılır\n• Piyasa fiyatları finans.truncgil.com API\'sinden alınır ve yalnızca bilgilendirme amaçlıdır',
+    dataStorage: 'Veri Depolama ve Güvenlik',
+    dataStorageText: '• Tüm verileriniz cihazınızda yerel olarak saklanır\n• Veriler sunucularımıza veya üçüncü taraflara iletilmez\n• Veriler, uygulamayı silene veya "Tümünü Sıfırla" özelliğini kullanana kadar cihazınızda kalır\n• Verilerinize erişimimiz yoktur çünkü yerel olarak saklanır',
+    thirdPartyServices: 'Üçüncü Taraf Hizmetler',
+    thirdPartyServicesText: '• Piyasa fiyatları için finans.truncgil.com API\'sini kullanıyoruz\n• Bu, finansal piyasa verileri sağlayan bir kamu API\'sidir\n• Bu hizmetle hiçbir kişisel bilgi paylaşılmaz',
+    yourRights: 'Haklarınız',
+    yourRightsText: 'Tüm veriler cihazınızda yerel olarak saklandığı için:\n• Verileriniz üzerinde tam kontrolünüz vardır\n• "Tümünü Sıfırla" özelliğini kullanarak verilerinizi istediğiniz zaman silebilirsiniz\n• Uygulamayı kaldırarak tüm verileri kaldırabilirsiniz',
+    gdprCompliance: 'GDPR Uyumluluğu',
+    gdprComplianceText: 'Bu Gizlilik Politikası şunlara uygundur:\n• Apple App Store İnceleme Yönergeleri\n• Genel Veri Koruma Yönetmeliği (GDPR) ilkeleri\n• California Tüketici Gizlilik Yasası (CCPA) gereksinimleri\n\nNot: Bu uygulama hiçbir kişisel bilgi toplamaz, saklamaz veya iletmez. Tüm veriler cihazınızda kalır ve tam kontrolünüz altındadır.',
+    contact: 'İletişim',
+    contactText: 'Bu Gizlilik Politikası veya gizlilik uygulamalarımız hakkında sorularınız varsa, lütfen bizimle iletişime geçin.',
+    lastUpdated: 'Son Güncelleme',
+    lastUpdatedDate: 'Ocak 2025'
   }
 };

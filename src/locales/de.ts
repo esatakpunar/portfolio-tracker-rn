@@ -132,5 +132,32 @@ export default {
     amountExceedsCurrent: 'Betrag überschreitet den aktuellen Betrag',
     amountBelowMinimum: 'Betrag liegt unter dem Minimum',
     amountAboveMaximum: 'Betrag überschreitet das Maximum'
+  },
+  
+  // Privacy & Legal
+  privacyPolicy: 'Datenschutzerklärung',
+  privacyPolicySubtitle: 'Datenschutz- und Datenschutzinformationen',
+  privacy: {
+    introduction: 'Einführung',
+    introductionText: 'Portfolio Tracker respektiert Ihre Privatsphäre und ist dem Schutz Ihrer persönlichen Informationen verpflichtet. Diese Datenschutzerklärung erläutert, wie wir Informationen sammeln, verwenden und schützen, wenn Sie unsere mobile Anwendung verwenden.',
+    dataCollection: 'Informationen, die wir sammeln',
+    localData: 'Lokal auf Ihrem Gerät gespeicherte Daten',
+    localDataText: 'Unsere App speichert die folgenden Informationen lokal auf Ihrem Gerät:\n• Portfoliodaten: Vermögensarten, Beträge, Beschreibungen und Transaktionsverlauf\n• Benutzereinstellungen: Sprachauswahl (Türkisch, Englisch, Deutsch)\n• Preisdaten: Von externen APIs abgerufene Marktpreise (lokal zwischengespeichert)',
+    noDataCollection: 'Informationen, die wir NICHT sammeln',
+    noDataCollectionText: 'Wir sammeln, speichern oder übertragen NICHT:\n• Persönlich identifizierbare Informationen (Name, E-Mail, Telefonnummer)\n• Geräte-IDs oder Werbe-IDs\n• Standortdaten\n• Kontaktinformationen\n• Fotos oder Dateien',
+    dataUsage: 'Wie wir Ihre Informationen verwenden',
+    dataUsageText: '• Portfoliodaten werden ausschließlich zur Berechnung und Anzeige Ihres Anlageportfoliowerts verwendet\n• Spracheinstellungen werden zur Anpassung der App-Oberfläche verwendet\n• Preisdaten werden zur Bereitstellung aktueller Marktwerte für Ihre Vermögenswerte verwendet\n• Marktpreise werden von der finans.truncgil.com API nur zu Informationszwecken abgerufen',
+    dataStorage: 'Datenspeicherung und Sicherheit',
+    dataStorageText: '• Alle Ihre Daten werden lokal auf Ihrem Gerät gespeichert\n• Daten werden nicht an unsere Server oder Dritte übertragen\n• Daten bleiben auf Ihrem Gerät, bis Sie die App löschen oder die Funktion "Alles zurücksetzen" verwenden\n• Wir haben keinen Zugriff auf Ihre Daten, da sie lokal gespeichert sind',
+    thirdPartyServices: 'Drittanbieter-Dienste',
+    thirdPartyServicesText: '• Wir verwenden die finans.truncgil.com API, um Marktpreise abzurufen\n• Dies ist eine öffentliche API, die Finanzmarktdaten bereitstellt\n• Es werden keine persönlichen Informationen mit diesem Dienst geteilt',
+    yourRights: 'Ihre Rechte',
+    yourRightsText: 'Da alle Daten lokal auf Ihrem Gerät gespeichert sind:\n• Sie haben vollständige Kontrolle über Ihre Daten\n• Sie können Ihre Daten jederzeit mit der Funktion "Alles zurücksetzen" löschen\n• Sie können die App deinstallieren, um alle Daten zu entfernen',
+    gdprCompliance: 'DSGVO-Konformität',
+    gdprComplianceText: 'Diese Datenschutzerklärung entspricht:\n• Apple App Store Review-Richtlinien\n• Grundsätzen der Datenschutz-Grundverordnung (DSGVO)\n• Anforderungen des California Consumer Privacy Act (CCPA)\n\nHinweis: Diese App sammelt, speichert oder überträgt keine persönlichen Informationen. Alle Daten bleiben auf Ihrem Gerät und stehen unter Ihrer vollständigen Kontrolle.',
+    contact: 'Kontaktinformationen',
+    contactText: 'Wenn Sie Fragen zu dieser Datenschutzerklärung oder unseren Datenschutzpraktiken haben, kontaktieren Sie uns bitte.',
+    lastUpdated: 'Zuletzt aktualisiert',
+    lastUpdatedDate: 'Januar 2025'
   }
 };
