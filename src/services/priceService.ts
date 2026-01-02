@@ -188,6 +188,9 @@ const fetchFreshPrices = async (currentPrices?: Prices, signal?: AbortSignal): P
   }
   
   try {
+    // Start performance timer
+    performanceMonitor.startTimer('api_fetch_prices');
+    
     // Retry wrapper ile API call'ı wrap et
     return await retry(
       async () => {
