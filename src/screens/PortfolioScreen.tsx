@@ -701,6 +701,21 @@ const styles = StyleSheet.create({
   currencyInfo: {
     flex: 1,
   },
+  currencyNameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+  },
+  currencySeparator: {
+    fontSize: fontSize.sm,
+    color: colors.textMuted,
+    marginHorizontal: spacing.xs,
+  },
+  currencyPrice: {
+    fontSize: fontSize.sm,
+    color: colors.textSecondary,
+    fontWeight: fontWeight.medium,
+  },
   totalCardBody: {
     alignItems: 'flex-start',
   },
