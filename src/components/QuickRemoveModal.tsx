@@ -179,7 +179,7 @@ const QuickRemoveModal: React.FC<QuickRemoveModalProps> = React.memo(({
               </View>
               {amount && !isValidAmount() && (
                 <Text style={styles.errorText}>
-                  {t('invalidAmount')}
+                  {errorMessage || t('invalidAmount')}
                 </Text>
               )}
             </View>
