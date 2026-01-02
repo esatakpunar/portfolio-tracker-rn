@@ -1,13 +1,20 @@
-import React from 'react';
+import React, { Suspense } from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { useTranslation } from 'react-i18next';
-import { StyleSheet } from 'react-native';
+import { StyleSheet, View, ActivityIndicator } from 'react-native';
 // Lazy load screens for code splitting
 const PortfolioScreen = React.lazy(() => import('../screens/PortfolioScreen'));
 const HistoryScreen = React.lazy(() => import('../screens/HistoryScreen'));
 const SettingsScreen = React.lazy(() => import('../screens/SettingsScreen'));
 import TabIcon from '../components/TabIcon';
 import { colors, fontSize, spacing, fontWeight } from '../theme';
+
+// Loading component for lazy loaded screens
+const ScreenLoader: React.FC = () => (
+  <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.background }}>
+    <ActivityIndicator size="large" color={colors.primaryStart} />
+  </View>
+);
 
 const Tab = createBottomTabNavigator();
 
