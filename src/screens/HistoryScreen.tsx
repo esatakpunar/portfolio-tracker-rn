@@ -118,6 +118,16 @@ export const HistoryScreen: React.FC = React.memo(() => {
           maxToRenderPerBatch={10}
           windowSize={5}
           initialNumToRender={10}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={handleRefresh}
+              tintColor={colors.primaryStart}
+              colors={[colors.primaryStart]}
+              title={t('pullToRefresh')}
+              titleColor={colors.textSecondary}
+            />
+          }
           getItemLayout={(_, index) => {
             // Approximate item height: padding (16*2) + content (~60) + marginBottom (12) = ~104
             const ITEM_HEIGHT = 104;
