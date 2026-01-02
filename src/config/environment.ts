@@ -278,7 +278,7 @@ export const environmentConfig: EnvironmentConfig = {
  * Log environment configuration (only in development)
  */
 if (isDevelopment()) {
-  logger.debug('[ENV_CONFIG] Environment Configuration loaded', {
+  console.debug('[ENV_CONFIG] Environment Configuration loaded', {
     environment: environmentConfig.environment,
     apiBaseUrl: environmentConfig.apiBaseUrl,
     apiTimeout: environmentConfig.apiTimeout,
