@@ -42,8 +42,20 @@ const AddItemModal: React.FC<AddItemModalProps> = React.memo(({ visible, onClose
   const [showTypePicker, setShowTypePicker] = useState(false);
   const [slideAnim] = useState(new Animated.Value(0));
   
-  const amountValidation = useMemo(() => validateAmount(amount), [amount]);
+  // Real-time validation with better error messages
+  const amountValidation = useMemo(() => {
+    // Allow empty for real-time validation (user is still typing)
+    if (!amount || amount.trim() === '') {
+      return { isValid: true, errorType: undefined, errorKey: undefined };
+    }
+    return validateAmount(amount);
+  }, [amount]);
   const isAmountValid = amountValidation.isValid;
+  
+  // Get localized error message
+  const errorMessage = amountValidation.errorKey
+    ? t(amountValidation.errorKey as any)
+    : amountValidation.error;
 
   useEffect(() => {
     if (visible) {

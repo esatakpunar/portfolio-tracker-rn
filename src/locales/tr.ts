@@ -122,5 +122,17 @@ export default {
   errorServer: 'Sunucu hatası. Lütfen daha sonra tekrar deneyin.',
   errorClient: 'Bir hata oluştu. Lütfen tekrar deneyin.',
   errorValidation: 'Geçersiz veri. Lütfen bilgilerinizi kontrol edin.',
-  errorUnknown: 'Beklenmeyen bir hata oluştu. Lütfen tekrar deneyin.'
+  errorUnknown: 'Beklenmeyen bir hata oluştu. Lütfen tekrar deneyin.',
+  
+  // Validation messages
+  validation: {
+    amountEmpty: 'Miktar boş olamaz',
+    amountInvalidFormat: 'Geçersiz sayı formatı',
+    amountTooSmall: 'Miktar 0\'dan büyük olmalıdır',
+    amountTooLarge: 'Miktar çok büyük',
+    amountExceedsLimit: 'Miktar maksimum limiti aşıyor',
+    amountExceedsCurrent: 'Miktar mevcut miktardan fazla',
+    amountBelowMinimum: 'Miktar minimum değerin altında',
+    amountAboveMaximum: 'Miktar maksimum değeri aşıyor'
+  }
 };

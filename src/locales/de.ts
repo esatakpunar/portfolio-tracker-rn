@@ -120,5 +120,17 @@ export default {
   errorServer: 'Serverfehler. Bitte versuchen Sie es später erneut.',
   errorClient: 'Ein Fehler ist aufgetreten. Bitte versuchen Sie es erneut.',
   errorValidation: 'Ungültige Daten. Bitte überprüfen Sie Ihre Informationen.',
-  errorUnknown: 'Ein unerwarteter Fehler ist aufgetreten. Bitte versuchen Sie es erneut.'
+  errorUnknown: 'Ein unerwarteter Fehler ist aufgetreten. Bitte versuchen Sie es erneut.',
+  
+  // Validation messages
+  validation: {
+    amountEmpty: 'Betrag darf nicht leer sein',
+    amountInvalidFormat: 'Ungültiges Zahlenformat',
+    amountTooSmall: 'Betrag muss größer als 0 sein',
+    amountTooLarge: 'Betrag ist zu groß',
+    amountExceedsLimit: 'Betrag überschreitet das Maximum',
+    amountExceedsCurrent: 'Betrag überschreitet den aktuellen Betrag',
+    amountBelowMinimum: 'Betrag liegt unter dem Minimum',
+    amountAboveMaximum: 'Betrag überschreitet das Maximum'
+  }
 };

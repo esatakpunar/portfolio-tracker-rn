@@ -120,5 +120,17 @@ export default {
   errorServer: 'Server error. Please try again later.',
   errorClient: 'An error occurred. Please try again.',
   errorValidation: 'Invalid data. Please check your information.',
-  errorUnknown: 'An unexpected error occurred. Please try again.'
+  errorUnknown: 'An unexpected error occurred. Please try again.',
+  
+  // Validation messages
+  validation: {
+    amountEmpty: 'Amount cannot be empty',
+    amountInvalidFormat: 'Invalid number format',
+    amountTooSmall: 'Amount must be greater than 0',
+    amountTooLarge: 'Amount is too large',
+    amountExceedsLimit: 'Amount exceeds maximum limit',
+    amountExceedsCurrent: 'Amount exceeds current amount',
+    amountBelowMinimum: 'Amount is below minimum',
+    amountAboveMaximum: 'Amount exceeds maximum'
+  }
 };

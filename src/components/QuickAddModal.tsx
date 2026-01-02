@@ -36,8 +36,19 @@ const QuickAddModal: React.FC<QuickAddModalProps> = React.memo(({
   const [description, setDescription] = useState('');
   const [slideAnim] = useState(new Animated.Value(0));
   
-  const amountValidation = useMemo(() => validateAmount(amount), [amount]);
+  // Real-time validation with better error messages
+  const amountValidation = useMemo(() => {
+    if (!amount || amount.trim() === '') {
+      return { isValid: true, errorType: undefined, errorKey: undefined };
+    }
+    return validateAmount(amount);
+  }, [amount]);
   const isAmountValid = amountValidation.isValid;
+  
+  // Get localized error message
+  const errorMessage = amountValidation.errorKey
+    ? t(amountValidation.errorKey as any)
+    : amountValidation.error;
 
   useEffect(() => {
     if (visible) {
