@@ -181,25 +181,6 @@ const PortfolioScreen: React.FC = React.memo(() => {
     currentlyOpenSwipeable.current = null;
   }, []);
 
-  const getCurrencyIcon = (currency: CurrencyType): string => {
-    const icons: Record<CurrencyType, string> = {
-      'TL': '₺',
-      'USD': '$',
-      'EUR': '€',
-      'ALTIN': '₲',
-    };
-    return icons[currency];
-  };
-
-  const getCurrencyColor = (currency: CurrencyType): string => {
-    const colors_map: Record<CurrencyType, string> = {
-      'TL': '#dc2626',
-      'USD': '#10b981',
-      'EUR': '#3b82f6',
-      'ALTIN': '#f59e0b',
-    };
-    return colors_map[currency];
-  };
 
   const renderCurrencySlider = useCallback(() => {
     return (
@@ -382,17 +363,6 @@ const PortfolioScreen: React.FC = React.memo(() => {
     return valueTL;
   }, [prices]);
 
-  // Memoize currency symbol map
-  const currencySymbolMap = useMemo<Record<CurrencyType, string>>(() => ({
-    'TL': '₺',
-    'USD': '$',
-    'EUR': '€',
-    'ALTIN': '₲',
-  }), []);
-
-  const getCurrencySymbol = useCallback((currency: CurrencyType): string => {
-    return currencySymbolMap[currency];
-  }, [currencySymbolMap]);
 
   const renderAssetGroup = useCallback((type: AssetType, groupItems: PortfolioItem[]) => {
     // Safety check: empty array
