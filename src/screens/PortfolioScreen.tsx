@@ -22,6 +22,7 @@ import QuickRemoveModal from '../components/QuickRemoveModal';
 import SwipeableAssetItem from '../components/SwipeableAssetItem';
 import { hapticFeedback } from '../utils/haptics';
 import { formatCurrency } from '../utils/formatUtils';
+import { isAssetType } from '../utils/typeGuards';
 
 const { width } = Dimensions.get('window');
 const CURRENCIES: CurrencyType[] = ['TL', 'USD', 'EUR', 'ALTIN'];
