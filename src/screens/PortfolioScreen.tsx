@@ -286,17 +286,14 @@ export const PortfolioScreen: React.FC = React.memo(() => {
                     </View>
                     <View style={styles.currencyInfo}>
                       <Text style={styles.totalLabel}>{t('total')}</Text>
-                      <View style={styles.currencyNameRow}>
-                        <Text style={styles.currencyLabel}>{t(`currencies.${currency}`)}</Text>
-                        {getCurrencyPrice(currency) !== null && (
-                          <>
-                            <Text style={styles.currencySeparator}> • </Text>
-                            <Text style={styles.currencyPrice}>
-                              {formatCurrency(getCurrencyPrice(currency)!, i18n.language)} ₺
-                            </Text>
-                          </>
-                        )}
-                      </View>
+                      <Text style={styles.currencyLabel}>{t(`currencies.${currency}`)}</Text>
+                      {getCurrencyPrice(currency) !== null && (
+                        <View style={styles.currencyPriceContainer}>
+                          <Text style={styles.currencyPriceLabel}>
+                            {formatCurrency(getCurrencyPrice(currency)!, i18n.language)} ₺
+                          </Text>
+                        </View>
+                      )}
                     </View>
                   </View>
                   
@@ -701,20 +698,17 @@ const styles = StyleSheet.create({
   currencyInfo: {
     flex: 1,
   },
-  currencyNameRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flexWrap: 'wrap',
+  currencyPriceContainer: {
+    marginTop: spacing.xs,
+    paddingTop: spacing.xs,
+    borderTopWidth: 1,
+    borderTopColor: colors.glassBorder,
   },
-  currencySeparator: {
-    fontSize: fontSize.sm,
+  currencyPriceLabel: {
+    fontSize: fontSize.xs,
     color: colors.textMuted,
-    marginHorizontal: spacing.xs,
-  },
-  currencyPrice: {
-    fontSize: fontSize.sm,
-    color: colors.textSecondary,
     fontWeight: fontWeight.medium,
+    letterSpacing: 0.5,
   },
   totalCardBody: {
     alignItems: 'flex-start',
