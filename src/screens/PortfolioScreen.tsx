@@ -490,6 +490,16 @@ export const PortfolioScreen: React.FC = React.memo(() => {
         style={styles.content} 
         showsVerticalScrollIndicator={false}
         onScrollBeginDrag={closeAllSwipeables}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={handleRefresh}
+            tintColor={colors.primaryStart}
+            colors={[colors.primaryStart]}
+            title={t('pullToRefresh')}
+            titleColor={colors.textSecondary}
+          />
+        }
       >
         {renderCurrencySlider()}
 
