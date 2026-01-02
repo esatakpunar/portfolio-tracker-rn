@@ -149,8 +149,11 @@ const PRICES_CACHE_KEY = 'prices';
 
 /**
  * Fetch fresh prices from API (internal function)
+ * 
+ * @param currentPrices Current prices from state (used as fallback)
+ * @param signal AbortSignal for request cancellation
  */
-const fetchFreshPrices = async (currentPrices?: Prices): Promise<Prices> => {
+const fetchFreshPrices = async (currentPrices?: Prices, signal?: AbortSignal): Promise<Prices> => {
   const API_URL = getApiUrl('today.json');
   
   // Check network status before making API call (if NetInfo is available)
@@ -189,7 +192,9 @@ const fetchFreshPrices = async (currentPrices?: Prices): Promise<Prices> => {
         // LOG: API call başladı
         logger.debug('[PRICE_SERVICE] API call başladı', { url: API_URL });
         
-        const response = await axiosInstance.get(API_URL);
+        const response = await axiosInstance.get(API_URL, {
+          signal, // AbortController signal for cancellation
+        });
         
         // Parse response data if it's a string
         let responseData = response.data;
@@ -388,7 +393,7 @@ export const fetchPrices = async (currentPrices?: Prices): Promise<Prices> => {
   
   // No cache - fetch fresh data
   logger.debug('[PRICE_SERVICE] No cache, fetching fresh data');
-  const freshPrices = await fetchFreshPrices(currentPrices);
+  const freshPrices = await fetchFreshPrices(currentPrices, signal);
   
   // Cache fresh data (if not mock)
   const validation = safeValidatePrices(freshPrices);
