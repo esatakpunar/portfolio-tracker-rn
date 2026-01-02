@@ -14,7 +14,7 @@ import { Swipeable } from 'react-native-gesture-handler';
 import { useTranslation } from 'react-i18next';
 import { Text } from '../components/Text';
 import { useAppSelector, useAppDispatch } from '../hooks/useRedux';
-import { addItem, updateItemAmount, selectItems, selectPrices, selectTotalIn, fetchPrices } from '../store/portfolioSlice';
+import { addItem, updateItemAmount, selectItems, selectPrices, selectTotalIn, fetchPrices, selectAssetPercentages } from '../store/portfolioSlice';
 import { AppDispatch } from '../store';
 import { colors, spacing, borderRadius, fontSize, fontWeight, shadows } from '../theme';
 import { CurrencyType, AssetType, PortfolioItem } from '../types';
@@ -26,8 +26,9 @@ import { hapticFeedback } from '../utils/haptics';
 import { formatCurrency } from '../utils/formatUtils';
 import { isAssetType } from '../utils/typeGuards';
 import { getCurrencyIcon, getCurrencyColor, getCurrencySymbol } from '../utils/currencyUtils';
-import { analytics } from '../services/analytics';
-import { performanceMonitor } from '../services/performanceMonitor';
+import { copyToClipboard, isClipboardSupported } from '../utils/clipboard';
+import { useToast } from '../hooks/useToast';
+import { logger } from '../utils/logger';
 
 const { width } = Dimensions.get('window');
 const CURRENCIES: CurrencyType[] = ['TL', 'USD', 'EUR', 'ALTIN'];
@@ -37,18 +38,34 @@ export const PortfolioScreen: React.FC = React.memo(() => {
   const dispatch = useAppDispatch();
   const items = useAppSelector(selectItems);
   const prices = useAppSelector(selectPrices);
+  const assetPercentages = useAppSelector(selectAssetPercentages);
+  const { showToast } = useToast();
   
-  // Track screen view and performance
+  // Price changes from API - fetched separately, not stored in Redux state
+  const [priceChanges, setPriceChanges] = useState<{
+    usd: number | null;
+    eur: number | null;
+    '24_ayar': number | null;
+  }>({
+    usd: null,
+    eur: null,
+    '24_ayar': null,
+  });
+  
+  
+  // Fetch price changes from API (not stored in Redux state)
   React.useEffect(() => {
-    performanceMonitor.startTimer('screen_portfolio');
-    analytics.trackScreenView('portfolio');
-    
-    return () => {
-      const loadTime = performanceMonitor.endTimer('screen_portfolio');
-      if (loadTime) {
-        performanceMonitor.trackScreenLoad('portfolio', loadTime);
+    const loadPriceChanges = async () => {
+      try {
+        const { fetchPriceChanges } = await import('../services/priceService');
+        const changes = await fetchPriceChanges();
+        setPriceChanges(changes);
+      } catch (error) {
+        logger.error('[PORTFOLIO_SCREEN] Failed to fetch price changes', error);
       }
     };
+    
+    loadPriceChanges();
   }, []);
   
   const [currentCurrencyIndex, setCurrentCurrencyIndex] = useState(0);
@@ -233,6 +250,31 @@ export const PortfolioScreen: React.FC = React.memo(() => {
     }
   }, [prices]);
 
+  // Handle long press on currency card to copy total value
+  const handleCopyTotalValue = useCallback(async (currency: CurrencyType) => {
+    hapticFeedback.light();
+    
+    // Check if clipboard is supported
+    if (!isClipboardSupported()) {
+      // Clipboard not available (Expo Go), show info message
+      showToast(t('clipboardNotAvailable') || t('error'), 'info');
+      return;
+    }
+    
+    const valueToCopy = formatCurrency(safeTotalValue, i18n.language);
+    const currencySymbol = getCurrencySymbol(currency);
+    const textToCopy = `${valueToCopy} ${currencySymbol}`;
+    
+    const success = await copyToClipboard(textToCopy);
+    if (success) {
+      showToast(t('valueCopied'), 'success');
+      hapticFeedback.success();
+    } else {
+      showToast(t('error'), 'error');
+      hapticFeedback.error();
+    }
+  }, [safeTotalValue, i18n.language, t, showToast]);
+
 
   const renderCurrencySlider = useCallback(() => {
     return (
@@ -262,7 +304,14 @@ export const PortfolioScreen: React.FC = React.memo(() => {
           }}
           renderItem={({ item: currency }) => (
             <View style={[styles.slide, { width }]}>
-              <View style={styles.totalCard}>
+              <TouchableOpacity
+                style={styles.totalCard}
+                onLongPress={isClipboardSupported() ? () => handleCopyTotalValue(currency) : undefined}
+                activeOpacity={0.9}
+                accessible={true}
+                accessibilityLabel={t('total')}
+                accessibilityHint={isClipboardSupported() ? t('longPressToCopy') : undefined}
+              >
                 <View style={[
                   styles.gradientOverlay,
                   { backgroundColor: getCurrencyColor(currency) }
@@ -287,13 +336,46 @@ export const PortfolioScreen: React.FC = React.memo(() => {
                     <View style={styles.currencyInfo}>
                       <Text style={styles.totalLabel}>{t('total')}</Text>
                       <Text style={styles.currencyLabel}>{t(`currencies.${currency}`)}</Text>
-                      {getCurrencyPrice(currency) !== null && (
-                        <View style={styles.currencyPriceContainer}>
-                          <Text style={styles.currencyPriceLabel}>
-                            {formatCurrency(getCurrencyPrice(currency)!, i18n.language)} ₺
-                          </Text>
-                        </View>
-                      )}
+                      {getCurrencyPrice(currency) !== null && (() => {
+                        const currentPrice = getCurrencyPrice(currency)!;
+                        
+                        // Get price change from API (yüzde değişim)
+                        const priceChange = (() => {
+                          switch (currency) {
+                            case 'USD': return priceChanges.usd;
+                            case 'EUR': return priceChanges.eur;
+                            case 'ALTIN': return priceChanges['24_ayar'];
+                            default: return null;
+                          }
+                        })();
+                        
+                        return (
+                          <View style={styles.currencyPriceContainer}>
+                            <View style={styles.currencyPriceRow}>
+                              <Text style={styles.currencyPriceLabel}>
+                                {formatCurrency(currentPrice, i18n.language)} ₺
+                              </Text>
+                              {priceChange !== null && (
+                                <View style={[
+                                  styles.priceChangeBadge,
+                                  priceChange > 0 
+                                    ? styles.priceChangePositive 
+                                    : priceChange < 0 
+                                    ? styles.priceChangeNegative 
+                                    : styles.priceChangeNeutral
+                                ]}>
+                                  <Text style={styles.priceChangeArrow}>
+                                    {priceChange > 0 ? '↑' : priceChange < 0 ? '↓' : '—'}
+                                  </Text>
+                                  <Text style={styles.priceChangeText}>
+                                    {Math.abs(priceChange).toFixed(1)}%
+                                  </Text>
+                                </View>
+                              )}
+                            </View>
+                          </View>
+                        );
+                      })()}
                     </View>
                   </View>
                   
@@ -309,7 +391,7 @@ export const PortfolioScreen: React.FC = React.memo(() => {
                     <View style={styles.valueUnderline} />
                   </View>
                 </View>
-              </View>
+              </TouchableOpacity>
             </View>
           )}
           keyExtractor={(item) => item}
@@ -455,6 +537,7 @@ export const PortfolioScreen: React.FC = React.memo(() => {
     }
     
     const currencySymbol = getCurrencySymbol(currentCurrency);
+    const percentage = assetPercentages[type] || 0;
 
     return (
       <SwipeableAssetItem
@@ -482,7 +565,16 @@ export const PortfolioScreen: React.FC = React.memo(() => {
           </View>
           
           <View style={styles.assetContent}>
-            <Text style={styles.assetName}>{t(`assetTypes.${type}`)}</Text>
+            <View style={styles.assetNameRow}>
+              <Text style={styles.assetName}>{t(`assetTypes.${type}`)}</Text>
+              {percentage > 0 && (
+                <View style={styles.assetPercentageBadge}>
+                  <Text style={styles.assetPercentageText}>
+                    {percentage.toFixed(1)}%
+                  </Text>
+                </View>
+              )}
+            </View>
             <Text style={styles.assetAmount}>
               {formatCurrency(
                 isNaN(totalAmount) || !isFinite(totalAmount) ? 0 : totalAmount,
@@ -502,7 +594,7 @@ export const PortfolioScreen: React.FC = React.memo(() => {
         </TouchableOpacity>
       </SwipeableAssetItem>
     );
-  }, [prices, currentCurrency, handleEditPress, handleDeletePress, handleSwipeableWillOpen, handleCardPress, t, i18n.language]);
+  }, [prices, currentCurrency, assetPercentages, handleEditPress, handleDeletePress, handleSwipeableWillOpen, handleCardPress, t, i18n.language, getAssetIcon, getAssetIconStyle, getDefaultUnit]);
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
@@ -704,11 +796,49 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: colors.glassBorder,
   },
+  currencyPriceRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+  },
   currencyPriceLabel: {
     fontSize: fontSize.xs,
     color: colors.textMuted,
     fontWeight: fontWeight.medium,
     letterSpacing: 0.5,
+  },
+  priceChangeBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: borderRadius.sm,
+    paddingHorizontal: spacing.xs,
+    paddingVertical: 2,
+    gap: 2,
+  },
+  priceChangePositive: {
+    backgroundColor: '#10b981' + '20',
+    borderWidth: 1,
+    borderColor: '#10b981' + '40',
+  },
+  priceChangeNegative: {
+    backgroundColor: '#ef4444' + '20',
+    borderWidth: 1,
+    borderColor: '#ef4444' + '40',
+  },
+  priceChangeNeutral: {
+    backgroundColor: colors.glassBorder + '40',
+    borderWidth: 1,
+    borderColor: colors.glassBorder,
+  },
+  priceChangeArrow: {
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.bold,
+    lineHeight: 14,
+  },
+  priceChangeText: {
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.semibold,
+    lineHeight: 14,
   },
   totalCardBody: {
     alignItems: 'flex-start',
@@ -837,12 +967,31 @@ const styles = StyleSheet.create({
   assetContent: {
     flex: 1,
   },
+  assetNameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 2,
+    gap: spacing.xs,
+  },
   assetName: {
     fontSize: fontSize.sm,
     fontWeight: fontWeight.bold,
     color: colors.textPrimary,
-    marginBottom: 2,
     lineHeight: 16,
+  },
+  assetPercentageBadge: {
+    backgroundColor: colors.primaryStart + '20',
+    borderRadius: borderRadius.sm,
+    paddingHorizontal: spacing.xs,
+    paddingVertical: 2,
+    borderWidth: 1,
+    borderColor: colors.primaryStart + '40',
+  },
+  assetPercentageText: {
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.semibold,
+    color: colors.primaryStart,
+    lineHeight: 14,
   },
   assetAmount: {
     fontSize: fontSize.xs,

@@ -1,11 +1,10 @@
 import { createSlice, PayloadAction, createAsyncThunk, createSelector } from '@reduxjs/toolkit';
-import { PortfolioItem, HistoryItem, Prices, AssetType, CurrencyType } from '../types';
-import { fetchPrices as fetchPricesFromAPI, getDefaultPrices } from '../services/priceService';
+import { PortfolioItem, HistoryItem, Prices, PriceChanges, AssetType, CurrencyType } from '../types';
+import { fetchPrices as fetchPricesFromAPI } from '../services/priceService';
 import { safeAdd, safeSubtract } from '../utils/numberUtils';
 import { logger } from '../utils/logger';
 import { RootState } from './index';
 import { cleanupHistory, STORAGE_LIMITS } from '../utils/storageUtils';
-import { analytics } from '../services/analytics';
 
 interface PortfolioState {
   items: PortfolioItem[];
@@ -48,6 +47,13 @@ export const fetchPrices = createAsyncThunk(
       const state = getState() as RootState;
       const currentPrices = state?.portfolio?.prices;
       const prices = await fetchPricesFromAPI(currentPrices);
+      
+      // Null dönerse (API başarısız ve fallback yok), mevcut prices'ı koru
+      if (!prices) {
+        logger.warn('[PORTFOLIO] fetchPrices returned null, keeping current prices');
+        return rejectWithValue('No prices available');
+      }
+      
       return prices;
     } catch (error) {
       logger.error('Error fetching prices', error);
@@ -145,12 +151,6 @@ const portfolioSlice = createSlice({
       if (state.history.length > STORAGE_LIMITS.HISTORY_CLEANUP_THRESHOLD) {
         state.history = cleanupHistory(state.history, STORAGE_LIMITS.MAX_HISTORY_ITEMS);
       }
-      
-      // Track analytics
-      analytics.trackBusinessEvent('portfolio_item_added', {
-        asset_type: type,
-        amount: amount,
-      });
     },
     
     removeItem: (state, action: PayloadAction<string>) => {
@@ -170,12 +170,6 @@ const portfolioSlice = createSlice({
         if (state.history.length > STORAGE_LIMITS.HISTORY_CLEANUP_THRESHOLD) {
           state.history = cleanupHistory(state.history, STORAGE_LIMITS.MAX_HISTORY_ITEMS);
         }
-        
-        // Track analytics
-        analytics.trackBusinessEvent('portfolio_item_removed', {
-          asset_type: removed.type,
-          amount: removed.amount,
-        });
       }
     },
     
@@ -287,29 +281,30 @@ const portfolioSlice = createSlice({
   extraReducers: (builder) => {
     builder
       .addCase(fetchPrices.fulfilled, (state, action) => {
-        // Mock data kontrolü - eğer payload DEFAULT_PRICES ise persist etme
-        const defaultPrices = getDefaultPrices();
-        const isMockData = action.payload && JSON.stringify(action.payload) === JSON.stringify(defaultPrices);
-        
-        if (isMockData) {
-          // Mock data - sadece state'e yazma, persist etme
-          // Mevcut prices'ı koru (eğer varsa gerçek veri)
-          logger.warn('[PORTFOLIO] Mock data alındı, persist edilmiyor - mevcut prices korunuyor');
-          return; // State'i değiştirme, mevcut prices'ı koru
+        // Action payload artık Prices | null formatında
+        if (!action.payload || typeof action.payload !== 'object') {
+          // Null veya geçersiz payload - mevcut prices'ı koru
+          logger.debug('[PORTFOLIO] No prices from API, keeping current prices');
+          return;
         }
         
-        // Gerçek API verisi - persist et
-        if (action.payload && typeof action.payload === 'object') {
-          const validatedPrices: Partial<Prices> = {};
-          Object.entries(action.payload).forEach(([key, value]) => {
-            if (typeof value === 'number' && !isNaN(value) && isFinite(value) && value >= 0) {
-              validatedPrices[key as keyof Prices] = value;
-            }
-          });
+        const newPrices = action.payload;
+        
+        // Validate ve persist et
+        const validatedPrices: Partial<Prices> = {};
+        Object.entries(newPrices).forEach(([key, value]) => {
+          if (typeof value === 'number' && !isNaN(value) && isFinite(value) && value >= 0) {
+            validatedPrices[key as keyof Prices] = value;
+          }
+        });
+        
+        // En az bir geçerli fiyat varsa güncelle
+        if (Object.keys(validatedPrices).length > 0) {
           // Merge new prices with existing ones
           state.prices = { ...state.prices, ...validatedPrices };
-          
-          logger.debug('[PORTFOLIO] Gerçek API verisi alındı ve persist ediliyor');
+          logger.debug('[PORTFOLIO] API verisi alındı ve persist ediliyor');
+        } else {
+          logger.warn('[PORTFOLIO] API\'den geçerli fiyat verisi gelmedi, mevcut prices korunuyor');
         }
       })
       .addCase(fetchPrices.rejected, (state) => {
@@ -437,5 +432,49 @@ export const selectTotalIn = (currency: CurrencyType) => {
     return totalInBase(currency);
   };
 };
+
+/**
+ * Asset percentages selector
+ * Her asset type için portföydeki yüzdesini hesaplar
+ * Memoized selector for performance
+ */
+export const selectAssetPercentages = createSelector(
+  [selectItems, selectPrices, selectTotalTL],
+  (items, prices, totalTL) => {
+    if (!items || items.length === 0 || totalTL === 0) {
+      return {} as Record<AssetType, number>;
+    }
+
+    // Group items by type and calculate total value for each type
+    const assetValues: Record<AssetType, number> = {} as Record<AssetType, number>;
+    
+    items.forEach((item) => {
+      if (!item || !item.type || isNaN(item.amount) || !isFinite(item.amount) || item.amount < 0) {
+        return;
+      }
+      
+      const valueTL = getItemValueInTL(item, prices);
+      if (!assetValues[item.type]) {
+        assetValues[item.type] = 0;
+      }
+      assetValues[item.type] += valueTL;
+    });
+
+    // Calculate percentages
+    const percentages: Record<AssetType, number> = {} as Record<AssetType, number>;
+    
+    Object.keys(assetValues).forEach((type) => {
+      const assetType = type as AssetType;
+      const value = assetValues[assetType];
+      if (value > 0 && totalTL > 0) {
+        percentages[assetType] = (value / totalTL) * 100;
+      } else {
+        percentages[assetType] = 0;
+      }
+    });
+
+    return percentages;
+  }
+);
 
 export default portfolioSlice.reducer;

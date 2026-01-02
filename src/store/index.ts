@@ -3,7 +3,7 @@ import { persistStore, persistReducer, FLUSH, REHYDRATE, PAUSE, PERSIST, PURGE, 
 import portfolioReducer, { initialState } from './portfolioSlice';
 import { logger } from '../utils/logger';
 import { secureStorage, migrateToSecureStorage } from './secureStorage';
-import { migrateState, validateState } from './migrations';
+import { migrateState, validateState, normalizeState } from './migrations';
 import { raceConditionMiddleware } from './middleware/raceConditionMiddleware';
 import { PersistedState } from './migrations/types';
 
@@ -16,9 +16,25 @@ const persistConfig = {
   version: CURRENT_VERSION, // Version kontrolü - state structure değişikliklerinde artırılmalı
   migrate: async (state: PersistedState | undefined) => {
     try {
-      // State validation
-      if (!validateState(state)) {
-        logger.warn('[REDUX_PERSIST] State validation failed, using initialState');
+      // Önce normalize et - eksik field'ları doldur
+      const normalizedState = normalizeState(state);
+      
+      if (!normalizedState) {
+        // State tamamen bozuk, initialState kullan
+        logger.warn('[REDUX_PERSIST] State normalization failed, using initialState');
+        return {
+          _persist: {
+            version: CURRENT_VERSION,
+            rehydrated: false,
+          },
+          portfolio: initialState,
+        };
+      }
+
+      // Kritik validation - sadece items'ı kontrol et
+      if (!validateState(normalizedState)) {
+        // Items bozuk - kullanıcı verileri korunamaz
+        logger.error('[REDUX_PERSIST] State validation failed (items bozuk), using initialState');
         return {
           _persist: {
             version: CURRENT_VERSION,
@@ -29,11 +45,13 @@ const persistConfig = {
       }
 
       // Migration uygula
-      const migratedState = await migrateState(state, CURRENT_VERSION);
+      const migratedState = await migrateState(normalizedState, CURRENT_VERSION);
       
-      // Migration sonrası tekrar validate et
-      if (!validateState(migratedState)) {
-        logger.warn('[REDUX_PERSIST] State validation failed after migration, using initialState');
+      // Migration sonrası tekrar normalize et
+      const finalNormalizedState = normalizeState(migratedState);
+      
+      if (!finalNormalizedState) {
+        logger.error('[REDUX_PERSIST] State normalization failed after migration, using initialState');
         return {
           _persist: {
             version: CURRENT_VERSION,
@@ -43,7 +61,19 @@ const persistConfig = {
         };
       }
 
-      return migratedState;
+      // Migration sonrası tekrar validate et
+      if (!validateState(finalNormalizedState)) {
+        logger.error('[REDUX_PERSIST] State validation failed after migration, using initialState');
+        return {
+          _persist: {
+            version: CURRENT_VERSION,
+            rehydrated: false,
+          },
+          portfolio: initialState,
+        };
+      }
+
+      return finalNormalizedState;
     } catch (error) {
       logger.error('[REDUX_PERSIST] Migration error', error);
       // Hata durumunda initialState kullan

@@ -15,6 +15,9 @@ import { colors, spacing, borderRadius, fontSize, fontWeight, shadows } from '..
 import { validateAmount } from '../utils/validationUtils';
 import { formatCurrency } from '../utils/formatUtils';
 import { AssetType } from '../types';
+import { getAmountPresets } from '../utils/amountPresets';
+import { hapticFeedback } from '../utils/haptics';
+import { getRecentAmounts, addRecentAmount } from '../services/recentAmountsService';
 
 interface QuickAddModalProps {
   visible: boolean;
@@ -35,6 +38,7 @@ const QuickAddModal: React.FC<QuickAddModalProps> = React.memo(({
   const [amount, setAmount] = useState('');
   const [description, setDescription] = useState('');
   const [slideAnim] = useState(new Animated.Value(0));
+  const [recentAmounts, setRecentAmounts] = useState<number[]>([]);
   
   // Real-time validation with better error messages
   const amountValidation = useMemo(() => {
@@ -57,19 +61,42 @@ const QuickAddModal: React.FC<QuickAddModalProps> = React.memo(({
         useNativeDriver: true,
         friction: 8,
       }).start();
+      
+      // Load recent amounts when modal opens
+      getRecentAmounts(assetType).then(setRecentAmounts).catch(() => {
+        setRecentAmounts([]);
+      });
     } else {
       slideAnim.setValue(0);
     }
-  }, [visible]);
+  }, [visible, assetType]);
 
-  const handleAdd = () => {
+  const handleAdd = async () => {
     const validation = validateAmount(amount);
     if (validation.isValid && validation.value !== undefined) {
+      // Add to recent amounts
+      await addRecentAmount(assetType, validation.value);
+      
       onAdd(validation.value, description || undefined);
       setAmount('');
       setDescription('');
       onClose();
     }
+  };
+  
+  const handlePresetSelect = (preset: number) => {
+    hapticFeedback.light();
+    setAmount(preset.toString());
+  };
+  
+  const handleRecentAmountSelect = async (recentAmount: number) => {
+    hapticFeedback.light();
+    setAmount(recentAmount.toString());
+    // Add to recent amounts to move to front
+    await addRecentAmount(assetType, recentAmount);
+    // Reload recent amounts
+    const updated = await getRecentAmounts(assetType);
+    setRecentAmounts(updated);
   };
 
   const handleClose = () => {
@@ -151,6 +178,46 @@ const QuickAddModal: React.FC<QuickAddModalProps> = React.memo(({
                 />
                 <Text style={styles.unit}>{getUnit()}</Text>
               </View>
+              
+              {/* Quick Preset Buttons */}
+              <View style={styles.presetsContainer}>
+                <Text style={styles.presetsLabel}>{t('quickPresets')}:</Text>
+                <View style={styles.presetsGrid}>
+                  {getAmountPresets(assetType).map((preset) => (
+                    <TouchableOpacity
+                      key={preset}
+                      style={styles.presetButton}
+                      onPress={() => handlePresetSelect(preset)}
+                      activeOpacity={0.7}
+                    >
+                      <Text style={styles.presetButtonText}>
+                        {formatCurrency(preset, 'tr')}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+              
+              {/* Recent Amounts */}
+              {recentAmounts.length > 0 && (
+                <View style={styles.presetsContainer}>
+                  <Text style={styles.presetsLabel}>{t('recentAmounts')}:</Text>
+                  <View style={styles.presetsGrid}>
+                    {recentAmounts.map((recentAmount, index) => (
+                      <TouchableOpacity
+                        key={`${recentAmount}-${index}`}
+                        style={[styles.presetButton, styles.recentAmountButton]}
+                        onPress={() => handleRecentAmountSelect(recentAmount)}
+                        activeOpacity={0.7}
+                      >
+                        <Text style={styles.presetButtonText}>
+                          {formatCurrency(recentAmount, 'tr')}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </View>
+              )}
             </View>
 
             <View style={styles.inputContainer}>
@@ -318,6 +385,42 @@ const styles = StyleSheet.create({
     fontSize: fontSize.base,
     fontWeight: fontWeight.bold,
     color: colors.textPrimary,
+  },
+  presetsContainer: {
+    marginTop: spacing.md,
+  },
+  presetsLabel: {
+    fontSize: fontSize.sm,
+    color: colors.textSecondary,
+    marginBottom: spacing.sm,
+    fontWeight: fontWeight.medium,
+  },
+  presetsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+  },
+  presetButton: {
+    flex: 1,
+    minWidth: '22%',
+    backgroundColor: colors.glassBackground,
+    borderRadius: borderRadius.md,
+    borderWidth: 1,
+    borderColor: colors.glassBorder,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.xs,
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...shadows.glass,
+  },
+  presetButtonText: {
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.semibold,
+    color: colors.textPrimary,
+  },
+  recentAmountButton: {
+    backgroundColor: colors.primaryStart + '15',
+    borderColor: colors.primaryStart + '30',
   },
 });
 

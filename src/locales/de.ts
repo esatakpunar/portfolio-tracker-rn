@@ -93,6 +93,11 @@ export default {
   pricesUpdateFailed: 'Fehler beim Aktualisieren der Preise.',
   allDataReset: 'Alle Daten wurden zurückgesetzt',
   languageChanged: 'Sprache geändert',
+  valueCopied: 'Wert kopiert',
+  longPressToCopy: 'Lange drücken zum Kopieren',
+  clipboardNotAvailable: 'Zwischenablage-Funktion ist in dieser Umgebung nicht verfügbar',
+  quickPresets: 'Schnelle Beträge',
+  recentAmounts: 'Kürzlich verwendete Beträge',
   
   close: 'Schließen',
   save: 'Speichern',

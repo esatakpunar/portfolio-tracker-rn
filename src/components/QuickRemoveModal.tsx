@@ -15,6 +15,8 @@ import { colors, spacing, borderRadius, fontSize, fontWeight, shadows } from '..
 import { validateRemoveAmount } from '../utils/validationUtils';
 import { formatCurrency } from '../utils/formatUtils';
 import { AssetType } from '../types';
+import { getAmountPresets, filterValidPresets } from '../utils/amountPresets';
+import { hapticFeedback } from '../utils/haptics';
 
 interface QuickRemoveModalProps {
   visible: boolean;
@@ -182,6 +184,35 @@ const QuickRemoveModal: React.FC<QuickRemoveModalProps> = React.memo(({
                   {errorMessage || t('invalidAmount')}
                 </Text>
               )}
+              
+              {/* Quick Preset Buttons */}
+              {(() => {
+                const validPresets = filterValidPresets(getAmountPresets(assetType), currentAmount);
+                if (validPresets.length === 0) return null;
+                
+                return (
+                  <View style={styles.presetsContainer}>
+                    <Text style={styles.presetsLabel}>{t('quickPresets')}:</Text>
+                    <View style={styles.presetsGrid}>
+                      {validPresets.map((preset) => (
+                        <TouchableOpacity
+                          key={preset}
+                          style={styles.presetButton}
+                          onPress={() => {
+                            hapticFeedback.light();
+                            setAmount(preset.toString());
+                          }}
+                          activeOpacity={0.7}
+                        >
+                          <Text style={styles.presetButtonText}>
+                            {formatCurrency(preset, 'tr')}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  </View>
+                );
+              })()}
             </View>
 
             <View style={styles.inputContainer}>
@@ -367,6 +398,38 @@ const styles = StyleSheet.create({
   removeButtonText: {
     fontSize: fontSize.base,
     fontWeight: fontWeight.bold,
+    color: colors.textPrimary,
+  },
+  presetsContainer: {
+    marginTop: spacing.md,
+  },
+  presetsLabel: {
+    fontSize: fontSize.sm,
+    color: colors.textSecondary,
+    marginBottom: spacing.sm,
+    fontWeight: fontWeight.medium,
+  },
+  presetsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+  },
+  presetButton: {
+    flex: 1,
+    minWidth: '22%',
+    backgroundColor: colors.glassBackground,
+    borderRadius: borderRadius.md,
+    borderWidth: 1,
+    borderColor: colors.glassBorder,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.xs,
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...shadows.glass,
+  },
+  presetButtonText: {
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.semibold,
     color: colors.textPrimary,
   },
 });

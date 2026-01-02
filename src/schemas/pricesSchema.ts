@@ -39,28 +39,36 @@ export const pricesSchema = z.object({
  * 
  * NOTE: API'den gelen Buying değerleri hem string hem number olabilir
  * Bu yüzden union type kullanıyoruz ve parsePrice fonksiyonunda handle ediyoruz
+ * Change değeri yüzde değişimi gösterir (number olarak gelir)
  */
 export const apiResponseSchema = z.object({
   USD: z.object({
     Buying: z.union([z.string(), z.number()]).optional(),
+    Change: z.number().optional(), // Yüzde değişim
   }).optional(),
   EUR: z.object({
     Buying: z.union([z.string(), z.number()]).optional(),
+    Change: z.number().optional(), // Yüzde değişim
   }).optional(),
   GUMUS: z.object({
     Buying: z.union([z.string(), z.number()]).optional(),
+    Change: z.number().optional(), // Yüzde değişim
   }).optional(),
   TAMALTIN: z.object({
     Buying: z.union([z.string(), z.number()]).optional(),
+    Change: z.number().optional(), // Yüzde değişim
   }).optional(),
   CEYREKALTIN: z.object({
     Buying: z.union([z.string(), z.number()]).optional(),
+    Change: z.number().optional(), // Yüzde değişim
   }).optional(),
   YIA: z.object({
     Buying: z.union([z.string(), z.number()]).optional(),
+    Change: z.number().optional(), // Yüzde değişim (22 ayar)
   }).optional(), // 22 ayar
   GRA: z.object({
     Buying: z.union([z.string(), z.number()]).optional(),
+    Change: z.number().optional(), // Yüzde değişim (24 ayar)
   }).optional(), // 24 ayar (gram altın)
 }).passthrough(); // Allow extra fields
 

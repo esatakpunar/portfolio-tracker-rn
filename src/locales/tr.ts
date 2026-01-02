@@ -93,6 +93,11 @@ export default {
   pricesUpdateFailed: 'Fiyatlar güncellenirken hata oluştu.',
   allDataReset: 'Tüm veriler sıfırlandı',
   languageChanged: 'Dil değiştirildi',
+  valueCopied: 'Değer kopyalandı',
+  longPressToCopy: 'Kopyalamak için uzun basın',
+  clipboardNotAvailable: 'Kopyalama özelliği bu ortamda desteklenmiyor',
+  quickPresets: 'Hızlı Miktarlar',
+  recentAmounts: 'Son Kullanılanlar',
   
   close: 'Kapat',
   save: 'Kaydet',

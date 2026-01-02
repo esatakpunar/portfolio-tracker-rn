@@ -111,7 +111,7 @@ describe('migrations', () => {
       expect(validateState(state)).toBe(false);
     });
 
-    it('should return false when prices is not object', () => {
+    it('should return true when prices is not object (normalize edilebilir)', () => {
       const state: PersistedState = {
         _persist: { version: 1, rehydrated: false },
         portfolio: {
@@ -122,10 +122,11 @@ describe('migrations', () => {
         },
       };
 
-      expect(validateState(state)).toBe(false);
+      // Prices geçersiz ama items geçerli -> normalize edilebilir -> true
+      expect(validateState(state)).toBe(true);
     });
 
-    it('should return false when history is not array', () => {
+    it('should return true when history is not array (normalize edilebilir)', () => {
       const state: PersistedState = {
         _persist: { version: 1, rehydrated: false },
         portfolio: {
@@ -136,10 +137,11 @@ describe('migrations', () => {
         },
       };
 
-      expect(validateState(state)).toBe(false);
+      // History geçersiz ama items geçerli -> normalize edilebilir -> true
+      expect(validateState(state)).toBe(true);
     });
 
-    it('should return false when currentLanguage is not string', () => {
+    it('should return true when currentLanguage is not string (normalize edilebilir)', () => {
       const state: PersistedState = {
         _persist: { version: 1, rehydrated: false },
         portfolio: {
@@ -147,6 +149,70 @@ describe('migrations', () => {
           prices: {},
           history: [],
           currentLanguage: 123 as any,
+        },
+      };
+
+      // currentLanguage geçersiz ama items geçerli -> normalize edilebilir -> true
+      expect(validateState(state)).toBe(true);
+    });
+    
+    it('should return false when item has invalid id', () => {
+      const state: PersistedState = {
+        _persist: { version: 1, rehydrated: false },
+        portfolio: {
+          items: [
+            {
+              id: null as any,
+              type: '22_ayar',
+              amount: 10,
+              date: new Date().toISOString(),
+            },
+          ],
+          prices: {},
+          history: [],
+          currentLanguage: 'tr',
+        },
+      };
+
+      expect(validateState(state)).toBe(false);
+    });
+    
+    it('should return false when item has invalid type', () => {
+      const state: PersistedState = {
+        _persist: { version: 1, rehydrated: false },
+        portfolio: {
+          items: [
+            {
+              id: '1',
+              type: null as any,
+              amount: 10,
+              date: new Date().toISOString(),
+            },
+          ],
+          prices: {},
+          history: [],
+          currentLanguage: 'tr',
+        },
+      };
+
+      expect(validateState(state)).toBe(false);
+    });
+    
+    it('should return false when item has invalid amount', () => {
+      const state: PersistedState = {
+        _persist: { version: 1, rehydrated: false },
+        portfolio: {
+          items: [
+            {
+              id: '1',
+              type: '22_ayar',
+              amount: NaN,
+              date: new Date().toISOString(),
+            },
+          ],
+          prices: {},
+          history: [],
+          currentLanguage: 'tr',
         },
       };
 

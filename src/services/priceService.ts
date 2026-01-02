@@ -5,8 +5,6 @@ import { safeValidateApiResponse, safeValidatePrices } from '../schemas';
 import { getApiUrl, apiConfig } from '../config/api';
 import { retry } from '../utils/retry';
 import { getCachedData, setCachedData, isCached, getCacheAge } from './cacheService';
-import { performanceMonitor } from './performanceMonitor';
-import { analytics } from './analytics';
 
 // NetInfo'yu dynamic import ile yükle (Expo Go uyumluluğu için)
 let NetInfo: typeof import('@react-native-community/netinfo') | null = null;
@@ -37,8 +35,28 @@ const createAxiosInstance = (): AxiosInstance => {
     },
     // React Native için özel ayarlar
     validateStatus: (status) => status === 200,
-    responseType: 'json',
+    // responseType: 'json' yerine 'text' kullan ve manuel parse et
+    // Çünkü bazı API'ler Content-Type header'ı yanlış gönderebilir
+    responseType: 'text',
     maxRedirects: 5,
+    // Transform response to parse JSON manually
+    transformResponse: [(data) => {
+      // Axios responseType: 'text' kullanıldığında data string olarak gelir
+      if (typeof data === 'string') {
+        try {
+          return JSON.parse(data);
+        } catch (error) {
+          // Parse başarısız olursa, orijinal string'i döndür
+          // priceService içinde tekrar parse edilecek
+          logger.warn('[AXIOS] TransformResponse: Failed to parse JSON, returning raw string', {
+            error: error instanceof Error ? error.message : String(error),
+            dataPreview: data.substring(0, 200),
+          });
+          return data;
+        }
+      }
+      return data;
+    }],
   });
 
   // Request interceptor - log requests in dev
@@ -96,16 +114,8 @@ const createAxiosInstance = (): AxiosInstance => {
 // Global axios instance
 const axiosInstance = createAxiosInstance();
 
-const DEFAULT_PRICES: Prices = {
-  '22_ayar': 2300,
-  '24_ayar': 2500,
-  ceyrek: 4000,
-  tam: 16000,
-  usd: 34,
-  eur: 36,
-  tl: 1,
-  gumus: 30
-};
+// DEFAULT_PRICES kaldırıldı - mock data kullanılmıyor
+// Sadece kullanıcı verileri (cache, currentPrices) kullanılıyor
 
 /**
  * Safely parses a price value from API response
@@ -152,10 +162,14 @@ const PRICES_CACHE_KEY = 'prices';
 /**
  * Fetch fresh prices from API (internal function)
  * 
- * @param currentPrices Current prices from state (used as fallback)
+ * @param currentPrices Current prices from state (used as fallback for parsePrice only)
  * @param signal AbortSignal for request cancellation
+ * @returns Prices object or null if API fails and no valid fallback available
  */
-const fetchFreshPrices = async (currentPrices?: Prices, signal?: AbortSignal): Promise<Prices> => {
+const fetchFreshPrices = async (
+  currentPrices?: Prices, 
+  signal?: AbortSignal
+): Promise<Prices | null> => {
   const API_URL = getApiUrl('today.json');
   
   // Check network status before making API call (if NetInfo is available)
@@ -163,54 +177,79 @@ const fetchFreshPrices = async (currentPrices?: Prices, signal?: AbortSignal): P
     try {
       const networkState = await NetInfo.fetch();
       if (!networkState.isConnected) {
-    logger.warn('[PRICE_SERVICE] Device is offline, using cached/fallback data');
-    // Return cached data or fallback
-    if (currentPrices && Object.keys(currentPrices).length > 0) {
-      const currentPricesValidation = safeValidatePrices(currentPrices);
-      const isCurrentPricesMock = JSON.stringify(currentPrices) === JSON.stringify(DEFAULT_PRICES);
-      if (currentPricesValidation.success && !isCurrentPricesMock) {
-        return currentPricesValidation.data!;
-      }
-    }
-    // Return cached data from cache service
-    const cached = getCachedData<Prices>(PRICES_CACHE_KEY);
-    if (cached) {
-      logger.debug('[PRICE_SERVICE] Using cached data (offline)');
-      return cached;
-    }
-    // Last resort: return default prices
-        return DEFAULT_PRICES;
+        logger.warn('[PRICE_SERVICE] Device is offline, using cached/fallback data');
+        
+        // ÖNCE: Cache'den veri al
+        const cached = getCachedData<Prices>(PRICES_CACHE_KEY);
+        if (cached) {
+          const cachedValidation = safeValidatePrices(cached);
+          if (cachedValidation.success) {
+            logger.debug('[PRICE_SERVICE] Using cached data (offline)');
+            return cachedValidation.data!;
+          }
+        }
+        
+        // İKİNCİ: currentPrices kullan (eğer geçerliyse)
+        if (currentPrices && Object.keys(currentPrices).length > 0) {
+          const currentPricesValidation = safeValidatePrices(currentPrices);
+          if (currentPricesValidation.success) {
+            logger.debug('[PRICE_SERVICE] Using currentPrices (offline)');
+            return currentPricesValidation.data!;
+          }
+        }
+        
+        // Hiçbir veri yok - null döndür (mock data yok)
+        logger.warn('[PRICE_SERVICE] Offline ve hiçbir veri yok - null döndürülüyor');
+        return null;
       }
     } catch (error) {
       // NetInfo fetch failed, continue with API call (fallback)
-      logger.warn('[PRICE_SERVICE] NetInfo fetch failed, continuing with API call', error);
+      logger.warn('[PRICE_SERVICE] NetInfo fetch failed, continuing with API call', error as any);
     }
   }
   
   try {
-    // Start performance timer
-    performanceMonitor.startTimer('api_fetch_prices');
-    
     // Retry wrapper ile API call'ı wrap et
     return await retry(
       async () => {
-        // LOG: API call başladı
+    // LOG: API call başladı
         logger.debug('[PRICE_SERVICE] API call başladı', { url: API_URL });
         
         // Create axios config with signal if provided
         const axiosConfig = signal ? { signal } : {};
         const response = await axiosInstance.get(API_URL, axiosConfig);
         
-        // Parse response data if it's a string
+        // Response data should already be parsed by transformResponse
+        // But if it's still a string (transformResponse failed), parse it here
         let responseData = response.data;
         if (typeof responseData === 'string') {
           try {
-            responseData = JSON.parse(responseData);
-            logger.debug('[PRICE_SERVICE] Parsed JSON string response');
+            // Trim whitespace before parsing
+            const trimmed = responseData.trim();
+            if (!trimmed) {
+              throw new Error('Empty response string');
+            }
+            responseData = JSON.parse(trimmed);
+            logger.debug('[PRICE_SERVICE] Parsed JSON string response (fallback after transformResponse)');
           } catch (parseError) {
-            logger.warn('[PRICE_SERVICE] Failed to parse JSON string', { parseError });
-            throw new Error('Invalid JSON response');
+            // Log the actual string content for debugging (first 500 chars)
+            const errorMessage = parseError instanceof Error ? parseError.message : String(parseError);
+            const stringPreview = typeof responseData === 'string' 
+              ? responseData.substring(0, 500) 
+              : 'Not a string';
+            logger.error('[PRICE_SERVICE] Failed to parse JSON string (both transformResponse and fallback failed)', { 
+              error: errorMessage,
+              stringLength: typeof responseData === 'string' ? responseData.length : 0,
+              stringPreview,
+              contentType: response.headers?.['content-type'],
+              responseStatus: response.status,
+              responseHeaders: response.headers,
+            });
+            throw new Error(`Invalid JSON response: ${errorMessage}`);
           }
+        } else {
+          // Response data is already an object (transformResponse başarılı)
+          logger.debug('[PRICE_SERVICE] Response data already parsed by transformResponse');
         }
         
         // Validate API response with Zod
@@ -219,24 +258,38 @@ const fetchFreshPrices = async (currentPrices?: Prices, signal?: AbortSignal): P
           logger.warn('[PRICE_SERVICE] API response validation failed', {
             error: apiValidation.error?.issues,
           });
-          throw new Error('Invalid API response structure');
-        }
-        
-        // LOG: API başarılı
+      throw new Error('Invalid API response structure');
+    }
+    
+    // LOG: API başarılı
         logger.debug('[PRICE_SERVICE] API başarılı', { data: responseData });
-        
+    
         const data = apiValidation.data!;
-        
-        const prices: Prices = {
-          usd: parsePrice(data.USD?.Buying, currentPrices?.usd || DEFAULT_PRICES.usd),
-          eur: parsePrice(data.EUR?.Buying, currentPrices?.eur || DEFAULT_PRICES.eur),
-          gumus: parsePrice(data.GUMUS?.Buying, currentPrices?.gumus || DEFAULT_PRICES.gumus),
-          tam: parsePrice(data.TAMALTIN?.Buying, currentPrices?.tam || DEFAULT_PRICES.tam),
-          ceyrek: parsePrice(data.CEYREKALTIN?.Buying, currentPrices?.ceyrek || DEFAULT_PRICES.ceyrek),
-          '22_ayar': parsePrice(data.YIA?.Buying, currentPrices?.['22_ayar'] || DEFAULT_PRICES['22_ayar']),
-          '24_ayar': parsePrice(data.GRA?.Buying, currentPrices?.['24_ayar'] || DEFAULT_PRICES['24_ayar']),
-          tl: 1,
+    
+        // Parse prices - fallback olarak sadece currentPrices kullan (mock data yok)
+    const prices: Prices = {
+          usd: parsePrice(data.USD?.Buying, currentPrices?.usd || 0),
+          eur: parsePrice(data.EUR?.Buying, currentPrices?.eur || 0),
+          gumus: parsePrice(data.GUMUS?.Buying, currentPrices?.gumus || 0),
+          tam: parsePrice(data.TAMALTIN?.Buying, currentPrices?.tam || 0),
+          ceyrek: parsePrice(data.CEYREKALTIN?.Buying, currentPrices?.ceyrek || 0),
+          '22_ayar': parsePrice(data.YIA?.Buying, currentPrices?.['22_ayar'] || 0),
+          '24_ayar': parsePrice(data.GRA?.Buying, currentPrices?.['24_ayar'] || 0),
+          tl: 1, // TL always 1
         };
+        
+        // Eğer tüm fiyatlar 0 ise (API'den geçerli veri gelmemiş), null döndür
+        const hasValidPrices = Object.values(prices).some((price, index) => {
+          // TL'yi atla (her zaman 1)
+          if (index === 7) return false; // tl index
+          return price > 0;
+        });
+        
+        if (!hasValidPrices) {
+          logger.warn('[PRICE_SERVICE] API\'den geçerli fiyat verisi gelmedi, tüm fiyatlar 0');
+          // Fallback'e düş
+          throw new Error('No valid prices from API');
+        }
         
         // Validate parsed prices with Zod
         const pricesValidation = safeValidatePrices(prices);
@@ -244,16 +297,10 @@ const fetchFreshPrices = async (currentPrices?: Prices, signal?: AbortSignal): P
           logger.warn('[PRICE_SERVICE] Parsed prices validation failed', {
             error: pricesValidation.error?.issues,
           });
-          throw new Error('Invalid price values in response');
-        }
-        
-        // Prices updated successfully - gerçek API verisi
-        const pricesDuration = performanceMonitor.endTimer('api_fetch_prices');
-        if (pricesDuration) {
-          performanceMonitor.trackApiCall(API_URL, pricesDuration, true);
-          analytics.trackPerformance('api_fetch_prices', pricesDuration, { success: true });
-        }
-        
+      throw new Error('Invalid price values in response');
+    }
+    
+    // Prices updated successfully - gerçek API verisi
         return prices;
       },
       {
@@ -288,13 +335,6 @@ const fetchFreshPrices = async (currentPrices?: Prices, signal?: AbortSignal): P
       }
     );
   } catch (error: unknown) {
-    // Track API failure
-    const pricesDuration = performanceMonitor.endTimer('api_fetch_prices');
-    if (pricesDuration) {
-      performanceMonitor.trackApiCall(API_URL, pricesDuration, false);
-      analytics.trackPerformance('api_fetch_prices', pricesDuration, { success: false });
-    }
-    
     // Retry failed - use fallback
     // LOG: API hata - kritik log
     let errorMessage = 'Unknown error';
@@ -331,28 +371,32 @@ const fetchFreshPrices = async (currentPrices?: Prices, signal?: AbortSignal): P
       error: errorMessage,
       errorDetails,
       hasCurrentPrices: !!currentPrices,
-      isCurrentPricesMock: currentPrices ? JSON.stringify(currentPrices) === JSON.stringify(DEFAULT_PRICES) : false,
       timestamp: new Date().toISOString(),
       url: API_URL,
-    });
+    } as any);
     
-    // KRİTİK DEĞİŞİKLİK: Mock data yerine cached prices kullan
-    if (currentPrices && Object.keys(currentPrices).length > 0) {
-      // Validate current prices with Zod before using as fallback
-      const currentPricesValidation = safeValidatePrices(currentPrices);
-      
-      // Eğer currentPrices geçerli ve mock data değilse, onu kullan
-      const isCurrentPricesMock = JSON.stringify(currentPrices) === JSON.stringify(DEFAULT_PRICES);
-      
-      if (currentPricesValidation.success && !isCurrentPricesMock) {
-        logger.debug('[PRICE_SERVICE] API hata - Cached prices kullanılıyor (mock değil)');
-        return currentPricesValidation.data!; // Cached gerçek veri (validated)
+    // ÖNCE: Cache'den veri al (en güvenilir)
+    const cached = getCachedData<Prices>(PRICES_CACHE_KEY);
+    if (cached) {
+      const cachedValidation = safeValidatePrices(cached);
+      if (cachedValidation.success) {
+        logger.debug('[PRICE_SERVICE] API hata - Cache\'den veri kullanılıyor');
+        return cachedValidation.data!;
       }
     }
     
-    // Son çare: Mock data (ama sadece ilk açılışta, persist edilmeyecek)
-    logger.warn('[PRICE_SERVICE] API hata - Mock data kullanılıyor (sadece ilk açılış, persist edilmeyecek)');
-    return DEFAULT_PRICES;
+    // İKİNCİ: currentPrices kullan (eğer geçerliyse)
+    if (currentPrices && Object.keys(currentPrices).length > 0) {
+      const currentPricesValidation = safeValidatePrices(currentPrices);
+      if (currentPricesValidation.success) {
+        logger.debug('[PRICE_SERVICE] API hata - Current prices kullanılıyor');
+        return currentPricesValidation.data!;
+      }
+    }
+    
+    // Hiçbir veri yok - null döndür (mock data yok)
+    logger.warn('[PRICE_SERVICE] API hata - Hiçbir veri yok, null döndürülüyor (mock data kullanılmıyor)');
+    return null;
   }
 };
 
@@ -367,9 +411,14 @@ const fetchFreshPrices = async (currentPrices?: Prices, signal?: AbortSignal): P
  * 
  * @param currentPrices Current prices from Redux state (used as fallback)
  * @param signal AbortSignal for request cancellation (optional)
- * @returns Promise<Prices> - Fresh or cached prices
+ * @returns Promise<Prices | null> - Fresh or cached prices, or null if no data available
+ * 
+ * NOT: Null dönerse, mevcut prices korunur (mock data kullanılmaz)
  */
-export const fetchPrices = async (currentPrices?: Prices, signal?: AbortSignal): Promise<Prices> => {
+export const fetchPrices = async (
+  currentPrices?: Prices, 
+  signal?: AbortSignal
+): Promise<Prices | null> => {
   // Check cache first
   const cached = getCachedData<Prices>(PRICES_CACHE_KEY);
   
@@ -388,14 +437,12 @@ export const fetchPrices = async (currentPrices?: Prices, signal?: AbortSignal):
     logger.debug('[PRICE_SERVICE] Using stale cache, fetching fresh data in background', { cacheAge });
     
     // Fetch fresh data in background (don't await)
-    fetchFreshPrices(currentPrices)
+    fetchFreshPrices(currentPrices, signal)
       .then((freshPrices) => {
-        // Validate fresh prices before caching
-        const validation = safeValidatePrices(freshPrices);
-        if (validation.success) {
-          // Don't cache mock data
-          const isMockData = JSON.stringify(freshPrices) === JSON.stringify(DEFAULT_PRICES);
-          if (!isMockData) {
+        if (freshPrices) {
+          // Validate fresh prices before caching
+          const validation = safeValidatePrices(freshPrices);
+          if (validation.success) {
             setCachedData(PRICES_CACHE_KEY, freshPrices, apiConfig.cacheTTL);
             logger.debug('[PRICE_SERVICE] Fresh data cached in background');
           }
@@ -414,17 +461,117 @@ export const fetchPrices = async (currentPrices?: Prices, signal?: AbortSignal):
   logger.debug('[PRICE_SERVICE] No cache, fetching fresh data');
   const freshPrices = await fetchFreshPrices(currentPrices, signal);
   
-  // Cache fresh data (if not mock)
+  if (!freshPrices) {
+    // API başarısız ve fallback yok - null döndür
+    logger.warn('[PRICE_SERVICE] No fresh prices available, returning null');
+    return null;
+  }
+  
+  // Cache fresh data
   const validation = safeValidatePrices(freshPrices);
   if (validation.success) {
-    const isMockData = JSON.stringify(freshPrices) === JSON.stringify(DEFAULT_PRICES);
-    if (!isMockData) {
-      setCachedData(PRICES_CACHE_KEY, freshPrices, apiConfig.cacheTTL);
-      logger.debug('[PRICE_SERVICE] Fresh data cached');
-    }
+    setCachedData(PRICES_CACHE_KEY, freshPrices, apiConfig.cacheTTL);
+    logger.debug('[PRICE_SERVICE] Fresh data cached');
   }
   
   return freshPrices;
 };
 
-export const getDefaultPrices = (): Prices => DEFAULT_PRICES;
+// getDefaultPrices kaldırıldı - mock data kullanılmıyor
+
+/**
+ * Parse price change from API response
+ * Helper function to extract Change values from API response
+ */
+const parsePriceChange = (value: number | undefined): number | null => {
+  if (value === undefined || value === null) {
+    return null;
+  }
+  
+  if (typeof value !== 'number' || isNaN(value) || !isFinite(value)) {
+    return null;
+  }
+  
+  return value;
+};
+
+/**
+ * Cache key for price changes
+ */
+const PRICE_CHANGES_CACHE_KEY = 'price_changes';
+
+/**
+ * Fetch price changes from API
+ * Returns only the Change values, not stored in Redux state
+ * Uses caching to reduce API calls
+ * 
+ * @returns Promise with price changes for USD, EUR, and 24_ayar (ALTIN)
+ */
+export const fetchPriceChanges = async (): Promise<{
+  usd: number | null;
+  eur: number | null;
+  '24_ayar': number | null;
+}> => {
+  const API_URL = getApiUrl('today.json');
+  
+  // Check cache first
+  const cached = getCachedData<{ usd: number | null; eur: number | null; '24_ayar': number | null }>(PRICE_CHANGES_CACHE_KEY);
+  if (cached) {
+    const cacheAge = getCacheAge(PRICE_CHANGES_CACHE_KEY);
+    const isStale = cacheAge !== null && cacheAge > apiConfig.cacheStaleThreshold;
+    
+    if (!isStale) {
+      // Cache is fresh - return immediately
+      logger.debug('[PRICE_SERVICE] Using cached price changes', { cacheAge });
+      return cached;
+    }
+  }
+  
+  try {
+    const response = await axiosInstance.get(API_URL);
+    
+    // Parse response data if it's a string
+    let responseData = response.data;
+    if (typeof responseData === 'string') {
+      try {
+        responseData = JSON.parse(responseData);
+      } catch (parseError) {
+        logger.warn('[PRICE_SERVICE] Failed to parse JSON string for price changes', { parseError });
+        // Return cached data if available, otherwise null
+        return cached || { usd: null, eur: null, '24_ayar': null };
+      }
+    }
+    
+    // Validate API response with Zod
+    const apiValidation = safeValidateApiResponse(responseData);
+    if (!apiValidation.success) {
+      logger.warn('[PRICE_SERVICE] API response validation failed for price changes');
+      // Return cached data if available, otherwise null
+      return cached || { usd: null, eur: null, '24_ayar': null };
+    }
+    
+    const data = apiValidation.data!;
+    
+    const priceChanges = {
+      usd: parsePriceChange(data.USD?.Change),
+      eur: parsePriceChange(data.EUR?.Change),
+      '24_ayar': parsePriceChange(data.GRA?.Change),
+    };
+    
+    // Cache the result
+    setCachedData(PRICE_CHANGES_CACHE_KEY, priceChanges, apiConfig.cacheTTL);
+    logger.debug('[PRICE_SERVICE] Price changes cached');
+    
+    return priceChanges;
+  } catch (error) {
+    // Network error - use cached data if available, otherwise return null
+    // This is not a critical error, so use warn level instead of error
+    logger.warn('[PRICE_SERVICE] Failed to fetch price changes, using cache or returning null', {
+      hasCache: !!cached,
+      error: error instanceof Error ? error.message : String(error),
+    });
+    
+    // Return cached data if available, otherwise null
+    return cached || { usd: null, eur: null, '24_ayar': null };
+  }
+};

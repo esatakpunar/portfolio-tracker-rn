@@ -15,26 +15,12 @@ import { colors, spacing, borderRadius, fontSize, fontWeight } from '../theme';
 import { getAssetIcon, getAssetColor } from '../utils/assetUtils';
 import { formatRelativeDate, formatCurrency } from '../utils/formatUtils';
 import { HistoryItem } from '../types';
-import { analytics } from '../services/analytics';
-import { performanceMonitor } from '../services/performanceMonitor';
 
 export const HistoryScreen: React.FC = React.memo(() => {
   const { t, i18n } = useTranslation();
   const history = useAppSelector(selectHistory);
   const [refreshing, setRefreshing] = useState(false);
   
-  // Track screen view and performance
-  React.useEffect(() => {
-    performanceMonitor.startTimer('screen_history');
-    analytics.trackScreenView('history');
-    
-    return () => {
-      const loadTime = performanceMonitor.endTimer('screen_history');
-      if (loadTime) {
-        performanceMonitor.trackScreenLoad('history', loadTime);
-      }
-    };
-  }, []);
 
   const handleRefresh = useCallback(async () => {
     setRefreshing(true);

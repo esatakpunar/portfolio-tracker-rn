@@ -93,6 +93,11 @@ export default {
   pricesUpdateFailed: 'Failed to update prices.',
   allDataReset: 'All data has been reset',
   languageChanged: 'Language changed',
+  valueCopied: 'Value copied',
+  longPressToCopy: 'Long press to copy',
+  clipboardNotAvailable: 'Clipboard feature is not available in this environment',
+  quickPresets: 'Quick Amounts',
+  recentAmounts: 'Recent Amounts',
   
   close: 'Close',
   save: 'Save',

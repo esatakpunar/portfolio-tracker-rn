@@ -117,32 +117,94 @@ export const migrateState = async (
 };
 
 /**
- * Validate state structure
+ * Normalize state - eksik field'ları default değerlerle doldur
+ * Kullanıcı verilerini (items) korur, sadece eksik field'ları doldurur
+ */
+export const normalizeState = (state: PersistedState | undefined): PersistedState | null => {
+  if (!state || !state.portfolio) {
+    return null;
+  }
+
+  const portfolio = state.portfolio;
+  const normalized: PersistedState = {
+    _persist: state._persist || {
+      version: 1,
+      rehydrated: false,
+    },
+    portfolio: {
+      // Items'ı koru - kullanıcı verileri
+      items: Array.isArray(portfolio.items) ? portfolio.items : [],
+      
+      // Prices'i koru veya default değerlerle doldur
+      prices: (typeof portfolio.prices === 'object' && 
+               portfolio.prices !== null && 
+               !Array.isArray(portfolio.prices)) 
+        ? portfolio.prices 
+        : initialState.prices,
+      
+      // History'yi koru
+      history: Array.isArray(portfolio.history) ? portfolio.history : [],
+      
+      // Language'i koru veya default değerle doldur
+      currentLanguage: typeof portfolio.currentLanguage === 'string' 
+        ? portfolio.currentLanguage 
+        : initialState.currentLanguage,
+    },
+  };
+
+  return normalized;
+};
+
+/**
+ * Validate state structure - kritik hataları kontrol et
+ * 
+ * Strateji:
+ * 1. State yoksa veya portfolio yoksa -> false (kritik hata)
+ * 2. Items geçersizse -> false (kullanıcı verileri bozuk)
+ * 3. Diğer field'lar eksik/geçersizse -> true (normalize edilebilir)
+ * 
+ * Bu sayede kullanıcı verilerini (items) koruruz, sadece kritik hatalarda false döneriz
  */
 export const validateState = (state: PersistedState | undefined): boolean => {
   if (!state) {
     return false;
   }
 
-  // Portfolio state validation
+  // Portfolio state validation - kritik
   if (!state.portfolio) {
     return false;
   }
 
   const portfolio = state.portfolio;
 
-  // Required fields kontrolü
-  if (
-    !Array.isArray(portfolio.items) ||
-    typeof portfolio.prices !== 'object' ||
-    portfolio.prices === null ||
-    Array.isArray(portfolio.prices) || // Array is object but we need plain object
-    !Array.isArray(portfolio.history) ||
-    typeof portfolio.currentLanguage !== 'string'
-  ) {
+  // KRİTİK: Items geçersizse -> false (kullanıcı verileri bozuk, korunamaz)
+  if (!Array.isArray(portfolio.items)) {
+    logger.warn('[VALIDATE_STATE] Items is not an array - kritik hata');
     return false;
   }
 
+  // Items içindeki her item'ı kontrol et - kritik
+  for (const item of portfolio.items) {
+    if (!item || typeof item !== 'object') {
+      logger.warn('[VALIDATE_STATE] Invalid item in items array - kritik hata');
+      return false;
+    }
+    if (!item.id || typeof item.id !== 'string') {
+      logger.warn('[VALIDATE_STATE] Item missing id - kritik hata');
+      return false;
+    }
+    if (!item.type || typeof item.type !== 'string') {
+      logger.warn('[VALIDATE_STATE] Item missing type - kritik hata');
+      return false;
+    }
+    if (typeof item.amount !== 'number' || isNaN(item.amount) || !isFinite(item.amount)) {
+      logger.warn('[VALIDATE_STATE] Item has invalid amount - kritik hata');
+      return false;
+    }
+  }
+
+  // Diğer field'lar eksik/geçersizse normalize edilebilir -> true
+  // Bu sayede kullanıcı verilerini (items) koruruz
   return true;
 };
 
