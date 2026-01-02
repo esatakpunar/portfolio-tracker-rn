@@ -6,4 +6,5 @@
 
 export * from './api';
 export * from './sentry';
+export * from './environment';
 
