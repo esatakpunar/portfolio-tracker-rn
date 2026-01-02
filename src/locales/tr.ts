@@ -114,5 +114,13 @@ export default {
   amountDecreased: 'Miktar azaltıldı',
   
   // Network status
-  offlineMessage: 'İnternet bağlantısı yok'
+  offlineMessage: 'İnternet bağlantısı yok',
+  
+  // Error messages
+  errorNetwork: 'İnternet bağlantısı sorunu. Lütfen bağlantınızı kontrol edin.',
+  errorTimeout: 'İstek zaman aşımına uğradı. Lütfen tekrar deneyin.',
+  errorServer: 'Sunucu hatası. Lütfen daha sonra tekrar deneyin.',
+  errorClient: 'Bir hata oluştu. Lütfen tekrar deneyin.',
+  errorValidation: 'Geçersiz veri. Lütfen bilgilerinizi kontrol edin.',
+  errorUnknown: 'Beklenmeyen bir hata oluştu. Lütfen tekrar deneyin.'
 };

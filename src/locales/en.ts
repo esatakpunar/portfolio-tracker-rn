@@ -112,5 +112,13 @@ export default {
   amountDecreased: 'Amount decreased',
   
   // Network status
-  offlineMessage: 'No internet connection'
+  offlineMessage: 'No internet connection',
+  
+  // Error messages
+  errorNetwork: 'Network connection issue. Please check your connection.',
+  errorTimeout: 'Request timed out. Please try again.',
+  errorServer: 'Server error. Please try again later.',
+  errorClient: 'An error occurred. Please try again.',
+  errorValidation: 'Invalid data. Please check your information.',
+  errorUnknown: 'An unexpected error occurred. Please try again.'
 };

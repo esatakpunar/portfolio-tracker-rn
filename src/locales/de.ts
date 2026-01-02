@@ -112,5 +112,13 @@ export default {
   amountDecreased: 'Menge verringert',
   
   // Network status
-  offlineMessage: 'Keine Internetverbindung'
+  offlineMessage: 'Keine Internetverbindung',
+  
+  // Error messages
+  errorNetwork: 'Netzwerkverbindungsproblem. Bitte überprüfen Sie Ihre Verbindung.',
+  errorTimeout: 'Anfrage-Zeitüberschreitung. Bitte versuchen Sie es erneut.',
+  errorServer: 'Serverfehler. Bitte versuchen Sie es später erneut.',
+  errorClient: 'Ein Fehler ist aufgetreten. Bitte versuchen Sie es erneut.',
+  errorValidation: 'Ungültige Daten. Bitte überprüfen Sie Ihre Informationen.',
+  errorUnknown: 'Ein unerwarteter Fehler ist aufgetreten. Bitte versuchen Sie es erneut.'
 };
