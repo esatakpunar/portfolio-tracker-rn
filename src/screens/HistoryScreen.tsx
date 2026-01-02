@@ -1,8 +1,9 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   View,
   StyleSheet,
   FlatList,
+  RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
@@ -14,10 +15,12 @@ import { getAssetIcon, getAssetColor } from '../utils/assetUtils';
 import { formatRelativeDate, formatCurrency } from '../utils/formatUtils';
 import { HistoryItem } from '../types';
 import EmptyState from '../components/EmptyState';
+import { hapticFeedback } from '../utils/haptics';
 
 const HistoryScreen: React.FC = () => {
   const { t, i18n } = useTranslation();
   const history = useAppSelector(selectHistory);
+  const [refreshing, setRefreshing] = useState(false);
 
 
   const renderHistoryItem = ({ item }: { item: HistoryItem }) => {
@@ -82,6 +85,16 @@ const HistoryScreen: React.FC = () => {
     );
   };
 
+  const onRefresh = () => {
+    hapticFeedback.light();
+    setRefreshing(true);
+    // UI-only refresh - history is derived from items, no fetch needed
+    setTimeout(() => {
+      setRefreshing(false);
+      hapticFeedback.success();
+    }, 500);
+  };
+
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
       <View style={styles.header}>
@@ -104,6 +117,14 @@ const HistoryScreen: React.FC = () => {
           keyExtractor={(item) => item.item.id || `${item.date}-${item.type}-${item.item.type}`}
           contentContainerStyle={styles.listContainer}
           showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              tintColor={colors.primaryStart}
+              colors={[colors.primaryStart]}
+            />
+          }
         />
       )}
     </SafeAreaView>
