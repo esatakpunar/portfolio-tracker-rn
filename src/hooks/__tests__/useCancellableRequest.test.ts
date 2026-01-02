@@ -16,14 +16,20 @@ describe('useCancellableRequest', () => {
   it('should cancel request on unmount', () => {
     const { result, unmount } = renderHook(() => useCancellableRequest());
     
+    // Wait for signal to be created
+    expect(result.current.signal).toBeDefined();
     expect(result.current.isCancelled).toBe(false);
+    
+    // Store signal reference before unmount
+    const signalBeforeUnmount = result.current.signal;
     
     act(() => {
       unmount();
     });
     
     // After unmount, signal should be aborted
-    expect(result.current.signal?.aborted).toBe(true);
+    // Note: We check the signal's aborted property directly
+    expect(signalBeforeUnmount?.aborted).toBe(true);
   });
 
   it('should manually cancel request', () => {
@@ -64,6 +70,8 @@ describe('useCancellableRequestWithDeps', () => {
       { initialProps: { deps: [1] } }
     );
     
+    // Wait for first signal to be created
+    expect(result.current.signal).toBeDefined();
     const firstSignal = result.current.signal;
     
     act(() => {
@@ -72,6 +80,9 @@ describe('useCancellableRequestWithDeps', () => {
     
     // Previous signal should be aborted
     expect(firstSignal?.aborted).toBe(true);
+    // New signal should be created
+    expect(result.current.signal).toBeDefined();
+    expect(result.current.signal).not.toBe(firstSignal);
   });
 });
 

@@ -5,7 +5,7 @@
  * AbortController kullanarak memory leak'leri önler
  */
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { logger } from '../utils/logger';
 
 /**
@@ -30,16 +30,22 @@ import { logger } from '../utils/logger';
  */
 export const useCancellableRequest = () => {
   const abortControllerRef = useRef<AbortController | null>(null);
+  const [signal, setSignal] = useState<AbortSignal | null>(null);
+  const [isCancelled, setIsCancelled] = useState(false);
 
   useEffect(() => {
     // Create new AbortController for this effect
-    abortControllerRef.current = new AbortController();
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+    setSignal(controller.signal);
+    setIsCancelled(false);
 
     // Cleanup function - cancel request on unmount
     return () => {
       if (abortControllerRef.current) {
         logger.debug('[CANCELLABLE_REQUEST] Cancelling request on unmount');
         abortControllerRef.current.abort();
+        // Note: Don't set state here as component is unmounting
         abortControllerRef.current = null;
       }
     };
@@ -50,13 +56,14 @@ export const useCancellableRequest = () => {
       logger.debug('[CANCELLABLE_REQUEST] Manually cancelling request');
       abortControllerRef.current.abort();
       abortControllerRef.current = null;
+      setIsCancelled(true);
     }
   };
 
   return {
-    signal: abortControllerRef.current?.signal,
+    signal: signal ?? undefined,
     cancel,
-    isCancelled: abortControllerRef.current?.signal.aborted ?? false,
+    isCancelled: isCancelled || (signal?.aborted ?? false),
   };
 };
 
@@ -81,22 +88,30 @@ export const useCancellableRequest = () => {
  */
 export const useCancellableRequestWithDeps = (deps: React.DependencyList) => {
   const abortControllerRef = useRef<AbortController | null>(null);
+  const previousSignalRef = useRef<AbortSignal | null>(null);
+  const [signal, setSignal] = useState<AbortSignal | null>(null);
+  const [isCancelled, setIsCancelled] = useState(false);
 
   useEffect(() => {
     // Cancel previous request if exists
     if (abortControllerRef.current) {
       logger.debug('[CANCELLABLE_REQUEST] Cancelling previous request (deps changed)');
       abortControllerRef.current.abort();
+      previousSignalRef.current = abortControllerRef.current.signal;
     }
 
     // Create new AbortController
-    abortControllerRef.current = new AbortController();
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+    setSignal(controller.signal);
+    setIsCancelled(false);
 
     // Cleanup function
     return () => {
       if (abortControllerRef.current) {
         logger.debug('[CANCELLABLE_REQUEST] Cancelling request on unmount');
         abortControllerRef.current.abort();
+        // Note: Don't set state here as component is unmounting
         abortControllerRef.current = null;
       }
     };
@@ -107,13 +122,15 @@ export const useCancellableRequestWithDeps = (deps: React.DependencyList) => {
       logger.debug('[CANCELLABLE_REQUEST] Manually cancelling request');
       abortControllerRef.current.abort();
       abortControllerRef.current = null;
+      setIsCancelled(true);
     }
   };
 
   return {
-    signal: abortControllerRef.current?.signal,
+    signal: signal ?? undefined,
     cancel,
-    isCancelled: abortControllerRef.current?.signal.aborted ?? false,
+    isCancelled: isCancelled || (signal?.aborted ?? false),
+    previousSignal: previousSignalRef.current ?? undefined,
   };
 };
 
