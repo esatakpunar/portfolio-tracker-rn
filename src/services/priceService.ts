@@ -5,7 +5,21 @@ import { safeValidateApiResponse, safeValidatePrices } from '../schemas';
 import { getApiUrl, apiConfig } from '../config/api';
 import { retry } from '../utils/retry';
 import { getCachedData, setCachedData, isCached, getCacheAge } from './cacheService';
-import NetInfo from '@react-native-community/netinfo';
+
+// NetInfo'yu dynamic import ile yükle (Expo Go uyumluluğu için)
+let NetInfo: typeof import('@react-native-community/netinfo') | null = null;
+let isNetInfoAvailable = false;
+
+try {
+  const netInfoModule = require('@react-native-community/netinfo');
+  NetInfo = netInfoModule.default || netInfoModule;
+  if (NetInfo && typeof NetInfo.fetch === 'function') {
+    isNetInfoAvailable = true;
+  }
+} catch (error) {
+  // NetInfo mevcut değil (Expo Go), fallback kullanılacak
+  isNetInfoAvailable = false;
+}
 
 /**
  * Create axios instance with default config for React Native
@@ -139,9 +153,11 @@ const PRICES_CACHE_KEY = 'prices';
 const fetchFreshPrices = async (currentPrices?: Prices): Promise<Prices> => {
   const API_URL = getApiUrl('today.json');
   
-  // Check network status before making API call
-  const networkState = await NetInfo.fetch();
-  if (!networkState.isConnected) {
+  // Check network status before making API call (if NetInfo is available)
+  if (isNetInfoAvailable && NetInfo) {
+    try {
+      const networkState = await NetInfo.fetch();
+      if (!networkState.isConnected) {
     logger.warn('[PRICE_SERVICE] Device is offline, using cached/fallback data');
     // Return cached data or fallback
     if (currentPrices && Object.keys(currentPrices).length > 0) {
@@ -158,7 +174,12 @@ const fetchFreshPrices = async (currentPrices?: Prices): Promise<Prices> => {
       return cached;
     }
     // Last resort: return default prices
-    return DEFAULT_PRICES;
+        return DEFAULT_PRICES;
+      }
+    } catch (error) {
+      // NetInfo fetch failed, continue with API call (fallback)
+      logger.warn('[PRICE_SERVICE] NetInfo fetch failed, continuing with API call', error);
+    }
   }
   
   try {
