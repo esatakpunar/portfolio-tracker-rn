@@ -1,8 +1,9 @@
-import React from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View,
   StyleSheet,
   FlatList,
+  RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
@@ -18,6 +19,16 @@ import { HistoryItem } from '../types';
 export const HistoryScreen: React.FC = React.memo(() => {
   const { t, i18n } = useTranslation();
   const history = useAppSelector(selectHistory);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const handleRefresh = useCallback(async () => {
+    setRefreshing(true);
+    // History doesn't need refresh, but we provide pull-to-refresh UX
+    // In the future, this could refresh prices or reload history
+    setTimeout(() => {
+      setRefreshing(false);
+    }, 500);
+  }, []);
 
   const renderHistoryItem = React.useCallback(({ item }: { item: HistoryItem }) => {
     const isAdd = item.type === 'add';

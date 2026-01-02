@@ -7,13 +7,15 @@ import {
   Dimensions,
   FlatList,
   TouchableWithoutFeedback,
+  RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Swipeable } from 'react-native-gesture-handler';
 import { useTranslation } from 'react-i18next';
 import { Text } from '../components/Text';
 import { useAppSelector, useAppDispatch } from '../hooks/useRedux';
-import { addItem, updateItemAmount, selectItems, selectPrices, selectTotalIn } from '../store/portfolioSlice';
+import { addItem, updateItemAmount, selectItems, selectPrices, selectTotalIn, fetchPrices } from '../store/portfolioSlice';
+import { AppDispatch } from '../store';
 import { colors, spacing, borderRadius, fontSize, fontWeight, shadows } from '../theme';
 import { CurrencyType, AssetType, PortfolioItem } from '../types';
 import AddItemModal from '../components/AddItemModal';
@@ -40,6 +42,7 @@ export const PortfolioScreen: React.FC = React.memo(() => {
   const [showQuickRemoveModal, setShowQuickRemoveModal] = useState(false);
   const [selectedAssetType, setSelectedAssetType] = useState<AssetType | null>(null);
   const [selectedAssetAmount, setSelectedAssetAmount] = useState(0);
+  const [refreshing, setRefreshing] = useState(false);
   
   const swipeableRefs = useRef<Record<string, Swipeable | null>>({});
   const currentlyOpenSwipeable = useRef<string | null>(null);
@@ -181,6 +184,23 @@ export const PortfolioScreen: React.FC = React.memo(() => {
     swipeableRefs.current[type]?.close();
     currentlyOpenSwipeable.current = null;
   }, []);
+
+  const handleRefresh = useCallback(async () => {
+    setRefreshing(true);
+    hapticFeedback.light();
+    try {
+      const result = await (dispatch as AppDispatch)(fetchPrices());
+      if (fetchPrices.fulfilled.match(result)) {
+        hapticFeedback.success();
+      } else {
+        hapticFeedback.error();
+      }
+    } catch (error) {
+      hapticFeedback.error();
+    } finally {
+      setRefreshing(false);
+    }
+  }, [dispatch]);
 
 
   const renderCurrencySlider = useCallback(() => {
