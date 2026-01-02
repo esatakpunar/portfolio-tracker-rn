@@ -37,6 +37,21 @@ jest.mock('@sentry/react-native', () => ({
   captureMessage: jest.fn(),
 }));
 
+// Mock @react-native-community/netinfo
+jest.mock('@react-native-community/netinfo', () => {
+  return {
+    __esModule: true,
+    default: {
+      fetch: jest.fn(() => Promise.resolve({
+        isConnected: true,
+        isInternetReachable: true,
+        type: 'wifi',
+      })),
+      addEventListener: jest.fn(() => jest.fn()),
+    },
+  };
+});
+
 // Suppress console warnings in tests
 global.console = {
   ...console,
