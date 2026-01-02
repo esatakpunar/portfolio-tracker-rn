@@ -170,6 +170,12 @@ const portfolioSlice = createSlice({
         if (state.history.length > STORAGE_LIMITS.HISTORY_CLEANUP_THRESHOLD) {
           state.history = cleanupHistory(state.history, STORAGE_LIMITS.MAX_HISTORY_ITEMS);
         }
+        
+        // Track analytics
+        analytics.trackBusinessEvent('portfolio_item_removed', {
+          asset_type: removed.type,
+          amount: removed.amount,
+        });
       }
     },
     
