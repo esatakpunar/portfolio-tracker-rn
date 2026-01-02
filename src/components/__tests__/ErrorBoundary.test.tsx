@@ -109,13 +109,14 @@ describe('ErrorBoundary', () => {
   });
 
   it('should show error message in development mode', () => {
-    const { getByText } = render(
+    const { getAllByText } = render(
       <ErrorBoundary>
         <ThrowError shouldThrow={true} />
       </ErrorBoundary>
     );
 
-    expect(getByText('Test error')).toBeDefined();
+    // Error message appears multiple times (in message and error details)
+    expect(getAllByText('Test error').length).toBeGreaterThan(0);
   });
 
   it('should call captureException when error occurs', () => {
