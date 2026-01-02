@@ -5,6 +5,8 @@ import { safeValidateApiResponse, safeValidatePrices } from '../schemas';
 import { getApiUrl, apiConfig } from '../config/api';
 import { retry } from '../utils/retry';
 import { getCachedData, setCachedData, isCached, getCacheAge } from './cacheService';
+import { performanceMonitor } from './performanceMonitor';
+import { analytics } from './analytics';
 
 // NetInfo'yu dynamic import ile yükle (Expo Go uyumluluğu için)
 let NetInfo: typeof import('@react-native-community/netinfo') | null = null;

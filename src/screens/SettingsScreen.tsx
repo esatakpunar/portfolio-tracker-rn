@@ -19,6 +19,8 @@ import { getAssetIcon, getAssetColor } from '../utils/assetUtils';
 import { formatCurrency } from '../utils/formatUtils';
 import { AssetType } from '../types';
 import { hapticFeedback } from '../utils/haptics';
+import { analytics } from '../services/analytics';
+import { performanceMonitor } from '../services/performanceMonitor';
 
 export const SettingsScreen: React.FC = React.memo(() => {
   const { t, i18n } = useTranslation();
@@ -27,6 +29,19 @@ export const SettingsScreen: React.FC = React.memo(() => {
   const currentLanguage = useAppSelector(selectLanguage);
   const [showLanguagePicker, setShowLanguagePicker] = useState(false);
   const [isRefreshingPrices, setIsRefreshingPrices] = useState(false);
+  
+  // Track screen view and performance
+  React.useEffect(() => {
+    performanceMonitor.startTimer('screen_settings');
+    analytics.trackScreenView('settings');
+    
+    return () => {
+      const loadTime = performanceMonitor.endTimer('screen_settings');
+      if (loadTime) {
+        performanceMonitor.trackScreenLoad('settings', loadTime);
+      }
+    };
+  }, []);
 
   const handleRefreshPrices = async () => {
     hapticFeedback.light();

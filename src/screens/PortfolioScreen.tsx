@@ -26,6 +26,8 @@ import { hapticFeedback } from '../utils/haptics';
 import { formatCurrency } from '../utils/formatUtils';
 import { isAssetType } from '../utils/typeGuards';
 import { getCurrencyIcon, getCurrencyColor, getCurrencySymbol } from '../utils/currencyUtils';
+import { analytics } from '../services/analytics';
+import { performanceMonitor } from '../services/performanceMonitor';
 
 const { width } = Dimensions.get('window');
 const CURRENCIES: CurrencyType[] = ['TL', 'USD', 'EUR', 'ALTIN'];
@@ -35,6 +37,19 @@ export const PortfolioScreen: React.FC = React.memo(() => {
   const dispatch = useAppDispatch();
   const items = useAppSelector(selectItems);
   const prices = useAppSelector(selectPrices);
+  
+  // Track screen view and performance
+  React.useEffect(() => {
+    performanceMonitor.startTimer('screen_portfolio');
+    analytics.trackScreenView('portfolio');
+    
+    return () => {
+      const loadTime = performanceMonitor.endTimer('screen_portfolio');
+      if (loadTime) {
+        performanceMonitor.trackScreenLoad('portfolio', loadTime);
+      }
+    };
+  }, []);
   
   const [currentCurrencyIndex, setCurrentCurrencyIndex] = useState(0);
   const [showAddModal, setShowAddModal] = useState(false);

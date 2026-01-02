@@ -18,27 +18,47 @@ import ErrorBoundary from './src/components/ErrorBoundary';
 import { initializeSentry } from './src/config/sentry';
 import { logger } from './src/utils/logger';
 import { migrateToSecureStorage } from './src/store/secureStorage';
+import { performanceMonitor } from './src/services/performanceMonitor';
+import { analytics } from './src/services/analytics';
 
 export default function App() {
   const [isReady, setIsReady] = useState(false);
   const [isRehydrated, setIsRehydrated] = useState(false);
 
-  // Initialize Sentry on app start
+  // Initialize monitoring services on app start
   useEffect(() => {
+    // Initialize Sentry
     initializeSentry();
+    
+    // Initialize performance monitoring
+    performanceMonitor.startTimer('app_init');
+    
+    // Track app start
+    analytics.trackScreenView('app_start');
   }, []);
 
   useEffect(() => {
     const initialize = async () => {
       try {
+        performanceMonitor.startTimer('app_initialization');
+        
         // Migrate data from AsyncStorage to SecureStore (if needed)
         await migrateToSecureStorage();
         
         await initializeI18n();
+        
+        const initDuration = performanceMonitor.endTimer('app_initialization');
+        if (initDuration) {
+          performanceMonitor.trackAction('app_initialized', initDuration);
+          analytics.trackPerformance('app_init_time', initDuration);
+        }
+        
         setIsReady(true);
       } catch (error) {
         // Handle initialization error silently in production
         logger.error('Error initializing app', error);
+        performanceMonitor.endTimer('app_initialization');
+        analytics.trackError('app_init_failed', { error: error instanceof Error ? error.message : 'Unknown error' });
         setIsReady(true);
       }
     };

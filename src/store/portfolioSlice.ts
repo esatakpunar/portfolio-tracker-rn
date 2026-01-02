@@ -5,6 +5,7 @@ import { safeAdd, safeSubtract } from '../utils/numberUtils';
 import { logger } from '../utils/logger';
 import { RootState } from './index';
 import { cleanupHistory, STORAGE_LIMITS } from '../utils/storageUtils';
+import { analytics } from '../services/analytics';
 
 interface PortfolioState {
   items: PortfolioItem[];
