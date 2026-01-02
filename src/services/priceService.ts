@@ -348,9 +348,10 @@ const fetchFreshPrices = async (currentPrices?: Prices, signal?: AbortSignal): P
  * 4. If no cache, fetch fresh data
  * 
  * @param currentPrices Current prices from Redux state (used as fallback)
+ * @param signal AbortSignal for request cancellation (optional)
  * @returns Promise<Prices> - Fresh or cached prices
  */
-export const fetchPrices = async (currentPrices?: Prices): Promise<Prices> => {
+export const fetchPrices = async (currentPrices?: Prices, signal?: AbortSignal): Promise<Prices> => {
   // Check cache first
   const cached = getCachedData<Prices>(PRICES_CACHE_KEY);
   
