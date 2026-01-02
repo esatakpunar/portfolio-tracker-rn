@@ -5,8 +5,10 @@
  * Handles environment detection, validation, and configuration
  */
 
-import { logger } from '../utils/logger';
 import { isDevelopment } from '../utils/env';
+
+// Logger import'u yok - require cycle'ı önlemek için
+// Logger kullanmak yerine console.log kullanıyoruz (sadece initialization sırasında)
 
 /**
  * Environment types
@@ -322,7 +324,8 @@ export const validateEnvironmentConfig = (): boolean => {
   }
   
   if (errors.length > 0) {
-    logger.error('[ENV_CONFIG] Environment configuration validation failed', {
+    // Logger kullanmıyoruz - require cycle'ı önlemek için console.error kullanıyoruz
+    console.error('[ENV_CONFIG] Environment configuration validation failed', {
       errors,
     });
     return false;
