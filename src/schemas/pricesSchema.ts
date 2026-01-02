@@ -36,28 +36,31 @@ export const pricesSchema = z.object({
 
 /**
  * API Response schema - Raw API response structure
+ * 
+ * NOTE: API'den gelen Buying değerleri hem string hem number olabilir
+ * Bu yüzden union type kullanıyoruz ve parsePrice fonksiyonunda handle ediyoruz
  */
 export const apiResponseSchema = z.object({
   USD: z.object({
-    Buying: z.string().optional(),
+    Buying: z.union([z.string(), z.number()]).optional(),
   }).optional(),
   EUR: z.object({
-    Buying: z.string().optional(),
+    Buying: z.union([z.string(), z.number()]).optional(),
   }).optional(),
   GUMUS: z.object({
-    Buying: z.string().optional(),
+    Buying: z.union([z.string(), z.number()]).optional(),
   }).optional(),
   TAMALTIN: z.object({
-    Buying: z.string().optional(),
+    Buying: z.union([z.string(), z.number()]).optional(),
   }).optional(),
   CEYREKALTIN: z.object({
-    Buying: z.string().optional(),
+    Buying: z.union([z.string(), z.number()]).optional(),
   }).optional(),
   YIA: z.object({
-    Buying: z.string().optional(),
+    Buying: z.union([z.string(), z.number()]).optional(),
   }).optional(), // 22 ayar
   GRA: z.object({
-    Buying: z.string().optional(),
+    Buying: z.union([z.string(), z.number()]).optional(),
   }).optional(), // 24 ayar (gram altın)
 }).passthrough(); // Allow extra fields
 
