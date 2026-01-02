@@ -91,10 +91,21 @@ const QuickRemoveModal: React.FC<QuickRemoveModalProps> = React.memo(({
     return t('units.gram');
   };
 
+  // Real-time validation with better error messages
   const amountValidation = useMemo(
-    () => validateRemoveAmount(amount, currentAmount),
+    () => {
+      if (!amount || amount.trim() === '') {
+        return { isValid: true, errorType: undefined, errorKey: undefined };
+      }
+      return validateRemoveAmount(amount, currentAmount);
+    },
     [amount, currentAmount]
   );
+  
+  // Get localized error message
+  const errorMessage = amountValidation.errorKey
+    ? t(amountValidation.errorKey as any)
+    : amountValidation.error;
   
   const isValidAmount = () => {
     return amountValidation.isValid;
