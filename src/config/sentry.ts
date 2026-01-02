@@ -10,8 +10,7 @@
 
 import * as Sentry from '@sentry/react-native';
 import { isDevelopment } from '../utils/env';
-
-const SENTRY_DSN = process.env.EXPO_PUBLIC_SENTRY_DSN || '';
+import { environmentConfig } from './environment';
 
 /**
  * Initialize Sentry
@@ -21,12 +20,13 @@ export const initializeSentry = () => {
   const isDev = isDevelopment();
   
   // Development'ta Sentry'yi disable edebiliriz (optional)
-  if (isDev && !process.env.EXPO_PUBLIC_ENABLE_SENTRY_IN_DEV) {
+  if (isDev && !environmentConfig.enableSentryInDev) {
     return;
   }
 
   // DSN yoksa Sentry'yi başlatma
-  if (!SENTRY_DSN) {
+  const dsn = environmentConfig.sentryDsn;
+  if (!dsn) {
     // Logger henüz hazır olmayabilir, console.log kullan
     if (isDev) {
       console.warn('[SENTRY] DSN not configured, Sentry disabled');
@@ -36,7 +36,7 @@ export const initializeSentry = () => {
 
   try {
     Sentry.init({
-      dsn: SENTRY_DSN,
+      dsn: dsn,
       environment: isDev ? 'development' : 'production',
       enableAutoSessionTracking: true,
       tracesSampleRate: isDev ? 1.0 : 0.1, // Production'da %10 sampling
