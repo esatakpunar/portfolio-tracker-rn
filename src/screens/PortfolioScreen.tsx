@@ -20,6 +20,7 @@ import AddItemModal from '../components/AddItemModal';
 import QuickAddModal from '../components/QuickAddModal';
 import QuickRemoveModal from '../components/QuickRemoveModal';
 import SwipeableAssetItem from '../components/SwipeableAssetItem';
+import EmptyState from '../components/EmptyState';
 import { hapticFeedback } from '../utils/haptics';
 import { formatCurrency } from '../utils/formatUtils';
 
@@ -479,10 +480,22 @@ const PortfolioScreen: React.FC = () => {
             <Text style={styles.sectionTitle}>{t('assets')}</Text>
             
             {items.length === 0 ? (
-              <View style={styles.emptyState}>
-                <Text style={styles.emptyStateText}>{t('noAssets')}</Text>
-                <Text style={styles.emptyStateSubtext}>{t('addFirstAsset')}</Text>
-              </View>
+              <EmptyState
+                icon="💼"
+                title={t('noAssets')}
+                description={t('addFirstAsset')}
+                action={
+                  <TouchableOpacity
+                    style={styles.emptyStateButton}
+                    onPress={() => {
+                      hapticFeedback.light();
+                      setShowAddModal(true);
+                    }}
+                  >
+                    <Text style={styles.emptyStateButtonText}>{t('addNewAsset')}</Text>
+                  </TouchableOpacity>
+                }
+              />
             ) : (
               <View>
                 {Object.entries(groupedItems)
@@ -692,18 +705,19 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
     marginBottom: spacing.lg,
   },
-  emptyState: {
-    alignItems: 'center',
-    paddingVertical: spacing.xxxl,
+  emptyStateButton: {
+    backgroundColor: colors.glassBackground,
+    borderWidth: 2,
+    borderColor: colors.primaryStart,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.xl,
+    borderRadius: borderRadius.lg,
+    ...shadows.glass,
   },
-  emptyStateText: {
-    fontSize: fontSize.lg,
-    color: colors.textSecondary,
-    marginBottom: spacing.sm,
-  },
-  emptyStateSubtext: {
+  emptyStateButtonText: {
     fontSize: fontSize.base,
-    color: colors.textMuted,
+    fontWeight: fontWeight.bold,
+    color: colors.textPrimary,
   },
   assetCard: {
     backgroundColor: colors.glassBackground,

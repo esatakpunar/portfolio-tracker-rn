@@ -13,6 +13,7 @@ import { colors, spacing, borderRadius, fontSize, fontWeight } from '../theme';
 import { getAssetIcon, getAssetColor } from '../utils/assetUtils';
 import { formatRelativeDate, formatCurrency } from '../utils/formatUtils';
 import { HistoryItem } from '../types';
+import EmptyState from '../components/EmptyState';
 
 const HistoryScreen: React.FC = () => {
   const { t, i18n } = useTranslation();
@@ -91,15 +92,11 @@ const HistoryScreen: React.FC = () => {
       </View>
 
       {history.length === 0 ? (
-        <View style={styles.emptyState}>
-          <View style={styles.emptyIconContainer}>
-            <Text style={styles.emptyIcon}>📋</Text>
-          </View>
-          <Text style={styles.emptyStateTitle}>{t('noHistory')}</Text>
-          <Text style={styles.emptyStateSubtitle}>
-            {t('noHistorySubtitle')}
-          </Text>
-        </View>
+        <EmptyState
+          icon="📋"
+          title={t('noHistory')}
+          description={t('noHistorySubtitle')}
+        />
       ) : (
         <FlatList
           data={history}
@@ -137,37 +134,6 @@ const styles = StyleSheet.create({
   },
   listContainer: {
     padding: spacing.lg,
-  },
-  emptyState: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: spacing.xl,
-  },
-  emptyIconContainer: {
-    width: 80,
-    height: 80,
-    borderRadius: borderRadius.full,
-    backgroundColor: colors.glassBackground,
-    borderWidth: 1,
-    borderColor: colors.glassBorder,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: spacing.lg,
-  },
-  emptyIcon: {
-    fontSize: 40,
-  },
-  emptyStateTitle: {
-    fontSize: fontSize.xl,
-    fontWeight: fontWeight.bold,
-    color: colors.textPrimary,
-    marginBottom: spacing.sm,
-  },
-  emptyStateSubtitle: {
-    fontSize: fontSize.base,
-    color: colors.textSecondary,
-    textAlign: 'center',
   },
   historyItem: {
     flexDirection: 'row',

@@ -96,6 +96,7 @@ export default {
   loading: 'Loading...',
   error: 'An error occurred',
   success: 'Success',
+  retry: 'Retry',
   
   currentMarketPrices: 'Current market prices',
   dangerZone: 'Danger Zone',
