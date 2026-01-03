@@ -14,7 +14,9 @@ import { TextInput } from './TextInput';
 import { colors, spacing, borderRadius, fontSize, fontWeight, shadows } from '../theme';
 import { validateRemoveAmount } from '../utils/validationUtils';
 import { formatCurrency } from '../utils/formatUtils';
+import { getAmountPresets } from '../utils/amountPresets';
 import { AssetType } from '../types';
+import { hapticFeedback } from '../utils/haptics';
 
 interface QuickRemoveModalProps {
   visible: boolean;
@@ -100,6 +102,18 @@ const QuickRemoveModal: React.FC<QuickRemoveModalProps> = ({
     return amountValidation.isValid;
   };
 
+  const presets = useMemo(() => getAmountPresets(assetType), [assetType]);
+  
+  const handlePresetPress = (presetValue: number) => {
+    hapticFeedback.light();
+    setAmount(presetValue.toString());
+  };
+
+  const isPresetSelected = (presetValue: number): boolean => {
+    const numAmount = parseFloat(amount);
+    return !isNaN(numAmount) && numAmount === presetValue;
+  };
+
   const translateY = slideAnim.interpolate({
     inputRange: [0, 1],
     outputRange: [300, 0],
@@ -166,6 +180,30 @@ const QuickRemoveModal: React.FC<QuickRemoveModalProps> = ({
                 />
                 <Text style={styles.unit}>{getUnit()}</Text>
               </View>
+              {presets.length > 0 && (
+                <View style={styles.presetsContainer}>
+                  {presets.map((preset) => (
+                    <TouchableOpacity
+                      key={preset}
+                      style={[
+                        styles.presetButton,
+                        isPresetSelected(preset) && styles.presetButtonActive,
+                      ]}
+                      onPress={() => handlePresetPress(preset)}
+                      activeOpacity={0.7}
+                    >
+                      <Text
+                        style={[
+                          styles.presetButtonText,
+                          isPresetSelected(preset) && styles.presetButtonTextActive,
+                        ]}
+                      >
+                        {preset}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              )}
               {amount && !isValidAmount() && (
                 <Text style={styles.errorText}>
                   {t('invalidAmount')}
@@ -355,6 +393,36 @@ const styles = StyleSheet.create({
     fontSize: fontSize.base,
     fontWeight: fontWeight.bold,
     color: colors.textPrimary,
+  },
+  presetsContainer: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    marginTop: spacing.sm,
+  },
+  presetButton: {
+    flex: 1,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.xs,
+    borderRadius: borderRadius.md,
+    backgroundColor: colors.glassBackground,
+    borderWidth: 1,
+    borderColor: colors.glassBorder,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  presetButtonActive: {
+    backgroundColor: colors.error + '20',
+    borderColor: colors.error,
+    borderWidth: 2,
+  },
+  presetButtonText: {
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.medium,
+    color: colors.textSecondary,
+  },
+  presetButtonTextActive: {
+    color: colors.error,
+    fontWeight: fontWeight.semibold,
   },
 });
 
