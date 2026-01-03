@@ -5,7 +5,7 @@ import { NavigationContainer } from '@react-navigation/native';
 import { Provider } from 'react-redux';
 import { PersistGate } from 'redux-persist/integration/react';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import { StyleSheet, View, ActivityIndicator } from 'react-native';
+import { StyleSheet, View, ActivityIndicator, Text as RNText, TextInput as RNTextInput } from 'react-native';
 
 import { store, persistor, AppDispatch } from './src/store';
 import { initializeI18n } from './src/locales';
@@ -14,6 +14,18 @@ import BottomTabNavigator from './src/navigation/BottomTabNavigator';
 import { useToast } from './src/hooks/useToast';
 import ToastNotification from './src/components/ToastNotification';
 import ErrorBoundary from './src/components/ErrorBoundary';
+
+// Global defaultProps ayarlaması - iOS Dynamic Type'ı devre dışı bırak
+// Yedek koruma: Eğer bir yerde direkt React Native component'leri kullanılırsa
+if ((RNText as any).defaultProps == null) {
+  (RNText as any).defaultProps = {};
+}
+(RNText as any).defaultProps.allowFontScaling = false;
+
+if ((RNTextInput as any).defaultProps == null) {
+  (RNTextInput as any).defaultProps = {};
+}
+(RNTextInput as any).defaultProps.allowFontScaling = false;
 
 export default function App() {
   const [isReady, setIsReady] = useState(false);

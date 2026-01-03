@@ -4,7 +4,6 @@ import {
   StyleSheet,
   Modal,
   TouchableOpacity,
-  TextInput,
   KeyboardAvoidingView,
   Platform,
   Animated,
@@ -12,6 +11,7 @@ import {
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { Text } from './Text';
+import { TextInput } from './TextInput';
 import { colors, spacing, borderRadius, fontSize, fontWeight, shadows } from '../theme';
 import { getAssetIcon, getAssetUnit } from '../utils/assetUtils';
 import { validateAmount } from '../utils/validationUtils';

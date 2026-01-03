@@ -4,13 +4,13 @@ import {
   StyleSheet,
   Modal,
   TouchableOpacity,
-  TextInput,
   KeyboardAvoidingView,
   Platform,
   Animated,
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { Text } from './Text';
+import { TextInput } from './TextInput';
 import { colors, spacing, borderRadius, fontSize, fontWeight, shadows } from '../theme';
 import { validateRemoveAmount } from '../utils/validationUtils';
 import { formatCurrency } from '../utils/formatUtils';
