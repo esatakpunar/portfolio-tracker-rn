@@ -15,7 +15,9 @@ import { TextInput } from './TextInput';
 import { colors, spacing, borderRadius, fontSize, fontWeight, shadows } from '../theme';
 import { getAssetIcon, getAssetUnit } from '../utils/assetUtils';
 import { validateAmount } from '../utils/validationUtils';
+import { getAmountPresets } from '../utils/amountPresets';
 import { AssetType } from '../types';
+import { hapticFeedback } from '../utils/haptics';
 
 interface AddItemModalProps {
   visible: boolean;
@@ -77,6 +79,17 @@ const AddItemModal: React.FC<AddItemModalProps> = ({ visible, onClose, onAdd }) 
     onClose();
   };
 
+  const presets = useMemo(() => getAmountPresets(selectedType), [selectedType]);
+  
+  const handlePresetPress = (presetValue: number) => {
+    hapticFeedback.light();
+    setAmount(presetValue.toString());
+  };
+
+  const isPresetSelected = (presetValue: number): boolean => {
+    const numAmount = parseFloat(amount);
+    return !isNaN(numAmount) && numAmount === presetValue;
+  };
 
   const translateY = slideAnim.interpolate({
     inputRange: [0, 1],
@@ -181,6 +194,30 @@ const AddItemModal: React.FC<AddItemModalProps> = ({ visible, onClose, onAdd }) 
                   />
                   <Text style={styles.unit}>{getAssetUnit(selectedType, t)}</Text>
                 </View>
+                {presets.length > 0 && (
+                  <View style={styles.presetsContainer}>
+                    {presets.map((preset) => (
+                      <TouchableOpacity
+                        key={preset}
+                        style={[
+                          styles.presetButton,
+                          isPresetSelected(preset) && styles.presetButtonActive,
+                        ]}
+                        onPress={() => handlePresetPress(preset)}
+                        activeOpacity={0.7}
+                      >
+                        <Text
+                          style={[
+                            styles.presetButtonText,
+                            isPresetSelected(preset) && styles.presetButtonTextActive,
+                          ]}
+                        >
+                          {preset}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                )}
               </View>
 
               <View style={styles.inputContainer}>
@@ -417,6 +454,36 @@ const styles = StyleSheet.create({
     fontSize: fontSize.base,
     fontWeight: fontWeight.bold,
     color: colors.textPrimary,
+  },
+  presetsContainer: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    marginTop: spacing.sm,
+  },
+  presetButton: {
+    flex: 1,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.xs,
+    borderRadius: borderRadius.md,
+    backgroundColor: colors.glassBackground,
+    borderWidth: 1,
+    borderColor: colors.glassBorder,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  presetButtonActive: {
+    backgroundColor: colors.primaryStart + '20',
+    borderColor: colors.primaryStart,
+    borderWidth: 2,
+  },
+  presetButtonText: {
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.medium,
+    color: colors.textSecondary,
+  },
+  presetButtonTextActive: {
+    color: colors.primaryStart,
+    fontWeight: fontWeight.semibold,
   },
 });
 
