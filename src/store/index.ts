@@ -1,72 +1,39 @@
 import { configureStore } from '@reduxjs/toolkit';
-import { persistStore, persistReducer, FLUSH, REHYDRATE, PAUSE, PERSIST, PURGE, REGISTER } from 'redux-persist';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import portfolioReducer, { initialState } from './portfolioSlice';
-
-const persistConfig = {
-  key: 'root',
-  storage: AsyncStorage,
-  whitelist: ['portfolio'], // Only persist portfolio slice
-  version: 1, // Version kontrolü - state structure değişikliklerinde artırılmalı
-  migrate: (state: any) => {
-    // Eski state format'ını yeni formata çevir
-    if (state && state.portfolio) {
-      // State validation - eğer portfolio state geçerliyse kullan
-      if (
-        Array.isArray(state.portfolio.items) &&
-        typeof state.portfolio.prices === 'object' &&
-        Array.isArray(state.portfolio.history)
-      ) {
-        return Promise.resolve(state);
-      }
-    }
-    // Eğer state bozuksa veya format uyumsuzsa, initialState kullan
-    if (__DEV__) {
-      console.warn('[REDUX_PERSIST] State format uyumsuz, initialState kullanılıyor');
-    }
-    return Promise.resolve({ portfolio: initialState });
-  },
-  onRehydrateStorage: () => {
-    // Rehydrate başladı
-    if (__DEV__) {
-      console.log('[REDUX_PERSIST] Rehydrate başladı');
-    }
-    return (state, err) => {
-      if (err) {
-        // Rehydrate hatası - kritik log
-        console.error('[REDUX_PERSIST] Rehydrate HATA:', err);
-        // Hata durumunda kullanıcıya bildir (toast) - ama uygulamayı crash etme
-        // Toast notification AppContent içinde handle edilebilir
-      } else {
-        // Rehydrate başarılı
-        if (__DEV__) {
-          console.log('[REDUX_PERSIST] Rehydrate tamamlandı:', {
-            itemsCount: state?.portfolio?.items?.length || 0,
-            hasPrices: !!state?.portfolio?.prices,
-            historyCount: state?.portfolio?.history?.length || 0,
-            timestamp: new Date().toISOString()
-          });
-        }
-      }
-    };
-  }
-};
-
-const persistedReducer = persistReducer(persistConfig, portfolioReducer);
+import { sqliteStorage } from './sqliteStorage';
+import portfolioReducer from './portfolioSlice';
 
 export const store = configureStore({
   reducer: {
-    portfolio: persistedReducer
+    portfolio: portfolioReducer
   },
   middleware: (getDefaultMiddleware) =>
-    getDefaultMiddleware({
-      serializableCheck: {
-        ignoredActions: [FLUSH, REHYDRATE, PAUSE, PERSIST, PURGE, REGISTER],
-      },
+    getDefaultMiddleware().concat((store) => (next) => (action) => {
+      const result = next(action);
+      
+      if (action.type?.startsWith('portfolio/') && 
+          !action.type.includes('/pending') && 
+          !action.type.includes('/fulfilled') && 
+          !action.type.includes('/rejected')) {
+        setTimeout(async () => {
+          try {
+            const currentState = store.getState();
+            const persistedState = {
+              _persist: {
+                version: 1,
+                rehydrated: true,
+              },
+              portfolio: currentState.portfolio,
+            };
+            await sqliteStorage.setItem('persist:root', JSON.stringify(persistedState));
+          } catch (error) {
+            // Silently fail - persistence errors shouldn't break the app
+          }
+        }, 0);
+      }
+      
+      return result;
     }),
 });
-
-export const persistor = persistStore(store);
 
 export type RootState = ReturnType<typeof store.getState>;
 export type AppDispatch = typeof store.dispatch;

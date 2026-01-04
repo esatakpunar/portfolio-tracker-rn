@@ -1,13 +1,11 @@
 import i18n from 'i18next';
 import { initReactI18next } from 'react-i18next';
 import { getLocales } from 'expo-localization';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { getLanguage, setLanguage as saveLanguageToDB } from '../services/portfolioRepository';
 
 import tr from './tr';
 import en from './en';
 import de from './de';
-
-const LANGUAGE_KEY = 'portfolio_language';
 
 export const resources = {
   tr: { translation: tr },
@@ -23,7 +21,7 @@ export const availableLanguages = [
 
 const getInitialLanguage = async (): Promise<string> => {
   try {
-    const saved = await AsyncStorage.getItem(LANGUAGE_KEY);
+    const saved = await getLanguage();
     if (saved && resources[saved as keyof typeof resources]) {
       return saved;
     }
@@ -61,7 +59,7 @@ export const initializeI18n = async () => {
 
 export const saveLanguage = async (languageCode: string) => {
   try {
-    await AsyncStorage.setItem(LANGUAGE_KEY, languageCode);
+    await saveLanguageToDB(languageCode);
   } catch (error) {
     if (__DEV__) {
       console.log('Error saving language:', error);

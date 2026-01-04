@@ -79,7 +79,7 @@ src/
 
 ### Requirements
 - Node.js ^20.19.0 || >=22.12.0
-- npm or yarn
+- npm
 - Expo CLI
 - iOS Simulator (Mac) or Android Emulator
 
