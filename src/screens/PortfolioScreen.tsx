@@ -1,4 +1,4 @@
-import React, { useState, useRef, useMemo } from 'react';
+import React, { useState, useRef, useMemo, useEffect } from 'react';
 import {
   View,
   StyleSheet,
@@ -8,6 +8,7 @@ import {
   FlatList,
   TouchableWithoutFeedback,
   RefreshControl,
+  Animated,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Swipeable } from 'react-native-gesture-handler';
@@ -25,7 +26,8 @@ import SwipeableAssetItem from '../components/SwipeableAssetItem';
 import EmptyState from '../components/EmptyState';
 import PriceChangeIndicator from '../components/PriceChangeIndicator';
 import { hapticFeedback } from '../utils/haptics';
-import { formatCurrency } from '../utils/formatUtils';
+import { formatCurrency, formatLastUpdateTime } from '../utils/formatUtils';
+import { getLastUpdateTime } from '../services/priceBackupService';
 
 const { width } = Dimensions.get('window');
 const CURRENCIES: CurrencyType[] = ['TL', 'USD', 'EUR', 'ALTIN'];
@@ -44,9 +46,13 @@ const PortfolioScreen: React.FC = () => {
   const [selectedAssetType, setSelectedAssetType] = useState<AssetType | null>(null);
   const [selectedAssetAmount, setSelectedAssetAmount] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
+  const [lastUpdateTime, setLastUpdateTime] = useState<number | null>(null);
+  const [isInitialized, setIsInitialized] = useState(false);
   
   const swipeableRefs = useRef<Record<string, Swipeable | null>>({});
   const currentlyOpenSwipeable = useRef<string | null>(null);
+  const currencyAnimation = useRef(new Animated.Value(1)).current;
+  const currencyFlatListRef = useRef<FlatList<CurrencyType> | null>(null);
 
   // Bounds check for currency index to prevent out-of-bounds access
   const safeCurrencyIndex = useMemo(() => {
@@ -55,15 +61,73 @@ const PortfolioScreen: React.FC = () => {
   }, [currentCurrencyIndex]);
   
   const currentCurrency = CURRENCIES[safeCurrencyIndex] || CURRENCIES[0];
-  const totalValue = useAppSelector(selectTotalIn(currentCurrency));
   
-  // Validate totalValue
-  const safeTotalValue = useMemo(() => {
-    if (isNaN(totalValue) || !isFinite(totalValue) || totalValue < 0) {
-      return 0;
+  // Calculate total values for all currencies
+  const totalValuesByCurrency = useMemo(() => {
+    const values: Record<CurrencyType, number> = {} as Record<CurrencyType, number>;
+    
+    if (!items || items.length === 0) {
+      CURRENCIES.forEach(currency => {
+        values[currency] = 0;
+      });
+      return values;
     }
-    return totalValue;
-  }, [totalValue]);
+    
+    const gramEquivalents: Record<string, number> = {
+      'ceyrek': 1.75,
+      'tam': 7,
+      '22_ayar': 1,
+      '24_ayar': 1,
+    };
+    
+    CURRENCIES.forEach(currency => {
+      let total = 0;
+      
+      items.forEach(item => {
+        if (!item || !item.type || isNaN(item.amount) || !isFinite(item.amount)) {
+          return;
+        }
+        
+        if (currency === 'ALTIN' && gramEquivalents[item.type]) {
+          total += item.amount * gramEquivalents[item.type];
+        } else {
+          // Calculate value in TL first
+          let valueTL = 0;
+          if (item.type === 'tl') {
+            valueTL = item.amount;
+          } else if (item.type === 'usd') {
+            valueTL = item.amount * (prices.usd || 0);
+          } else if (item.type === 'eur') {
+            valueTL = item.amount * (prices.eur || 0);
+          } else {
+            valueTL = item.amount * (prices[item.type] || 0);
+          }
+          
+          // Convert to target currency
+          if (currency === 'TL') {
+            total += valueTL;
+          } else if (currency === 'USD') {
+            const usdPrice = prices.usd || 0;
+            total += usdPrice > 0 ? valueTL / usdPrice : 0;
+          } else if (currency === 'EUR') {
+            const eurPrice = prices.eur || 0;
+            total += eurPrice > 0 ? valueTL / eurPrice : 0;
+          } else if (currency === 'ALTIN') {
+            const altinPrice = prices['24_ayar'] || 0;
+            total += altinPrice > 0 ? valueTL / altinPrice : 0;
+          }
+        }
+      });
+      
+      values[currency] = isNaN(total) || !isFinite(total) || total < 0 ? 0 : total;
+    });
+    
+    return values;
+  }, [items, prices]);
+  
+  // Current currency total value for backward compatibility
+  const totalValue = totalValuesByCurrency[currentCurrency] || 0;
+  const safeTotalValue = totalValue;
 
   const groupedItems = useMemo(() => {
     return items.reduce((acc, item) => {
@@ -79,6 +143,52 @@ const PortfolioScreen: React.FC = () => {
   const uniqueAssetCount = useMemo(() => {
     return Object.keys(groupedItems).length;
   }, [groupedItems]);
+
+  // Load last update time on mount
+  useEffect(() => {
+    const initializePreferences = async () => {
+      try {
+        // Load last update time
+        const updateTime = await getLastUpdateTime();
+        setLastUpdateTime(updateTime);
+        
+        setIsInitialized(true);
+      } catch (error) {
+        setIsInitialized(true);
+      }
+    };
+    
+    initializePreferences();
+  }, []);
+
+
+  // Update last update time when prices are refreshed
+  useEffect(() => {
+    const updateLastUpdateTime = async () => {
+      const updateTime = await getLastUpdateTime();
+      setLastUpdateTime(updateTime);
+    };
+    
+    if (!refreshing) {
+      updateLastUpdateTime();
+    }
+  }, [refreshing]);
+
+  // Currency change animation
+  useEffect(() => {
+    Animated.sequence([
+      Animated.timing(currencyAnimation, {
+        toValue: 1.05,
+        duration: 150,
+        useNativeDriver: true,
+      }),
+      Animated.timing(currencyAnimation, {
+        toValue: 1,
+        duration: 150,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, [safeCurrencyIndex]);
 
   const handleAddItem = (type: AssetType, amount: number, description?: string) => {
     // Validate inputs
@@ -192,6 +302,8 @@ const PortfolioScreen: React.FC = () => {
       const result = await (dispatch as AppDispatch)(fetchPrices());
       if (fetchPrices.fulfilled.match(result)) {
         hapticFeedback.success();
+        const updateTime = await getLastUpdateTime();
+        setLastUpdateTime(updateTime);
       } else {
         hapticFeedback.error();
       }
@@ -201,6 +313,7 @@ const PortfolioScreen: React.FC = () => {
       setRefreshing(false);
     }
   };
+
 
   const getCurrencyIcon = (currency: CurrencyType): string => {
     const icons: Record<CurrencyType, string> = {
@@ -225,88 +338,128 @@ const PortfolioScreen: React.FC = () => {
   const renderCurrencySlider = () => {
     return (
       <View style={styles.sliderContainer}>
-        <FlatList
-          data={CURRENCIES}
-          horizontal
-          pagingEnabled
-          showsHorizontalScrollIndicator={false}
-          onMomentumScrollEnd={(event) => {
-            const index = Math.round(event.nativeEvent.contentOffset.x / width);
-            // Bounds check to prevent invalid index
-            const safeIndex = Math.max(0, Math.min(index, CURRENCIES.length - 1));
-            if (safeIndex !== currentCurrencyIndex && safeIndex >= 0 && safeIndex < CURRENCIES.length) {
-              hapticFeedback.selection();
-              setCurrentCurrencyIndex(safeIndex);
-            }
-          }}
-          renderItem={({ item: currency }) => (
-            <View style={[styles.slide, { width }]}>
-              <View style={styles.totalCard}>
-                <View style={[
-                  styles.gradientOverlay,
-                  { backgroundColor: getCurrencyColor(currency) }
-                ]} />
-                
-                <View style={styles.totalCardContent}>
-                  <View style={styles.totalCardHeader}>
+        <View style={styles.sliderWrapper}>
+          <Animated.View
+            style={[
+              styles.sliderContent,
+              { transform: [{ scale: currencyAnimation }] }
+            ]}
+          >
+            <FlatList
+              ref={currencyFlatListRef}
+              data={CURRENCIES}
+              horizontal
+              pagingEnabled
+              showsHorizontalScrollIndicator={false}
+              getItemLayout={(_, index) => ({
+                length: width,
+                offset: width * index,
+                index,
+              })}
+              onMomentumScrollEnd={(event) => {
+                const index = Math.round(event.nativeEvent.contentOffset.x / width);
+                // Bounds check to prevent invalid index
+                const safeIndex = Math.max(0, Math.min(index, CURRENCIES.length - 1));
+                if (safeIndex >= 0 && safeIndex < CURRENCIES.length) {
+                  // Only update if different to avoid unnecessary re-renders
+                  if (safeIndex !== currentCurrencyIndex) {
+                    hapticFeedback.selection();
+                    setCurrentCurrencyIndex(safeIndex);
+                  }
+                }
+              }}
+              onScrollEndDrag={(event) => {
+                // Also handle scroll end drag for better responsiveness
+                const index = Math.round(event.nativeEvent.contentOffset.x / width);
+                const safeIndex = Math.max(0, Math.min(index, CURRENCIES.length - 1));
+                if (safeIndex >= 0 && safeIndex < CURRENCIES.length && safeIndex !== currentCurrencyIndex) {
+                  setCurrentCurrencyIndex(safeIndex);
+                }
+              }}
+              onScrollToIndexFailed={(info) => {
+                // Fallback: scroll to offset
+                currencyFlatListRef.current?.scrollToOffset({
+                  offset: info.index * width,
+                  animated: false,
+                });
+              }}
+              renderItem={({ item: currency }) => (
+                <View style={[styles.slide, { width }]}>
+                  <View style={styles.totalCard}>
                     <View style={[
-                      styles.currencyIconContainer,
-                      { 
-                        backgroundColor: getCurrencyColor(currency) + '20',
-                        borderColor: getCurrencyColor(currency) + '40',
-                      }
-                    ]}>
-                      <Text style={[
-                        styles.currencyIconText,
-                        { color: getCurrencyColor(currency) }
-                      ]}>
-                        {getCurrencyIcon(currency)}
-                      </Text>
-                    </View>
-                    <View style={styles.currencyInfo}>
-                      <Text style={styles.totalLabel}>{t('total')}</Text>
-                      <Text style={styles.currencyLabel}>{t(`currencies.${currency}`)}</Text>
-                    </View>
-                  </View>
-                  
-                  <View style={styles.totalCardBody}>
-                    <View style={styles.totalValueContainer}>
-                      <Text style={styles.totalValue}>
-                        {formatCurrency(safeTotalValue, i18n.language)}
-                      </Text>
-                      <Text style={styles.totalCurrencySymbol}>
-                        {getCurrencySymbol(currency)}
-                      </Text>
-                    </View>
-                    <View style={styles.totalValueChangeContainer}>
-                      {currency !== 'TL' ? (
-                        <View style={styles.priceInfoContainer}>
-                          <Text style={styles.currentValueLabel}>{t('currentValue')}</Text>
-                          <View style={styles.priceInfoRow}>
-                            <Text style={styles.currentPriceText}>
-                              {formatCurrency(getCurrencyPrice(currency), i18n.language)} ₺
-                            </Text>
-                            <View style={styles.changeIndicatorWrapper}>
-                              <PriceChangeIndicator change={getCurrencyChange(currency)} />
-                            </View>
-                          </View>
-                        </View>
-                      ) : (
-                        <View style={styles.priceInfoContainer}>
-                          <Text style={styles.currentValueLabel}>{t('totalAssets')}</Text>
-                          <Text style={styles.totalAssetsText}>
-                            {uniqueAssetCount} {uniqueAssetCount === 1 ? t('asset') : t('assets')}
+                      styles.gradientOverlay,
+                      { backgroundColor: getCurrencyColor(currency) }
+                    ]} />
+                    
+                    <View style={styles.totalCardContent}>
+                      <View style={styles.totalCardHeader}>
+                        <View style={[
+                          styles.currencyIconContainer,
+                          { 
+                            backgroundColor: getCurrencyColor(currency) + '20',
+                            borderColor: getCurrencyColor(currency) + '40',
+                          }
+                        ]}>
+                          <Text style={[
+                            styles.currencyIconText,
+                            { color: getCurrencyColor(currency) }
+                          ]}>
+                            {getCurrencyIcon(currency)}
                           </Text>
                         </View>
-                      )}
+                        <View style={styles.currencyInfo}>
+                          <Text style={styles.totalLabel}>{t('total')}</Text>
+                          <Text style={styles.currencyLabel}>{t(`currencies.${currency}`)}</Text>
+                        </View>
+                      </View>
+                      
+                      <View style={styles.totalCardBody}>
+                        <View style={styles.totalValueContainer}>
+                          <Text style={styles.totalValue}>
+                            {formatCurrency(totalValuesByCurrency[currency] || 0, i18n.language)}
+                          </Text>
+                          <Text style={styles.totalCurrencySymbol}>
+                            {getCurrencySymbol(currency)}
+                          </Text>
+                        </View>
+                        <View style={styles.totalValueChangeContainer}>
+                          {currency !== 'TL' ? (
+                            <View style={styles.priceInfoContainer}>
+                              <Text style={styles.currentValueLabel}>{t('currentValue')}</Text>
+                              <View style={styles.priceInfoRow}>
+                                <Text style={styles.currentPriceText}>
+                                  {formatCurrency(getCurrencyPrice(currency), i18n.language)} ₺
+                                </Text>
+                                <View style={styles.changeIndicatorWrapper}>
+                                  <PriceChangeIndicator change={getCurrencyChange(currency)} />
+                                </View>
+                              </View>
+                            </View>
+                          ) : (
+                            <View style={styles.priceInfoContainer}>
+                              <Text style={styles.currentValueLabel}>{t('totalAssets')}</Text>
+                              <Text style={styles.totalAssetsText}>
+                                {uniqueAssetCount} {uniqueAssetCount === 1 ? t('asset') : t('assets')}
+                              </Text>
+                            </View>
+                          )}
+                        </View>
+                        {lastUpdateTime && (
+                          <View style={styles.lastUpdateContainer}>
+                            <Text style={styles.lastUpdateText}>
+                              {t('lastUpdated')}: {formatLastUpdateTime(lastUpdateTime, i18n.language, t)}
+                            </Text>
+                          </View>
+                        )}
+                      </View>
                     </View>
                   </View>
                 </View>
-              </View>
-            </View>
-          )}
-          keyExtractor={(item) => item}
-        />
+              )}
+              keyExtractor={(item) => item}
+            />
+          </Animated.View>
+        </View>
         <View style={styles.paginationDots}>
           {CURRENCIES.map((_, index) => (
             <View
@@ -666,6 +819,12 @@ const styles = StyleSheet.create({
   sliderContainer: {
     marginVertical: spacing.xl,
   },
+  sliderWrapper: {
+    position: 'relative',
+  },
+  sliderContent: {
+    flex: 1,
+  },
   slide: {
     justifyContent: 'center',
     alignItems: 'center',
@@ -902,6 +1061,15 @@ const styles = StyleSheet.create({
     fontSize: fontSize.sm,
     fontWeight: fontWeight.medium,
     color: colors.textSecondary,
+  },
+  lastUpdateContainer: {
+    marginTop: spacing.sm,
+    alignSelf: 'flex-start',
+  },
+  lastUpdateText: {
+    fontSize: fontSize.xs,
+    color: colors.textMuted,
+    fontWeight: fontWeight.medium,
   },
 });
 

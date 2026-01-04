@@ -100,3 +100,32 @@ export const formatPriceChange = (change: number): string => {
   }
 };
 
+/**
+ * Formats last update time as relative time (e.g., "2 hours ago", "Just now")
+ */
+export const formatLastUpdateTime = (
+  timestamp: number,
+  locale: string = 'tr',
+  t: (key: string) => string
+): string => {
+  if (!timestamp || isNaN(timestamp) || !isFinite(timestamp)) {
+    return '';
+  }
+  
+  const now = Date.now();
+  const diff = now - timestamp;
+  const minutes = Math.floor(diff / (1000 * 60));
+  const hours = Math.floor(diff / (1000 * 60 * 60));
+  
+  if (minutes < 1) {
+    return t('justNow');
+  } else if (minutes < 60) {
+    return `${minutes} ${t('minutesAgo')}`;
+  } else if (hours < 24) {
+    return `${hours} ${t('hoursAgo')}`;
+  } else {
+    const days = Math.floor(hours / 24);
+    return `${days} ${t('daysAgo')}`;
+  }
+};
+

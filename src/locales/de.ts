@@ -113,5 +113,11 @@ export default {
   
   // Amount update descriptions
   amountIncreased: 'Menge erhöht',
-  amountDecreased: 'Menge verringert'
+  amountDecreased: 'Menge verringert',
+  
+  // Last update
+  lastUpdated: 'Zuletzt aktualisiert',
+  justNow: 'Gerade eben',
+  minutesAgo: 'Minuten her',
+  hoursAgo: 'Stunden her'
 };

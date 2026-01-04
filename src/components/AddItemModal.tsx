@@ -54,6 +54,11 @@ const AddItemModal: React.FC<AddItemModalProps> = ({ visible, onClose, onAdd }) 
         useNativeDriver: true,
         friction: 8,
       }).start();
+      // Reset to default when modal opens
+      setSelectedType('24_ayar');
+      setAmount('');
+      setDescription('');
+      setShowTypePicker(false);
     } else {
       slideAnim.setValue(0);
     }
@@ -462,14 +467,15 @@ const styles = StyleSheet.create({
   },
   presetButton: {
     flex: 1,
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.xs,
-    borderRadius: borderRadius.md,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.sm,
+    borderRadius: borderRadius.lg,
     backgroundColor: colors.glassBackground,
-    borderWidth: 1,
+    borderWidth: 2,
     borderColor: colors.glassBorder,
     alignItems: 'center',
     justifyContent: 'center',
+    minHeight: 44,
   },
   presetButtonActive: {
     backgroundColor: colors.primaryStart + '20',
@@ -477,13 +483,13 @@ const styles = StyleSheet.create({
     borderWidth: 2,
   },
   presetButtonText: {
-    fontSize: fontSize.sm,
-    fontWeight: fontWeight.medium,
+    fontSize: fontSize.base,
+    fontWeight: fontWeight.semibold,
     color: colors.textSecondary,
   },
   presetButtonTextActive: {
     color: colors.primaryStart,
-    fontWeight: fontWeight.semibold,
+    fontWeight: fontWeight.bold,
   },
 });
 

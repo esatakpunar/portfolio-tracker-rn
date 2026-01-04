@@ -129,3 +129,18 @@ export async function hasBackup(): Promise<boolean> {
   }
 }
 
+export async function getLastUpdateTime(): Promise<number | null> {
+  try {
+    await waitForDatabase();
+    const db = getDatabase();
+
+    const row = await db.getFirstAsync<{ fetched_at: number }>(
+      `SELECT fetched_at FROM price_backup WHERE id = 1`
+    );
+
+    return row?.fetched_at || null;
+  } catch (error) {
+    return null;
+  }
+}
+

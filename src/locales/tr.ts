@@ -113,5 +113,11 @@ export default {
   
   // Amount update descriptions
   amountIncreased: 'Miktar artırıldı',
-  amountDecreased: 'Miktar azaltıldı'
+  amountDecreased: 'Miktar azaltıldı',
+  
+  // Last update
+  lastUpdated: 'Son güncelleme',
+  justNow: 'Az önce',
+  minutesAgo: 'dakika önce',
+  hoursAgo: 'saat önce'
 };
