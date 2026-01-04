@@ -114,7 +114,11 @@ const HistoryScreen: React.FC = () => {
         <FlatList
           data={history}
           renderItem={renderHistoryItem}
-          keyExtractor={(item) => item.item.id || `${item.date}-${item.type}-${item.item.type}`}
+          keyExtractor={(item, index) => {
+            // Create a unique key combining date, type, item.id, amount, and index
+            // This ensures uniqueness even if multiple history items share the same PortfolioItem
+            return `${item.date}-${item.type}-${item.item.id}-${item.item.amount}-${index}`;
+          }}
           contentContainerStyle={styles.listContainer}
           showsVerticalScrollIndicator={false}
           refreshControl={
