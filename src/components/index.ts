@@ -5,7 +5,5 @@ export { default as SwipeableAssetItem } from './SwipeableAssetItem';
 export { default as ToastNotification } from './ToastNotification';
 export { Text, default as TextComponent } from './Text';
 export { TextInput, default as TextInputComponent } from './TextInput';
-export { default as LoadingState } from './LoadingState';
 export { default as EmptyState } from './EmptyState';
-export { default as ErrorState } from './ErrorState';
 export { default as PriceChangeIndicator } from './PriceChangeIndicator';

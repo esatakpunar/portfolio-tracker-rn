@@ -131,9 +131,6 @@ export const fetchPrices = async (): Promise<PriceData> => {
     
     return { prices, changes };
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    console.error('[PRICE_SERVICE] API failed, trying backup:', errorMessage);
-    
     const backup = await getBackup();
     if (backup) {
       return backup;

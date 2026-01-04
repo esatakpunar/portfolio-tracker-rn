@@ -26,9 +26,7 @@ const getInitialLanguage = async (): Promise<string> => {
       return saved;
     }
   } catch (error) {
-    if (__DEV__) {
-      console.log('Error loading saved language:', error);
-    }
+    // Silently fail - fallback to device language or default
   }
 
   const deviceLanguages = getLocales();
@@ -61,9 +59,7 @@ export const saveLanguage = async (languageCode: string) => {
   try {
     await saveLanguageToDB(languageCode);
   } catch (error) {
-    if (__DEV__) {
-      console.log('Error saving language:', error);
-    }
+    // Silently fail - language change will still work for current session
   }
 };
 

@@ -22,8 +22,6 @@ export async function saveBackup(prices: Prices, changes: PriceChanges): Promise
       [pricesJson, changesJson, now, now]
     );
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    console.error('[PRICE_BACKUP] Failed to save backup:', errorMessage);
     throw error;
   }
 }
@@ -54,12 +52,10 @@ export async function getBackup(): Promise<PriceData | null> {
       prices = JSON.parse(row.prices_json);
       changes = JSON.parse(row.changes_json);
     } catch (parseError) {
-      console.error('[PRICE_BACKUP] Failed to parse backup JSON:', parseError);
       return null;
     }
 
     if (!prices || typeof prices !== 'object' || !changes || typeof changes !== 'object') {
-      console.error('[PRICE_BACKUP] Invalid backup structure');
       return null;
     }
 
@@ -87,14 +83,12 @@ export async function getBackup(): Promise<PriceData | null> {
 
     for (const key of requiredPriceKeys) {
       if (!(key in prices) || typeof prices[key] !== 'number') {
-        console.error(`[PRICE_BACKUP] Missing or invalid price key: ${key}`);
         return null;
       }
     }
 
     for (const key of requiredChangeKeys) {
       if (!(key in changes) || typeof changes[key] !== 'number') {
-        console.error(`[PRICE_BACKUP] Missing or invalid change key: ${key}`);
         return null;
       }
     }
@@ -108,7 +102,6 @@ export async function getBackup(): Promise<PriceData | null> {
     );
 
     if (!allPricesValid || !allChangesValid) {
-      console.error('[PRICE_BACKUP] Invalid price or change values');
       return null;
     }
 
@@ -117,8 +110,6 @@ export async function getBackup(): Promise<PriceData | null> {
       changes,
     };
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    console.error('[PRICE_BACKUP] Failed to get backup:', errorMessage);
     return null;
   }
 }

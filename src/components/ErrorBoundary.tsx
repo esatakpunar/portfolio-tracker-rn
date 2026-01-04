@@ -33,7 +33,6 @@ class ErrorBoundary extends Component<Props, State> {
     if (__DEV__) {
       console.error('ErrorBoundary caught an error:', error, errorInfo);
     }
-    // In production, you might want to log this to an error reporting service
   }
 
   handleReset = () => {
