@@ -2,7 +2,7 @@
   "expo": {
     "name": "Portfolio Tracker",
     "slug": "portfolio-tracker-rn",
-    "version": "1.0.2",
+    "version": "1.1.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
@@ -28,7 +28,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.portfoliotracker.app",
-      "buildNumber": "11",
+      "buildNumber": "12",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
         "LSRequiresIPhoneOS": true,
