@@ -1,0 +1,140 @@
+import { getDatabase, waitForDatabase } from './database';
+import { Prices, PriceChanges } from '../types';
+import { PriceData } from './priceService';
+
+export async function saveBackup(prices: Prices, changes: PriceChanges): Promise<void> {
+  try {
+    await waitForDatabase();
+    const db = getDatabase();
+
+    const now = Date.now();
+    const pricesJson = JSON.stringify(prices);
+    const changesJson = JSON.stringify(changes);
+
+    if (!pricesJson || !changesJson) {
+      throw new Error('Failed to serialize price data');
+    }
+
+    await db.runAsync(
+      `INSERT OR REPLACE INTO price_backup 
+       (id, prices_json, changes_json, fetched_at, updated_at) 
+       VALUES (1, ?, ?, ?, ?)`,
+      [pricesJson, changesJson, now, now]
+    );
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    console.error('[PRICE_BACKUP] Failed to save backup:', errorMessage);
+    throw error;
+  }
+}
+
+export async function getBackup(): Promise<PriceData | null> {
+  try {
+    await waitForDatabase();
+    const db = getDatabase();
+
+    const row = await db.getFirstAsync<{
+      prices_json: string;
+      changes_json: string;
+      fetched_at: number;
+    }>(
+      `SELECT prices_json, changes_json, fetched_at 
+       FROM price_backup 
+       WHERE id = 1`
+    );
+
+    if (!row) {
+      return null;
+    }
+
+    let prices: Prices;
+    let changes: PriceChanges;
+
+    try {
+      prices = JSON.parse(row.prices_json);
+      changes = JSON.parse(row.changes_json);
+    } catch (parseError) {
+      console.error('[PRICE_BACKUP] Failed to parse backup JSON:', parseError);
+      return null;
+    }
+
+    if (!prices || typeof prices !== 'object' || !changes || typeof changes !== 'object') {
+      console.error('[PRICE_BACKUP] Invalid backup structure');
+      return null;
+    }
+
+    const requiredPriceKeys: (keyof Prices)[] = [
+      '22_ayar',
+      '24_ayar',
+      'ceyrek',
+      'tam',
+      'usd',
+      'eur',
+      'tl',
+      'gumus',
+    ];
+
+    const requiredChangeKeys: (keyof PriceChanges)[] = [
+      '22_ayar',
+      '24_ayar',
+      'ceyrek',
+      'tam',
+      'usd',
+      'eur',
+      'tl',
+      'gumus',
+    ];
+
+    for (const key of requiredPriceKeys) {
+      if (!(key in prices) || typeof prices[key] !== 'number') {
+        console.error(`[PRICE_BACKUP] Missing or invalid price key: ${key}`);
+        return null;
+      }
+    }
+
+    for (const key of requiredChangeKeys) {
+      if (!(key in changes) || typeof changes[key] !== 'number') {
+        console.error(`[PRICE_BACKUP] Missing or invalid change key: ${key}`);
+        return null;
+      }
+    }
+
+    const allPricesValid = Object.values(prices).every(
+      (price) => typeof price === 'number' && !isNaN(price) && isFinite(price) && price >= 0
+    );
+
+    const allChangesValid = Object.values(changes).every(
+      (change) => typeof change === 'number' && !isNaN(change) && isFinite(change)
+    );
+
+    if (!allPricesValid || !allChangesValid) {
+      console.error('[PRICE_BACKUP] Invalid price or change values');
+      return null;
+    }
+
+    return {
+      prices,
+      changes,
+    };
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    console.error('[PRICE_BACKUP] Failed to get backup:', errorMessage);
+    return null;
+  }
+}
+
+export async function hasBackup(): Promise<boolean> {
+  try {
+    await waitForDatabase();
+    const db = getDatabase();
+
+    const row = await db.getFirstAsync<{ id: number }>(
+      `SELECT id FROM price_backup WHERE id = 1`
+    );
+
+    return !!row;
+  } catch (error) {
+    return false;
+  }
+}
+

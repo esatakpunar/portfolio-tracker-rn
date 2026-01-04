@@ -7,7 +7,7 @@ let db: SQLite.SQLiteDatabase | null = null;
 let initPromise: Promise<void> | null = null;
 
 // Schema version
-const SCHEMA_VERSION = 1;
+const SCHEMA_VERSION = 2;
 
 /**
  * Initialize the database and create schema if needed
@@ -175,6 +175,17 @@ async function createSchema(database: SQLite.SQLiteDatabase): Promise<void> {
       updated_at INTEGER NOT NULL
     );
   `);
+
+  // Create price_backup table
+  await database.execAsync(`
+    CREATE TABLE IF NOT EXISTS price_backup (
+      id INTEGER PRIMARY KEY CHECK (id = 1),
+      prices_json TEXT NOT NULL,
+      changes_json TEXT NOT NULL,
+      fetched_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL
+    );
+  `);
 }
 
 /**
@@ -208,10 +219,21 @@ async function migrateSchema(
   fromVersion: number,
   toVersion: number
 ): Promise<void> {
-  // Future migrations will be added here
-  // Example:
-  // if (fromVersion < 2) {
-  //   await database.execAsync('ALTER TABLE portfolio_items ADD COLUMN new_field TEXT');
-  // }
+  // Migration from version 1 to 2: Add price_backup table
+  if (fromVersion < 2) {
+    await database.execAsync(`
+      CREATE TABLE IF NOT EXISTS price_backup (
+        id INTEGER PRIMARY KEY CHECK (id = 1),
+        prices_json TEXT NOT NULL,
+        changes_json TEXT NOT NULL,
+        fetched_at INTEGER NOT NULL,
+        updated_at INTEGER NOT NULL
+      );
+    `);
+    
+    // Optional: Migrate existing data from portfolio_prices and portfolio_price_changes
+    // This is optional since those tables are typically empty
+    // If needed, we could read from those tables and create a backup entry
+  }
 }
 

@@ -1,6 +1,6 @@
 import { createSlice, PayloadAction, createAsyncThunk } from '@reduxjs/toolkit';
 import { PortfolioItem, HistoryItem, Prices, PriceChanges, AssetType, CurrencyType } from '../types';
-import { fetchPrices as fetchPricesFromAPI, getDefaultPrices, getDefaultChanges } from '../services/priceService';
+import { fetchPrices as fetchPricesFromAPI } from '../services/priceService';
 import { safeAdd, safeSubtract } from '../utils/numberUtils';
 
 interface PortfolioState {
@@ -46,23 +46,16 @@ let isFetchingPrices = false;
 
 export const fetchPrices = createAsyncThunk(
   'portfolio/fetchPrices',
-  async (_, { rejectWithValue, getState }) => {
+  async (_, { rejectWithValue }) => {
     if (isFetchingPrices) {
       return rejectWithValue('Already fetching prices');
     }
     
     isFetchingPrices = true;
     try {
-      // Get current prices and changes from state to pass as fallback
-      const state = getState() as { portfolio: PortfolioState };
-      const currentPrices = state?.portfolio?.prices;
-      const currentChanges = state?.portfolio?.priceChanges;
-      const priceData = await fetchPricesFromAPI(currentPrices, currentChanges);
+      const priceData = await fetchPricesFromAPI();
       return priceData;
     } catch (error) {
-      if (__DEV__) {
-        console.error('Error fetching prices:', error);
-      }
       return rejectWithValue('Failed to fetch prices');
     } finally {
       isFetchingPrices = false;
@@ -276,23 +269,6 @@ const portfolioSlice = createSlice({
 
         const { prices, changes } = action.payload;
         
-        // Mock data kontrolü - eğer payload DEFAULT_PRICES ise persist etme
-        const defaultPrices = getDefaultPrices();
-        const defaultChanges = getDefaultChanges();
-        const isMockData = 
-          (prices && JSON.stringify(prices) === JSON.stringify(defaultPrices)) &&
-          (changes && JSON.stringify(changes) === JSON.stringify(defaultChanges));
-        
-        if (isMockData) {
-          // Mock data - sadece state'e yazma, persist etme
-          // Mevcut prices'ı koru (eğer varsa gerçek veri)
-          if (__DEV__) {
-            console.warn('[PORTFOLIO] Mock data alındı, persist edilmiyor - mevcut prices korunuyor');
-          }
-          return; // State'i değiştirme, mevcut prices'ı koru
-        }
-        
-        // Gerçek API verisi - persist et
         if (prices && typeof prices === 'object') {
           const validatedPrices: Partial<Prices> = {};
           Object.entries(prices).forEach(([key, value]) => {
@@ -300,7 +276,6 @@ const portfolioSlice = createSlice({
               validatedPrices[key as keyof Prices] = value;
             }
           });
-          // Merge new prices with existing ones
           state.prices = { ...state.prices, ...validatedPrices };
         }
         
@@ -311,20 +286,11 @@ const portfolioSlice = createSlice({
               validatedChanges[key as keyof PriceChanges] = value;
             }
           });
-          // Merge new changes with existing ones
           state.priceChanges = { ...state.priceChanges, ...validatedChanges };
-        }
-        
-        if (__DEV__) {
-          console.log('[PORTFOLIO] Gerçek API verisi alındı ve persist ediliyor');
         }
       })
       .addCase(fetchPrices.rejected, (state) => {
-        // Keep existing prices on error - no state change needed
-        // Error is handled in the component
-        if (__DEV__) {
-          console.warn('[PORTFOLIO] fetchPrices rejected - mevcut prices korunuyor');
-        }
+        // Keep existing prices on error
       });
   }
 });
