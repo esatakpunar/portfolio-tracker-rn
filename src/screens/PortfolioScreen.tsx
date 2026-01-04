@@ -75,6 +75,11 @@ const PortfolioScreen: React.FC = () => {
     }, {} as Record<AssetType, PortfolioItem[]>);
   }, [items]);
 
+  // Calculate unique asset types count
+  const uniqueAssetCount = useMemo(() => {
+    return Object.keys(groupedItems).length;
+  }, [groupedItems]);
+
   const handleAddItem = (type: AssetType, amount: number, description?: string) => {
     // Validate inputs
     if (!type || isNaN(amount) || !isFinite(amount) || amount <= 0) {
@@ -290,7 +295,7 @@ const PortfolioScreen: React.FC = () => {
                         <View style={styles.priceInfoContainer}>
                           <Text style={styles.currentValueLabel}>{t('totalAssets')}</Text>
                           <Text style={styles.totalAssetsText}>
-                            {items.length} {items.length === 1 ? t('asset') : t('assets')}
+                            {uniqueAssetCount} {uniqueAssetCount === 1 ? t('asset') : t('assets')}
                           </Text>
                         </View>
                       )}
