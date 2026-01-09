@@ -38,6 +38,17 @@ export interface Prices {
   gumus: number | null;
 }
 
+export interface BuyPrices {
+  '22_ayar': number | null;
+  '24_ayar': number | null;
+  ceyrek: number | null;
+  tam: number | null;
+  usd: number | null;
+  eur: number | null;
+  tl: number | null;
+  gumus: number | null;
+}
+
 export interface PriceChanges {
   '22_ayar': number | null;
   '24_ayar': number | null;

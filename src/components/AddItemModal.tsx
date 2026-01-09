@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   View,
   StyleSheet,
@@ -48,6 +48,8 @@ const AddItemModal: React.FC<AddItemModalProps> = ({ visible, onClose, onAdd }) 
   const [priceAtTime, setPriceAtTime] = useState('');
   const [showTypePicker, setShowTypePicker] = useState(false);
   const [slideAnim] = useState(new Animated.Value(0));
+  const scrollViewRef = useRef<ScrollView>(null);
+  const descriptionInputWrapperRef = useRef<any>(null);
   
   const amountValidation = useMemo(() => validateAmount(amount), [amount]);
   const isAmountValid = amountValidation.isValid;
@@ -179,6 +181,7 @@ const AddItemModal: React.FC<AddItemModalProps> = ({ visible, onClose, onAdd }) 
             </View>
 
             <ScrollView 
+              ref={scrollViewRef}
               style={styles.scrollContent}
               showsVerticalScrollIndicator={false}
               keyboardShouldPersistTaps="handled"
@@ -191,9 +194,10 @@ const AddItemModal: React.FC<AddItemModalProps> = ({ visible, onClose, onAdd }) 
                     onPress={() => setShowTypePicker(!showTypePicker)}
                     activeOpacity={0.7}
                   >
-                    <Text style={styles.pickerButtonText}>
-                      {getAssetIcon(selectedType)} {t(`assetTypes.${selectedType}`)}
-                    </Text>
+                    <View style={styles.pickerButtonContent}>
+                      <Text style={styles.pickerIconText}>{getAssetIcon(selectedType)}</Text>
+                      <Text style={styles.pickerButtonText}>{t(`assetTypes.${selectedType}`)}</Text>
+                    </View>
                     <Text style={styles.pickerArrow}>{showTypePicker ? '▲' : '▼'}</Text>
                   </TouchableOpacity>
 
@@ -217,7 +221,12 @@ const AddItemModal: React.FC<AddItemModalProps> = ({ visible, onClose, onAdd }) 
                             }}
                             activeOpacity={0.7}
                           >
-                            <Text style={styles.typeOptionIcon}>{getAssetIcon(type)}</Text>
+                            <Text style={[
+                              styles.typeOptionIcon,
+                              selectedType === type && styles.typeOptionIconSelected
+                            ]}>
+                              {getAssetIcon(type)}
+                            </Text>
                             <Text style={[
                               styles.typeOptionText,
                               selectedType === type && styles.typeOptionTextSelected
@@ -243,7 +252,6 @@ const AddItemModal: React.FC<AddItemModalProps> = ({ visible, onClose, onAdd }) 
                     placeholder="0.00"
                     placeholderTextColor={colors.textMuted}
                     keyboardType="decimal-pad"
-                    returnKeyType="done"
                   />
                   <Text style={styles.unit}>{getAssetUnit(selectedType, t)}</Text>
                 </View>
@@ -285,7 +293,6 @@ const AddItemModal: React.FC<AddItemModalProps> = ({ visible, onClose, onAdd }) 
                     placeholder={calculateDefaultPrice != null ? formatCurrency(calculateDefaultPrice, i18n.language) : "0.00"}
                     placeholderTextColor={colors.textMuted}
                     keyboardType="decimal-pad"
-                    returnKeyType="done"
                   />
                   <Text style={styles.unit}>₺</Text>
                 </View>
@@ -300,16 +307,40 @@ const AddItemModal: React.FC<AddItemModalProps> = ({ visible, onClose, onAdd }) 
                 <Text style={styles.label}>
                   {t('description')} <Text style={styles.optionalText}>{t('optional')}</Text>
                 </Text>
-                <TextInput
-                  style={styles.descriptionInput}
-                  value={description}
-                  onChangeText={setDescription}
-                  placeholder={t('descriptionPlaceholder')}
-                  placeholderTextColor={colors.textMuted}
-                  multiline
-                  numberOfLines={2}
-                  returnKeyType="done"
-                />
+                <View ref={descriptionInputWrapperRef}>
+                  <TextInput
+                    style={styles.descriptionInput}
+                    value={description}
+                    onChangeText={setDescription}
+                    placeholder={t('descriptionPlaceholder')}
+                    placeholderTextColor={colors.textMuted}
+                    multiline
+                    numberOfLines={2}
+                    onFocus={() => {
+                      // Scroll to input when description input is focused
+                      setTimeout(() => {
+                        if (descriptionInputWrapperRef.current && scrollViewRef.current) {
+                          descriptionInputWrapperRef.current.measureLayout(
+                            scrollViewRef.current as any,
+                            (x: number, y: number) => {
+                              scrollViewRef.current?.scrollTo({
+                                y: y - 150, // Add some padding above
+                                animated: true,
+                              });
+                            },
+                            () => {
+                              // Fallback: scroll to end
+                              scrollViewRef.current?.scrollToEnd({ animated: true });
+                            }
+                          );
+                        } else {
+                          // Fallback: scroll to end
+                          scrollViewRef.current?.scrollToEnd({ animated: true });
+                        }
+                      }, 400);
+                    }}
+                  />
+                </View>
               </View>
             </ScrollView>
 
@@ -410,6 +441,17 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: colors.primaryStart,
   },
+  pickerButtonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  pickerIconText: {
+    fontSize: fontSize.lg,
+    fontWeight: fontWeight.bold,
+    color: colors.textPrimary,
+    marginRight: spacing.sm,
+  },
   pickerButtonText: {
     fontSize: fontSize.lg,
     color: colors.textPrimary,
@@ -443,7 +485,12 @@ const styles = StyleSheet.create({
   },
   typeOptionIcon: {
     fontSize: fontSize.xl,
+    fontWeight: fontWeight.bold,
+    color: colors.textSecondary,
     marginRight: spacing.sm,
+  },
+  typeOptionIconSelected: {
+    color: colors.primaryStart,
   },
   typeOptionText: {
     flex: 1,

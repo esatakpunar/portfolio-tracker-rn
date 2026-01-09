@@ -11,6 +11,7 @@ import {
   Animated,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Feather } from '@expo/vector-icons';
 import { Swipeable } from 'react-native-gesture-handler';
 import { useTranslation } from 'react-i18next';
 import { Text } from '../components/Text';
@@ -740,7 +741,7 @@ const PortfolioScreen: React.FC = () => {
               setShowAddModal(true);
             }}
           >
-            <Text style={styles.addButtonIcon}>+</Text>
+            <Feather name="plus" size={28} color={colors.primaryStart} />
           </TouchableOpacity>
         </View>
       </TouchableWithoutFeedback>
@@ -766,7 +767,7 @@ const PortfolioScreen: React.FC = () => {
             
             {items.length === 0 ? (
               <EmptyState
-                icon="💼"
+                icon={<Feather name="briefcase" size={40} color={colors.textMuted} />}
                 title={t('noAssets')}
                 description={t('addFirstAsset')}
                 action={
@@ -862,12 +863,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     ...shadows.glass,
-  },
-  addButtonIcon: {
-    fontSize: 28,
-    color: colors.primaryStart,
-    fontWeight: fontWeight.bold,
-    marginTop: -2,
   },
   content: {
     flex: 1,

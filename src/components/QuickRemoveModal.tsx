@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   View,
   StyleSheet,
@@ -7,6 +7,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   Animated,
+  ScrollView,
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { Text } from './Text';
@@ -41,6 +42,8 @@ const QuickRemoveModal: React.FC<QuickRemoveModalProps> = ({
   const [description, setDescription] = useState('');
   const [priceAtTime, setPriceAtTime] = useState('');
   const [slideAnim] = useState(new Animated.Value(0));
+  const scrollViewRef = useRef<ScrollView>(null);
+  const descriptionInputWrapperRef = useRef<any>(null);
 
   useEffect(() => {
     if (visible) {
@@ -199,8 +202,15 @@ const QuickRemoveModal: React.FC<QuickRemoveModalProps> = ({
               </Text>
             </View>
 
-            <View style={styles.inputContainer}>
-              <View style={styles.labelRow}>
+            <ScrollView 
+              ref={scrollViewRef}
+              style={styles.scrollContent}
+              contentContainerStyle={styles.scrollContentContainer}
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+            >
+              <View style={styles.inputContainer}>
+                <View style={styles.labelRow}>
                 <Text style={styles.label}>{t('amountToRemove')}:</Text>
                 <TouchableOpacity onPress={handleMaxAmount} activeOpacity={0.7}>
                   <Text style={styles.maxButton}>
@@ -222,7 +232,6 @@ const QuickRemoveModal: React.FC<QuickRemoveModalProps> = ({
                   placeholder="0.00"
                   placeholderTextColor={colors.textMuted}
                   keyboardType="decimal-pad"
-                  autoFocus
                 />
                 <Text style={styles.unit}>{getUnit()}</Text>
               </View>
@@ -269,7 +278,6 @@ const QuickRemoveModal: React.FC<QuickRemoveModalProps> = ({
                   placeholder={calculateDefaultPrice != null ? formatCurrency(calculateDefaultPrice, i18n.language) : "0.00"}
                   placeholderTextColor={colors.textMuted}
                   keyboardType="decimal-pad"
-                  returnKeyType="done"
                 />
                 <Text style={styles.unit}>₺</Text>
               </View>
@@ -284,16 +292,42 @@ const QuickRemoveModal: React.FC<QuickRemoveModalProps> = ({
               <Text style={styles.label}>
                 {t('note')} <Text style={styles.optionalText}>{t('optional')}</Text>
               </Text>
-              <TextInput
-                style={styles.descriptionInput}
-                value={description}
-                onChangeText={setDescription}
-                placeholder={t('notePlaceholder')}
-                placeholderTextColor={colors.textMuted}
-                multiline
-                numberOfLines={2}
-              />
-            </View>
+              <View ref={descriptionInputWrapperRef}>
+                <TextInput
+                  style={styles.descriptionInput}
+                  value={description}
+                  onChangeText={setDescription}
+                  placeholder={t('notePlaceholder')}
+                  placeholderTextColor={colors.textMuted}
+                  multiline
+                  numberOfLines={2}
+                  onFocus={() => {
+                    // Scroll to input when description input is focused
+                    setTimeout(() => {
+                      if (descriptionInputWrapperRef.current && scrollViewRef.current) {
+                        descriptionInputWrapperRef.current.measureLayout(
+                          scrollViewRef.current as any,
+                          (x: number, y: number) => {
+                            scrollViewRef.current?.scrollTo({
+                              y: y - 150, // Add some padding above
+                              animated: true,
+                            });
+                          },
+                          () => {
+                            // Fallback: scroll to end
+                            scrollViewRef.current?.scrollToEnd({ animated: true });
+                          }
+                        );
+                      } else {
+                        // Fallback: scroll to end
+                        scrollViewRef.current?.scrollToEnd({ animated: true });
+                      }
+                    }, 400);
+                  }}
+                />
+              </View>
+              </View>
+            </ScrollView>
 
             <View style={styles.buttonContainer}>
               <TouchableOpacity
@@ -341,6 +375,7 @@ const styles = StyleSheet.create({
     paddingTop: spacing.md,
     paddingHorizontal: spacing.lg,
     paddingBottom: spacing.xxxl,
+    maxHeight: '90%',
     ...shadows.large,
   },
   header: {
@@ -363,6 +398,12 @@ const styles = StyleSheet.create({
   subtitle: {
     fontSize: fontSize.base,
     color: colors.textSecondary,
+  },
+  scrollContent: {
+    flexGrow: 0,
+  },
+  scrollContentContainer: {
+    paddingBottom: spacing.xl,
   },
   inputContainer: {
     marginBottom: spacing.xl,

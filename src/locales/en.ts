@@ -5,11 +5,11 @@ export default {
   historySubtitle: 'All your transactions',
   yesterday: 'Yesterday',
   daysAgo: 'days ago',
-  settings: 'Settings',
+  settings: 'Market',
   
   assetTypes: {
-    '22_ayar': '22 Carat Gold (gram)',
-    '24_ayar': '24 Carat Gold (gram)',
+    '22_ayar': '22 Carat',
+    '24_ayar': 'Gram Gold',
     'ceyrek': 'Quarter Gold',
     'tam': 'Full Gold',
     'usd': 'Dollar (USD)',
@@ -79,9 +79,9 @@ export default {
   noHistory: 'No transaction history yet',
   noHistorySubtitle: 'Your transaction history will appear here',
   
-  settingsTitle: 'Settings',
-  settingsSubtitle: 'Application settings',
-  refreshPrices: 'Refresh Prices',
+  settingsTitle: 'Market',
+  settingsSubtitle: 'Current prices',
+  refreshPrices: 'Current Market Prices',
   refresh: 'Refresh',
   resetAllData: 'Reset All Data',
   language: 'Language',
@@ -118,5 +118,8 @@ export default {
   usingBackupData: 'Using backup data',
   partialPriceUpdate: 'Some prices unavailable',
   priceAtTime: 'Price at Transaction Time (TL)',
-  currentMarketPrice: 'Current market price'
+  currentMarketPrice: 'Current market price',
+  buyPrice: 'Buy',
+  sellPrice: 'Sell',
+  spread: 'Spread'
 };

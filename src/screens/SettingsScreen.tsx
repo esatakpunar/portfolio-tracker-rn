@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   StyleSheet,
@@ -8,25 +8,59 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Feather } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { Text } from '../components/Text';
 import { useAppSelector, useAppDispatch } from '../hooks/useRedux';
-import { selectPrices, resetAll, setLanguage, selectLanguage, fetchPrices } from '../store/portfolioSlice';
+import { selectPrices, selectBuyPrices, selectPriceChanges, resetAll, setLanguage, selectLanguage, fetchPrices, selectPriceDataFetchedAt, selectIsUsingBackupPriceData, selectHasPartialPriceUpdate } from '../store/portfolioSlice';
 import { AppDispatch } from '../store';
 import { colors, spacing, borderRadius, fontSize, fontWeight, shadows } from '../theme';
 import { availableLanguages, saveLanguage } from '../locales';
-import { getAssetIcon, getAssetColor } from '../utils/assetUtils';
-import { formatCurrency } from '../utils/formatUtils';
+import { formatCurrency, formatLastUpdateTime } from '../utils/formatUtils';
+import { getLastUpdateTime } from '../services/priceBackupService';
 import { AssetType } from '../types';
 import { hapticFeedback } from '../utils/haptics';
+import PriceChangeIndicator from '../components/PriceChangeIndicator';
 
 const SettingsScreen: React.FC = () => {
   const { t, i18n } = useTranslation();
   const dispatch = useAppDispatch();
   const prices = useAppSelector(selectPrices);
+  const buyPrices = useAppSelector(selectBuyPrices);
+  const priceChanges = useAppSelector(selectPriceChanges);
   const currentLanguage = useAppSelector(selectLanguage);
+  const priceDataFetchedAt = useAppSelector(selectPriceDataFetchedAt);
+  const isUsingBackupPriceData = useAppSelector(selectIsUsingBackupPriceData);
+  const hasPartialPriceUpdate = useAppSelector(selectHasPartialPriceUpdate);
   const [showLanguagePicker, setShowLanguagePicker] = useState(false);
   const [isRefreshingPrices, setIsRefreshingPrices] = useState(false);
+  const [lastUpdateTime, setLastUpdateTime] = useState<number | null>(null);
+
+  // Load last update time on mount
+  useEffect(() => {
+    const initializePreferences = async () => {
+      try {
+        const updateTime = await getLastUpdateTime();
+        setLastUpdateTime(updateTime);
+      } catch (error) {
+        // Ignore error
+      }
+    };
+    
+    initializePreferences();
+  }, []);
+
+  // Update last update time when prices are refreshed
+  useEffect(() => {
+    const updateLastUpdateTime = async () => {
+      const updateTime = await getLastUpdateTime();
+      setLastUpdateTime(updateTime);
+    };
+    
+    if (!isRefreshingPrices) {
+      updateLastUpdateTime();
+    }
+  }, [isRefreshingPrices]);
 
   const handleRefreshPrices = async () => {
     hapticFeedback.light();
@@ -35,6 +69,8 @@ const SettingsScreen: React.FC = () => {
       const result = await (dispatch as AppDispatch)(fetchPrices());
       if (fetchPrices.fulfilled.match(result)) {
         hapticFeedback.success();
+        const updateTime = await getLastUpdateTime();
+        setLastUpdateTime(updateTime);
       } else {
         hapticFeedback.error();
         Alert.alert(t('error'), t('pricesUpdateFailed'));
@@ -79,43 +115,64 @@ const SettingsScreen: React.FC = () => {
   };
 
 
-  const renderPriceItem = (key: AssetType, value: number | null) => {
-    const priceColor = getAssetColor(key);
-    const isPriceAvailable = value != null && !isNaN(value) && isFinite(value) && value >= 0;
+  const renderPriceItem = (key: AssetType) => {
+    const sellPrice = prices[key];
+    const buyPrice = buyPrices[key];
+    const change = priceChanges[key];
+    
+    const isSellPriceAvailable = sellPrice != null && !isNaN(sellPrice) && isFinite(sellPrice) && sellPrice >= 0;
+    const isBuyPriceAvailable = buyPrice != null && !isNaN(buyPrice) && isFinite(buyPrice) && buyPrice >= 0;
     
     return (
-      <View key={key} style={styles.priceItem}>
-        <View style={styles.priceItemLeft}>
-          <View style={[
-            styles.priceIconContainer,
-            { 
-              backgroundColor: priceColor + '20',
-              borderColor: priceColor + '40',
-            }
-          ]}>
-            <Text style={[styles.priceIcon, { color: priceColor }]}>
-              {getAssetIcon(key)}
-            </Text>
+      <View key={key} style={styles.priceCard}>
+        <View style={styles.priceCardContent}>
+          <View style={styles.priceCardRow}>
+            <View style={styles.priceCardLeft}>
+              <Text style={styles.priceCardLabel}>{t(`assetTypes.${key}`)}</Text>
+              {isRefreshingPrices ? (
+                <View style={styles.skeletonMainPrice} />
+              ) : (
+                isSellPriceAvailable ? (
+                  <Text style={styles.priceCardMainValue}>
+                    {formatCurrency(sellPrice, i18n.language)} ₺
+                  </Text>
+                ) : (
+                  <Text style={styles.priceCardMainUnavailable}>—</Text>
+                )
+              )}
+            </View>
+            
+            <View style={styles.priceCardRight}>
+              {isRefreshingPrices ? (
+                <>
+                  <View style={styles.skeletonBadge} />
+                  <View style={styles.priceCardFooter}>
+                    <Text style={styles.priceCardFooterLabel}>{t('buyPrice')}:</Text>
+                    <View style={styles.skeletonBuyPrice} />
+                  </View>
+                </>
+              ) : (
+                <>
+                  {change != null && (
+                    <View style={styles.priceCardBadge}>
+                      <PriceChangeIndicator change={change} />
+                    </View>
+                  )}
+                  <View style={styles.priceCardFooter}>
+                    <Text style={styles.priceCardFooterLabel}>{t('buyPrice')}:</Text>
+                    {isBuyPriceAvailable ? (
+                      <Text style={styles.priceCardFooterValue}>
+                        {formatCurrency(buyPrice, i18n.language)} ₺
+                      </Text>
+                    ) : (
+                      <Text style={styles.priceCardFooterUnavailable}>—</Text>
+                    )}
+                  </View>
+                </>
+              )}
+            </View>
           </View>
-          <Text style={styles.priceLabel}>{t(`assetTypes.${key}`)}</Text>
         </View>
-        
-        {isRefreshingPrices ? (
-          <ActivityIndicator size="small" color={colors.primaryStart} />
-        ) : (
-          <View style={styles.priceValueContainer}>
-            {isPriceAvailable ? (
-              <>
-                <Text style={styles.priceValue}>
-                  {formatCurrency(value, i18n.language)}
-                </Text>
-                <Text style={styles.priceCurrency}>₺</Text>
-              </>
-            ) : (
-              <Text style={styles.priceUnavailable}>—</Text>
-            )}
-          </View>
-        )}
       </View>
     );
   };
@@ -138,7 +195,7 @@ const SettingsScreen: React.FC = () => {
             setShowLanguagePicker(!showLanguagePicker);
           }}
         >
-          <Text style={styles.languageIcon}>🌐</Text>
+          <Feather name="globe" size={24} color={colors.primaryStart} />
         </TouchableOpacity>
       </View>
 
@@ -171,32 +228,50 @@ const SettingsScreen: React.FC = () => {
         <View style={styles.section}>
           <View style={styles.sectionHeaderContainer}>
             <View style={styles.sectionIconWrapper}>
-              <Text style={styles.sectionIcon}>💰</Text>
+              <Feather name="dollar-sign" size={24} color={colors.primaryStart} />
             </View>
             <View style={styles.sectionHeaderContent}>
               <Text style={styles.sectionTitle}>{t('refreshPrices')}</Text>
-              <Text style={styles.sectionSubtitle}>{t('currentMarketPrices')}</Text>
+              {(priceDataFetchedAt || lastUpdateTime) && (
+                <Text style={styles.sectionSubtitle}>
+                  {t('lastUpdated')}: {formatLastUpdateTime(priceDataFetchedAt || lastUpdateTime || 0, i18n.language, t)}
+                  {isUsingBackupPriceData && (
+                    <Text style={styles.backupWarningText}> • {t('usingBackupData')}</Text>
+                  )}
+                  {hasPartialPriceUpdate && (
+                    <Text style={styles.partialUpdateWarningText}> • {t('partialPriceUpdate')}</Text>
+                  )}
+                </Text>
+              )}
             </View>
+            <TouchableOpacity
+              style={[styles.refreshIconButton, isRefreshingPrices && styles.refreshIconButtonDisabled]}
+              onPress={handleRefreshPrices}
+              disabled={isRefreshingPrices}
+            >
+              {isRefreshingPrices ? (
+                <ActivityIndicator size="small" color={colors.primaryStart} />
+              ) : (
+                <Feather name="refresh-cw" size={18} color={colors.primaryStart} />
+              )}
+            </TouchableOpacity>
           </View>
-          
-          <TouchableOpacity
-            style={[styles.refreshButton, isRefreshingPrices && styles.refreshButtonDisabled]}
-            onPress={handleRefreshPrices}
-            disabled={isRefreshingPrices}
-          >
-            <View style={styles.refreshButtonContent}>
-              <Text style={styles.refreshButtonIcon}>
-                {isRefreshingPrices ? '⏳' : '🔄'}
-              </Text>
-              <Text style={styles.refreshButtonText}>{t('refresh')}</Text>
-            </View>
-          </TouchableOpacity>
           
           <View style={styles.pricesContainer}>
             {Object.entries(prices)
               .filter(([key]) => key !== 'tl')
-              .map(([key, value]) =>
-                renderPriceItem(key as AssetType, value)
+              .sort(([keyA], [keyB]) => {
+                // Priority order: usd, eur first, then others
+                const priority: Record<string, number> = {
+                  usd: 1,
+                  eur: 2,
+                };
+                const priorityA = priority[keyA] || 999;
+                const priorityB = priority[keyB] || 999;
+                return priorityA - priorityB;
+              })
+              .map(([key]) =>
+                renderPriceItem(key as AssetType)
               )}
           </View>
         </View>
@@ -204,7 +279,7 @@ const SettingsScreen: React.FC = () => {
         <View style={styles.section}>
           <View style={styles.sectionHeaderContainer}>
             <View style={[styles.sectionIconWrapper, { backgroundColor: colors.error + '20' }]}>
-              <Text style={styles.sectionIcon}>⚠️</Text>
+              <Feather name="alert-triangle" size={24} color={colors.error} />
             </View>
             <View style={styles.sectionHeaderContent}>
               <Text style={styles.sectionTitle}>{t('dangerZone')}</Text>
@@ -217,7 +292,7 @@ const SettingsScreen: React.FC = () => {
             onPress={handleResetAll}
           >
             <View style={styles.dangerButtonContent}>
-              <Text style={styles.dangerButtonIcon}>🗑️</Text>
+              <Feather name="trash-2" size={20} color={colors.error} />
               <Text style={styles.dangerButtonText}>{t('resetAllData')}</Text>
             </View>
           </TouchableOpacity>
@@ -266,9 +341,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     ...shadows.glass,
   },
-  languageIcon: {
-    fontSize: 24,
-  },
   languagePickerOverlay: {
     position: 'absolute',
     top: 140,
@@ -296,6 +368,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: spacing.lg,
+    justifyContent: 'space-between',
   },
   sectionIconWrapper: {
     width: 48,
@@ -305,9 +378,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: spacing.md,
-  },
-  sectionIcon: {
-    fontSize: 24,
   },
   sectionHeaderContent: {
     flex: 1,
@@ -321,34 +391,32 @@ const styles = StyleSheet.create({
   sectionSubtitle: {
     fontSize: fontSize.sm,
     color: colors.textSecondary,
+    marginTop: 2,
   },
-  refreshButton: {
+  backupWarningText: {
+    fontSize: fontSize.xs,
+    color: colors.error,
+    fontWeight: fontWeight.semibold,
+  },
+  partialUpdateWarningText: {
+    fontSize: fontSize.xs,
+    color: colors.error,
+    fontWeight: fontWeight.semibold,
+  },
+  refreshIconButton: {
+    width: 40,
+    height: 40,
+    borderRadius: borderRadius.lg,
     backgroundColor: colors.glassBackground,
-    borderWidth: 2,
+    borderWidth: 1,
     borderColor: colors.primaryStart,
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.lg,
-    borderRadius: borderRadius.xl,
-    marginBottom: spacing.lg,
+    justifyContent: 'center',
+    alignItems: 'center',
     ...shadows.glass,
   },
-  refreshButtonDisabled: {
+  refreshIconButtonDisabled: {
     borderColor: colors.textMuted,
     opacity: 0.5,
-  },
-  refreshButtonContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  refreshButtonIcon: {
-    fontSize: 20,
-    marginRight: spacing.sm,
-  },
-  refreshButtonText: {
-    fontSize: fontSize.base,
-    fontWeight: fontWeight.bold,
-    color: colors.textPrimary,
   },
   languageOption: {
     flexDirection: 'row',
@@ -374,52 +442,102 @@ const styles = StyleSheet.create({
     fontWeight: fontWeight.semibold,
   },
   pricesContainer: {
+    // Cards will have marginBottom in priceCard style
+  },
+  priceCard: {
     backgroundColor: colors.glassBackground,
     borderRadius: borderRadius.xl,
     borderWidth: 1,
     borderColor: colors.glassBorder,
-    overflow: 'hidden',
+    padding: spacing.lg,
+    marginBottom: spacing.md,
+    ...shadows.glass,
   },
-  priceItem: {
+  priceCardContent: {
+    width: '100%',
+  },
+  priceCardRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.lg,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.glassBorder,
+    alignItems: 'flex-start',
   },
-  priceItemLeft: {
+  priceCardLeft: {
+    flex: 1,
+    marginRight: spacing.md,
+  },
+  priceCardRight: {
+    alignItems: 'flex-end',
+  },
+  priceCardBadge: {
+    marginBottom: spacing.xs,
+  },
+  priceCardLabel: {
+    fontSize: fontSize.base,
+    fontWeight: fontWeight.medium,
+    color: colors.textSecondary,
+    marginBottom: spacing.md,
+  },
+  skeletonMainPrice: {
+    width: 120,
+    height: fontSize.xxl + 4,
+    backgroundColor: colors.textMuted + '30',
+    borderRadius: borderRadius.sm,
+  },
+  skeletonBadge: {
+    width: 60,
+    height: 20,
+    backgroundColor: colors.textMuted + '30',
+    borderRadius: borderRadius.sm,
+    marginBottom: spacing.xs,
+  },
+  skeletonBuyPrice: {
+    width: 80,
+    height: fontSize.sm + 2,
+    backgroundColor: colors.textMuted + '30',
+    borderRadius: borderRadius.sm,
+  },
+  priceCardMainValue: {
+    fontSize: fontSize.xxl,
+    fontWeight: fontWeight.bold,
+    color: colors.textPrimary,
+  },
+  priceCardMainUnavailable: {
+    fontSize: fontSize.xxl,
+    fontWeight: fontWeight.bold,
+    color: colors.textMuted,
+    fontStyle: 'italic',
+  },
+  priceCardFooter: {
     flexDirection: 'row',
     alignItems: 'center',
-    flex: 1,
+    marginTop: spacing.sm,
   },
-  priceIconContainer: {
-    width: 40,
-    height: 40,
-    borderRadius: borderRadius.md,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: spacing.md,
-    borderWidth: 2,
-  },
-  priceIcon: {
-    fontSize: 18,
-    fontWeight: fontWeight.bold,
-  },
-  priceLabel: {
-    fontSize: fontSize.sm,
+  priceCardFooterLabel: {
+    fontSize: fontSize.xs,
     fontWeight: fontWeight.medium,
-    color: colors.textPrimary,
+    color: colors.textMuted,
+    marginRight: spacing.xs,
+  },
+  priceCardFooterValue: {
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.semibold,
+    color: colors.textSecondary,
+  },
+  priceCardFooterUnavailable: {
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.semibold,
+    color: colors.textMuted,
+    fontStyle: 'italic',
   },
   priceValueContainer: {
     flexDirection: 'row',
     alignItems: 'baseline',
   },
   priceValue: {
-    fontSize: fontSize.lg,
-    fontWeight: fontWeight.bold,
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.semibold,
     color: colors.textPrimary,
+    textAlign: 'left',
   },
   priceCurrency: {
     fontSize: fontSize.sm,
@@ -428,10 +546,11 @@ const styles = StyleSheet.create({
     marginLeft: spacing.xs,
   },
   priceUnavailable: {
-    fontSize: fontSize.lg,
-    fontWeight: fontWeight.bold,
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.semibold,
     color: colors.textMuted,
     fontStyle: 'italic',
+    textAlign: 'left',
   },
   dangerButton: {
     backgroundColor: colors.glassBackground,
@@ -446,10 +565,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  dangerButtonIcon: {
-    fontSize: 20,
-    marginRight: spacing.sm,
+    gap: spacing.sm,
   },
   dangerButtonText: {
     fontSize: fontSize.base,

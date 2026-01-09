@@ -5,11 +5,11 @@ export default {
   historySubtitle: 'Alle Ihre Transaktionen',
   yesterday: 'Gestern',
   daysAgo: 'Tage her',
-  settings: 'Einstellungen',
+  settings: 'Markt',
   
   assetTypes: {
-    '22_ayar': '22 Karat Gold (Gramm)',
-    '24_ayar': '24 Karat Gold (Gramm)',
+    '22_ayar': '22 Karat',
+    '24_ayar': 'Gramm Gold',
     'ceyrek': 'Viertel Gold',
     'tam': 'Ganzes Gold',
     'usd': 'Dollar (USD)',
@@ -79,9 +79,9 @@ export default {
   noHistory: 'Noch kein Transaktionsverlauf',
   noHistorySubtitle: 'Ihr Transaktionsverlauf wird hier angezeigt',
   
-  settingsTitle: 'Einstellungen',
-  settingsSubtitle: 'Anwendungseinstellungen',
-  refreshPrices: 'Preise aktualisieren',
+  settingsTitle: 'Markt',
+  settingsSubtitle: 'Aktuelle Preise',
+  refreshPrices: 'Aktuelle Marktpreise',
   refresh: 'Aktualisieren',
   resetAllData: 'Alle Daten zurücksetzen',
   language: 'Sprache',
@@ -118,5 +118,8 @@ export default {
   usingBackupData: 'Backup-Daten werden verwendet',
   partialPriceUpdate: 'Einige Preise nicht verfügbar',
   priceAtTime: 'Preis zum Transaktionszeitpunkt (TL)',
-  currentMarketPrice: 'Aktueller Marktpreis'
+  currentMarketPrice: 'Aktueller Marktpreis',
+  buyPrice: 'Kauf',
+  sellPrice: 'Verkauf',
+  spread: 'Spannweite'
 };

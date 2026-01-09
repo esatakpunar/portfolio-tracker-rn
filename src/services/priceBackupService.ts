@@ -1,14 +1,15 @@
 import { getDatabase, waitForDatabase } from './database';
-import { Prices, PriceChanges } from '../types';
+import { Prices, PriceChanges, BuyPrices } from '../types';
 import { PriceData } from './priceService';
 
-export async function saveBackup(prices: Prices, changes: PriceChanges): Promise<void> {
+export async function saveBackup(prices: Prices, buyPrices: BuyPrices | undefined, changes: PriceChanges): Promise<void> {
   try {
     await waitForDatabase();
     const db = getDatabase();
 
     const now = Date.now();
     const pricesJson = JSON.stringify(prices);
+    const buyPricesJson = buyPrices ? JSON.stringify(buyPrices) : null;
     const changesJson = JSON.stringify(changes);
 
     if (!pricesJson || !changesJson) {
@@ -17,9 +18,9 @@ export async function saveBackup(prices: Prices, changes: PriceChanges): Promise
 
     await db.runAsync(
       `INSERT OR REPLACE INTO price_backup 
-       (id, prices_json, changes_json, fetched_at, updated_at) 
-       VALUES (1, ?, ?, ?, ?)`,
-      [pricesJson, changesJson, now, now]
+       (id, prices_json, buy_prices_json, changes_json, fetched_at, updated_at) 
+       VALUES (1, ?, ?, ?, ?, ?)`,
+      [pricesJson, buyPricesJson, changesJson, now, now]
     );
   } catch (error) {
     throw error;
@@ -33,10 +34,11 @@ export async function getBackup(): Promise<PriceData | null> {
 
     const row = await db.getFirstAsync<{
       prices_json: string;
+      buy_prices_json: string | null;
       changes_json: string;
       fetched_at: number;
     }>(
-      `SELECT prices_json, changes_json, fetched_at 
+      `SELECT prices_json, buy_prices_json, changes_json, fetched_at 
        FROM price_backup 
        WHERE id = 1`
     );
@@ -55,10 +57,14 @@ export async function getBackup(): Promise<PriceData | null> {
     }
 
     let prices: Prices;
+    let buyPrices: BuyPrices | undefined;
     let changes: PriceChanges;
 
     try {
       prices = JSON.parse(row.prices_json);
+      if (row.buy_prices_json) {
+        buyPrices = JSON.parse(row.buy_prices_json);
+      }
       changes = JSON.parse(row.changes_json);
     } catch (parseError) {
       return null;
@@ -116,8 +122,40 @@ export async function getBackup(): Promise<PriceData | null> {
       return null;
     }
 
+    // Validate buyPrices if present
+    if (buyPrices) {
+      const requiredBuyPriceKeys: (keyof BuyPrices)[] = [
+        '22_ayar',
+        '24_ayar',
+        'ceyrek',
+        'tam',
+        'usd',
+        'eur',
+        'tl',
+        'gumus',
+      ];
+
+      for (const key of requiredBuyPriceKeys) {
+        if (!(key in buyPrices) || (buyPrices[key] !== null && typeof buyPrices[key] !== 'number')) {
+          buyPrices = undefined; // Invalidate buyPrices if structure is wrong
+          break;
+        }
+      }
+
+      if (buyPrices) {
+        const allBuyPricesValid = Object.values(buyPrices).every(
+          (price) => price === null || (typeof price === 'number' && !isNaN(price) && isFinite(price) && price >= 0)
+        );
+
+        if (!allBuyPricesValid) {
+          buyPrices = undefined; // Invalidate buyPrices if values are invalid
+        }
+      }
+    }
+
     return {
       prices,
+      buyPrices,
       changes,
       fetchedAt: row.fetched_at,
     };

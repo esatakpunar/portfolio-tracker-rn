@@ -1,11 +1,12 @@
 import { createSlice, PayloadAction, createAsyncThunk } from '@reduxjs/toolkit';
-import { PortfolioItem, HistoryItem, Prices, PriceChanges, AssetType, CurrencyType } from '../types';
+import { PortfolioItem, HistoryItem, Prices, PriceChanges, AssetType, CurrencyType, BuyPrices } from '../types';
 import { fetchPrices as fetchPricesFromAPI } from '../services/priceService';
 import { safeAdd, safeSubtract } from '../utils/numberUtils';
 
 interface PortfolioState {
   items: PortfolioItem[];
-  prices: Prices;
+  prices: Prices; // Sell prices (satis)
+  buyPrices: BuyPrices; // Buy prices (alis)
   priceChanges: PriceChanges;
   history: HistoryItem[];
   currentLanguage: string;
@@ -15,30 +16,42 @@ interface PortfolioState {
 }
 
 const initialPrices: Prices = {
-  '22_ayar': 2300,
-  '24_ayar': 2500,
-  ceyrek: 4000,
-  tam: 16000,
-  usd: 34,
-  eur: 36,
-  tl: 1,
-  gumus: 30
+  '22_ayar': null,
+  '24_ayar': null,
+  ceyrek: null,
+  tam: null,
+  usd: null,
+  eur: null,
+  tl: 1, // TL is always 1 (base currency)
+  gumus: null
+};
+
+const initialBuyPrices: BuyPrices = {
+  '22_ayar': null,
+  '24_ayar': null,
+  ceyrek: null,
+  tam: null,
+  usd: null,
+  eur: null,
+  tl: 1, // TL is always 1 (base currency)
+  gumus: null
 };
 
 const initialChanges: PriceChanges = {
-  '22_ayar': 0,
-  '24_ayar': 0,
-  ceyrek: 0,
-  tam: 0,
-  usd: 0,
-  eur: 0,
-  tl: 0,
-  gumus: 0
+  '22_ayar': null,
+  '24_ayar': null,
+  ceyrek: null,
+  tam: null,
+  usd: null,
+  eur: null,
+  tl: null,
+  gumus: null
 };
 
 export const initialState: PortfolioState = {
   items: [],
   prices: initialPrices,
+  buyPrices: initialBuyPrices,
   priceChanges: initialChanges,
   history: [],
   currentLanguage: 'tr'
@@ -324,7 +337,7 @@ const portfolioSlice = createSlice({
           return;
         }
 
-        const { prices, changes, fetchedAt, isBackup } = action.payload;
+        const { prices, buyPrices, changes, fetchedAt, isBackup } = action.payload;
         
         // Check if this is a partial update (some prices are null/missing)
         const requiredPriceKeys: (keyof Prices)[] = ['22_ayar', '24_ayar', 'ceyrek', 'tam', 'usd', 'eur', 'tl', 'gumus'];
@@ -348,6 +361,18 @@ const portfolioSlice = createSlice({
           hasPartialUpdate = !allPricesUpdated;
           
           state.prices = { ...state.prices, ...validatedPrices };
+        }
+        
+        // Update buy prices if provided
+        if (buyPrices && typeof buyPrices === 'object') {
+          const validatedBuyPrices: Partial<BuyPrices> = {};
+          Object.entries(buyPrices).forEach(([key, value]) => {
+            // Accept both number and null values (null indicates unavailable/invalid data)
+            if (value === null || (typeof value === 'number' && !isNaN(value) && isFinite(value) && value >= 0)) {
+              validatedBuyPrices[key as keyof BuyPrices] = value;
+            }
+          });
+          state.buyPrices = { ...state.buyPrices, ...validatedBuyPrices };
         }
         
         if (changes && typeof changes === 'object') {
@@ -386,6 +411,7 @@ export const {
 
 export const selectItems = (state: { portfolio: PortfolioState }) => state.portfolio.items;
 export const selectPrices = (state: { portfolio: PortfolioState }) => state.portfolio.prices;
+export const selectBuyPrices = (state: { portfolio: PortfolioState }) => state.portfolio.buyPrices;
 export const selectPriceChanges = (state: { portfolio: PortfolioState }) => state.portfolio.priceChanges;
 export const selectHistory = (state: { portfolio: PortfolioState }) => state.portfolio.history;
 export const selectLanguage = (state: { portfolio: PortfolioState }) => state.portfolio.currentLanguage;

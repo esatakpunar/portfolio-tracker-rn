@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   View,
   StyleSheet,
@@ -7,6 +7,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   Animated,
+  ScrollView,
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { Text } from './Text';
@@ -41,6 +42,8 @@ const QuickAddModal: React.FC<QuickAddModalProps> = ({
   const [description, setDescription] = useState('');
   const [priceAtTime, setPriceAtTime] = useState('');
   const [slideAnim] = useState(new Animated.Value(0));
+  const scrollViewRef = useRef<ScrollView>(null);
+  const descriptionInputWrapperRef = useRef<any>(null);
   
   const amountValidation = useMemo(() => validateAmount(amount), [amount]);
   const isAmountValid = amountValidation.isValid;
@@ -186,8 +189,15 @@ const QuickAddModal: React.FC<QuickAddModalProps> = ({
               </Text>
             </View>
 
-            <View style={styles.inputContainer}>
-              <Text style={styles.label}>{t('amountToAdd')}:</Text>
+            <ScrollView 
+              ref={scrollViewRef}
+              style={styles.scrollContent}
+              contentContainerStyle={styles.scrollContentContainer}
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+            >
+              <View style={styles.inputContainer}>
+                <Text style={styles.label}>{t('amountToAdd')}:</Text>
               <View style={styles.inputWrapper}>
                 <TextInput
                   style={styles.input}
@@ -196,7 +206,6 @@ const QuickAddModal: React.FC<QuickAddModalProps> = ({
                   placeholder="0.00"
                   placeholderTextColor={colors.textMuted}
                   keyboardType="decimal-pad"
-                  autoFocus
                 />
                 <Text style={styles.unit}>{getUnit()}</Text>
               </View>
@@ -238,7 +247,6 @@ const QuickAddModal: React.FC<QuickAddModalProps> = ({
                   placeholder={calculateDefaultPrice != null ? formatCurrency(calculateDefaultPrice, i18n.language) : "0.00"}
                   placeholderTextColor={colors.textMuted}
                   keyboardType="decimal-pad"
-                  returnKeyType="done"
                 />
                 <Text style={styles.unit}>₺</Text>
               </View>
@@ -253,16 +261,42 @@ const QuickAddModal: React.FC<QuickAddModalProps> = ({
               <Text style={styles.label}>
                 {t('description')} <Text style={styles.optionalText}>{t('optional')}</Text>
               </Text>
-              <TextInput
-                style={styles.descriptionInput}
-                value={description}
-                onChangeText={setDescription}
-                placeholder={t('descriptionPlaceholder')}
-                placeholderTextColor={colors.textMuted}
-                multiline
-                numberOfLines={2}
-              />
-            </View>
+              <View ref={descriptionInputWrapperRef}>
+                <TextInput
+                  style={styles.descriptionInput}
+                  value={description}
+                  onChangeText={setDescription}
+                  placeholder={t('descriptionPlaceholder')}
+                  placeholderTextColor={colors.textMuted}
+                  multiline
+                  numberOfLines={2}
+                  onFocus={() => {
+                    // Scroll to input when description input is focused
+                    setTimeout(() => {
+                      if (descriptionInputWrapperRef.current && scrollViewRef.current) {
+                        descriptionInputWrapperRef.current.measureLayout(
+                          scrollViewRef.current as any,
+                          (x: number, y: number) => {
+                            scrollViewRef.current?.scrollTo({
+                              y: y - 150, // Add some padding above
+                              animated: true,
+                            });
+                          },
+                          () => {
+                            // Fallback: scroll to end
+                            scrollViewRef.current?.scrollToEnd({ animated: true });
+                          }
+                        );
+                      } else {
+                        // Fallback: scroll to end
+                        scrollViewRef.current?.scrollToEnd({ animated: true });
+                      }
+                    }, 400);
+                  }}
+                />
+              </View>
+              </View>
+            </ScrollView>
 
             <View style={styles.buttonContainer}>
               <TouchableOpacity
@@ -310,6 +344,7 @@ const styles = StyleSheet.create({
     paddingTop: spacing.md,
     paddingHorizontal: spacing.lg,
     paddingBottom: spacing.xxxl,
+    maxHeight: '90%',
     ...shadows.large,
   },
   header: {
@@ -332,6 +367,12 @@ const styles = StyleSheet.create({
   subtitle: {
     fontSize: fontSize.base,
     color: colors.textSecondary,
+  },
+  scrollContent: {
+    flexGrow: 0,
+  },
+  scrollContentContainer: {
+    paddingBottom: spacing.xl,
   },
   inputContainer: {
     marginBottom: spacing.xl,

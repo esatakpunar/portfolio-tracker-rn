@@ -5,11 +5,11 @@ export default {
   historySubtitle: 'Tüm işlemleriniz',
   yesterday: 'Dün',
   daysAgo: 'gün önce',
-  settings: 'Ayarlar',
+  settings: 'Piyasa',
   
   assetTypes: {
-    '22_ayar': 'Gram Altın (22 Ayar)',
-    '24_ayar': 'Gram Altın (24 Ayar)',
+    '22_ayar': '22 Ayar',
+    '24_ayar': 'Gram Altın',
     'ceyrek': 'Çeyrek Altın',
     'tam': 'Tam Altın',
     'usd': 'Dolar (USD)',
@@ -79,9 +79,9 @@ export default {
   noHistory: 'Henüz işlem geçmişi yok',
   noHistorySubtitle: 'İşlem geçmişiniz burada görünecek',
   
-  settingsTitle: 'Ayarlar',
-  settingsSubtitle: 'Uygulama ayarları',
-  refreshPrices: 'Fiyatları Yenile',
+  settingsTitle: 'Piyasa',
+  settingsSubtitle: 'Güncel fiyatlar',
+  refreshPrices: 'Güncel Piyasa Fiyatları',
   refresh: 'Yenile',
   resetAllData: 'Tüm Verileri Sıfırla',
   language: 'Dil',
@@ -118,5 +118,8 @@ export default {
   usingBackupData: 'Yedek veri kullanılıyor',
   partialPriceUpdate: 'Bazı fiyatlar güncellenemedi',
   priceAtTime: 'İşlem Anındaki Fiyat (TL)',
-  currentMarketPrice: 'Güncel piyasa fiyatı'
+  currentMarketPrice: 'Güncel piyasa fiyatı',
+  buyPrice: 'Alış',
+  sellPrice: 'Satış',
+  spread: 'Fark'
 };

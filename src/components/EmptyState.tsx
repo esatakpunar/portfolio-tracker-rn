@@ -4,7 +4,7 @@ import { Text } from './Text';
 import { colors, spacing, borderRadius, fontSize, fontWeight } from '../theme';
 
 interface EmptyStateProps {
-  icon?: string;
+  icon?: string | ReactNode;
   title: string;
   description?: string;
   action?: ReactNode;
@@ -16,10 +16,17 @@ const EmptyState: React.FC<EmptyStateProps> = ({
   description, 
   action 
 }) => {
+  const renderIcon = () => {
+    if (typeof icon === 'string') {
+      return <Text style={styles.icon}>{icon}</Text>;
+    }
+    return icon;
+  };
+
   return (
     <View style={styles.container}>
       <View style={styles.iconContainer}>
-        <Text style={styles.icon}>{icon}</Text>
+        {renderIcon()}
       </View>
       <Text style={styles.title}>{title}</Text>
       {description && (

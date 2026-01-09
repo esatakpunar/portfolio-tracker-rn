@@ -7,7 +7,7 @@ let db: SQLite.SQLiteDatabase | null = null;
 let initPromise: Promise<void> | null = null;
 
 // Schema version
-const SCHEMA_VERSION = 3;
+const SCHEMA_VERSION = 4;
 
 /**
  * Initialize the database and create schema if needed
@@ -182,6 +182,7 @@ async function createSchema(database: SQLite.SQLiteDatabase): Promise<void> {
     CREATE TABLE IF NOT EXISTS price_backup (
       id INTEGER PRIMARY KEY CHECK (id = 1),
       prices_json TEXT NOT NULL,
+      buy_prices_json TEXT,
       changes_json TEXT NOT NULL,
       fetched_at INTEGER NOT NULL,
       updated_at INTEGER NOT NULL
@@ -226,6 +227,7 @@ async function migrateSchema(
       CREATE TABLE IF NOT EXISTS price_backup (
         id INTEGER PRIMARY KEY CHECK (id = 1),
         prices_json TEXT NOT NULL,
+        buy_prices_json TEXT,
         changes_json TEXT NOT NULL,
         fetched_at INTEGER NOT NULL,
         updated_at INTEGER NOT NULL
@@ -249,6 +251,22 @@ async function migrateSchema(
       await database.execAsync(`
         ALTER TABLE portfolio_history 
         ADD COLUMN price_at_time REAL;
+      `);
+    }
+  }
+  
+  // Migration from version 3 to 4: Add buy_prices_json column to price_backup
+  if (fromVersion < 4) {
+    // Check if column already exists (in case migration runs multiple times)
+    const tableInfo = await database.getAllAsync<{ name: string }>(
+      `PRAGMA table_info(price_backup)`
+    );
+    const hasBuyPricesJson = tableInfo.some(col => col.name === 'buy_prices_json');
+    
+    if (!hasBuyPricesJson) {
+      await database.execAsync(`
+        ALTER TABLE price_backup 
+        ADD COLUMN buy_prices_json TEXT;
       `);
     }
   }

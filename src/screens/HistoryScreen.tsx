@@ -6,6 +6,7 @@ import {
   RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Feather } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { Text } from '../components/Text';
 import { useAppSelector } from '../hooks/useRedux';
@@ -60,12 +61,11 @@ const HistoryScreen: React.FC = () => {
               styles.actionBadge,
               { backgroundColor: isAdd ? colors.success + '20' : colors.error + '20' }
             ]}>
-              <Text style={[
-                styles.actionIcon,
-                { color: isAdd ? colors.success : colors.error }
-              ]}>
-                {isAdd ? '↑' : '↓'}
-              </Text>
+              <Feather 
+                name={isAdd ? 'trending-up' : 'trending-down'} 
+                size={14} 
+                color={isAdd ? colors.success : colors.error} 
+              />
             </View>
             <Text style={[
               styles.historyAmount,
@@ -111,7 +111,7 @@ const HistoryScreen: React.FC = () => {
 
       {history.length === 0 ? (
         <EmptyState
-          icon="📋"
+          icon={<Feather name="file-text" size={40} color={colors.textMuted} />}
           title={t('noHistory')}
           description={t('noHistorySubtitle')}
         />
@@ -221,10 +221,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: spacing.xs,
-  },
-  actionIcon: {
-    fontSize: 14,
-    fontWeight: fontWeight.bold,
   },
   historyAmount: {
     fontSize: fontSize.lg,

@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, StyleSheet } from 'react-native';
+import { Feather } from '@expo/vector-icons';
 import { Text } from './Text';
 import { formatPriceChange } from '../utils/formatUtils';
 import { colors, spacing, borderRadius, fontSize, fontWeight } from '../theme';
@@ -12,7 +13,7 @@ const PriceChangeIndicator: React.FC<PriceChangeIndicatorProps> = ({ change }) =
   // Handle null/undefined - indicates unavailable or invalid data
   if (change == null) {
     return (
-      <View style={[styles.container, { backgroundColor: colors.textMuted + '20' }]}>
+      <View style={[styles.container, { backgroundColor: colors.textMuted + '40' }]}>
         <Text style={[styles.text, { color: colors.textMuted }]}>
           {formatPriceChange(null)}
         </Text>
@@ -23,7 +24,7 @@ const PriceChangeIndicator: React.FC<PriceChangeIndicatorProps> = ({ change }) =
   // Validate change value
   if (isNaN(change) || !isFinite(change)) {
     return (
-      <View style={[styles.container, { backgroundColor: colors.textMuted + '20' }]}>
+      <View style={[styles.container, { backgroundColor: colors.textMuted + '40' }]}>
         <Text style={[styles.text, { color: colors.textMuted }]}>
           {formatPriceChange(null)}
         </Text>
@@ -35,23 +36,28 @@ const PriceChangeIndicator: React.FC<PriceChangeIndicatorProps> = ({ change }) =
   
   // Determine color and icon based on change value
   let indicatorColor: string;
-  let icon: string;
+  let iconName: 'trending-up' | 'trending-down' | null;
   
   if (change > 0) {
     indicatorColor = colors.success; // Green: #10b981
-    icon = '↑';
+    iconName = 'trending-up';
   } else if (change < 0) {
     indicatorColor = colors.error; // Red: #ef4444
-    icon = '↓';
+    iconName = 'trending-down';
   } else {
     indicatorColor = colors.textMuted; // Gray: #64748b
-    icon = '';
+    iconName = null;
   }
 
   return (
-    <View style={[styles.container, { backgroundColor: indicatorColor + '20' }]}>
-      {icon ? (
-        <Text style={[styles.icon, { color: indicatorColor }]}>{icon}</Text>
+    <View style={[styles.container, { backgroundColor: indicatorColor + '40' }]}>
+      {iconName ? (
+        <Feather 
+          name={iconName} 
+          size={fontSize.sm} 
+          color={indicatorColor} 
+          style={styles.icon}
+        />
       ) : null}
       <Text style={[styles.text, { color: indicatorColor }]}>
         {formattedChange}
@@ -64,19 +70,18 @@ const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs,
-    borderRadius: borderRadius.sm,
-    marginLeft: spacing.xs,
+    paddingVertical: 6,
+    borderRadius: borderRadius.lg,
+    minHeight: 22,
   },
   icon: {
-    fontSize: fontSize.xs,
-    fontWeight: fontWeight.bold,
-    marginRight: 2,
+    marginRight: spacing.xs,
   },
   text: {
-    fontSize: fontSize.xs,
-    fontWeight: fontWeight.semibold,
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.bold,
     lineHeight: fontSize.xs + 2,
   },
 });

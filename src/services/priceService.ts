@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { Prices, PriceChanges } from '../types';
+import { Prices, PriceChanges, BuyPrices } from '../types';
 import { saveBackup, getBackup } from './priceBackupService';
 
 const API_URL = 'https://canlipiyasalar.haremaltin.com/tmp/altin.json?dil_kodu=tr';
@@ -154,7 +154,8 @@ const validateApiResponse = (data: any): data is ApiResponse => {
 };
 
 export interface PriceData {
-  prices: Prices;
+  prices: Prices; // Sell prices (satis)
+  buyPrices?: BuyPrices; // Buy prices (alis) - optional for backward compatibility
   changes: PriceChanges;
   fetchedAt?: number; // Timestamp when prices were fetched (for backup age checking)
   isBackup?: boolean; // Indicates if this data is from backup
@@ -196,7 +197,7 @@ export const fetchPrices = async (): Promise<PriceData> => {
     
     const data = response.data;
     
-    // Map new API codes to existing asset types using satis field
+    // Map new API codes to existing asset types using satis (sell) and alis (buy) fields
     // Finance-safe: Returns null for invalid data, does not hide errors with backup
     const prices: Prices = {
       usd: parsePrice(data.data.USDTRY?.satis),
@@ -206,6 +207,18 @@ export const fetchPrices = async (): Promise<PriceData> => {
       ceyrek: parsePrice(data.data.CEYREK_YENI?.satis),
       '22_ayar': parsePrice(data.data.AYAR22?.satis),
       '24_ayar': parsePrice(data.data.KULCEALTIN?.satis),
+      tl: 1, // TL is always 1 (base currency)
+    };
+    
+    // Also parse buy prices (alis)
+    const buyPrices: BuyPrices = {
+      usd: parsePrice(data.data.USDTRY?.alis),
+      eur: parsePrice(data.data.EURTRY?.alis),
+      gumus: parsePrice(data.data.GUMUSTRY?.alis),
+      tam: parsePrice(data.data.TEK_YENI?.alis),
+      ceyrek: parsePrice(data.data.CEYREK_YENI?.alis),
+      '22_ayar': parsePrice(data.data.AYAR22?.alis),
+      '24_ayar': parsePrice(data.data.KULCEALTIN?.alis),
       tl: 1, // TL is always 1 (base currency)
     };
     
@@ -247,10 +260,11 @@ export const fetchPrices = async (): Promise<PriceData> => {
       throw new Error('No valid price values in response');
     }
     
-    await saveBackup(prices, changes);
+    await saveBackup(prices, buyPrices, changes);
     
     return { 
       prices, 
+      buyPrices,
       changes,
       fetchedAt: Date.now(),
       isBackup: false
