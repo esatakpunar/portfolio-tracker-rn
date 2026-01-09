@@ -198,27 +198,6 @@ const SettingsScreen: React.FC = () => {
 
         <View style={styles.section}>
           <View style={styles.sectionHeaderContainer}>
-            <View style={[styles.sectionIconWrapper, { backgroundColor: colors.warning + '20' }]}>
-              <Text style={styles.sectionIcon}>📊</Text>
-            </View>
-            <View style={styles.sectionHeaderContent}>
-              <Text style={styles.sectionTitle}>{t('financialDisclaimer')}</Text>
-              <Text style={styles.sectionSubtitle}>{t('priceDataInfo')}</Text>
-            </View>
-          </View>
-          
-          <View style={styles.disclaimerContainer}>
-            <Text style={styles.disclaimerText}>
-              {t('disclaimerText')}
-            </Text>
-            <Text style={styles.disclaimerSubtext}>
-              {t('dataSource')}: finans.truncgil.com
-            </Text>
-          </View>
-        </View>
-
-        <View style={styles.section}>
-          <View style={styles.sectionHeaderContainer}>
             <View style={[styles.sectionIconWrapper, { backgroundColor: colors.error + '20' }]}>
               <Text style={styles.sectionIcon}>⚠️</Text>
             </View>
@@ -465,25 +444,6 @@ const styles = StyleSheet.create({
     fontSize: fontSize.base,
     fontWeight: fontWeight.bold,
     color: colors.error,
-  },
-  disclaimerContainer: {
-    backgroundColor: colors.glassBackground,
-    borderRadius: borderRadius.xl,
-    borderWidth: 1,
-    borderColor: colors.glassBorder,
-    padding: spacing.lg,
-    marginTop: spacing.md,
-  },
-  disclaimerText: {
-    fontSize: fontSize.sm,
-    color: colors.textSecondary,
-    lineHeight: 20,
-    marginBottom: spacing.sm,
-  },
-  disclaimerSubtext: {
-    fontSize: fontSize.xs,
-    color: colors.textMuted,
-    fontStyle: 'italic',
   },
 });
 

@@ -82,23 +82,25 @@ export async function getBackup(): Promise<PriceData | null> {
     ];
 
     for (const key of requiredPriceKeys) {
-      if (!(key in prices) || typeof prices[key] !== 'number') {
+      // Prices can be number or null (null indicates unavailable/invalid data)
+      if (!(key in prices) || (prices[key] !== null && typeof prices[key] !== 'number')) {
         return null;
       }
     }
 
     for (const key of requiredChangeKeys) {
-      if (!(key in changes) || typeof changes[key] !== 'number') {
+      // Changes can be number or null (null indicates unavailable/invalid data)
+      if (!(key in changes) || (changes[key] !== null && typeof changes[key] !== 'number')) {
         return null;
       }
     }
 
     const allPricesValid = Object.values(prices).every(
-      (price) => typeof price === 'number' && !isNaN(price) && isFinite(price) && price >= 0
+      (price) => price === null || (typeof price === 'number' && !isNaN(price) && isFinite(price) && price >= 0)
     );
 
     const allChangesValid = Object.values(changes).every(
-      (change) => typeof change === 'number' && !isNaN(change) && isFinite(change)
+      (change) => change === null || (typeof change === 'number' && !isNaN(change) && isFinite(change))
     );
 
     if (!allPricesValid || !allChangesValid) {

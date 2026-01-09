@@ -82,10 +82,11 @@ export const formatRelativeDate = (
  * - Positive values (>0): "+0.18%"
  * - Negative values (<0): "-0.07%"
  * - Zero values (=0): "0.00%"
+ * - Null/undefined values: "—" (em dash, indicates unavailable data)
  */
-export const formatPriceChange = (change: number): string => {
-  if (isNaN(change) || !isFinite(change)) {
-    return '0.00%';
+export const formatPriceChange = (change: number | null | undefined): string => {
+  if (change == null || isNaN(change) || !isFinite(change)) {
+    return '—'; // Em dash indicates unavailable/invalid data
   }
   
   // Format to 2 decimal places

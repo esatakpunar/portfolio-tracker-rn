@@ -5,13 +5,30 @@ import { formatPriceChange } from '../utils/formatUtils';
 import { colors, spacing, borderRadius, fontSize, fontWeight } from '../theme';
 
 interface PriceChangeIndicatorProps {
-  change: number;
+  change: number | null | undefined;
 }
 
 const PriceChangeIndicator: React.FC<PriceChangeIndicatorProps> = ({ change }) => {
+  // Handle null/undefined - indicates unavailable or invalid data
+  if (change == null) {
+    return (
+      <View style={[styles.container, { backgroundColor: colors.textMuted + '20' }]}>
+        <Text style={[styles.text, { color: colors.textMuted }]}>
+          {formatPriceChange(null)}
+        </Text>
+      </View>
+    );
+  }
+
   // Validate change value
   if (isNaN(change) || !isFinite(change)) {
-    change = 0;
+    return (
+      <View style={[styles.container, { backgroundColor: colors.textMuted + '20' }]}>
+        <Text style={[styles.text, { color: colors.textMuted }]}>
+          {formatPriceChange(null)}
+        </Text>
+      </View>
+    );
   }
 
   const formattedChange = formatPriceChange(change);

@@ -27,25 +27,25 @@ export interface HistoryItem {
 }
 
 export interface Prices {
-  '22_ayar': number;
-  '24_ayar': number;
-  ceyrek: number;
-  tam: number;
-  usd: number;
-  eur: number;
-  tl: number;
-  gumus: number;
+  '22_ayar': number | null;
+  '24_ayar': number | null;
+  ceyrek: number | null;
+  tam: number | null;
+  usd: number | null;
+  eur: number | null;
+  tl: number | null;
+  gumus: number | null;
 }
 
 export interface PriceChanges {
-  '22_ayar': number;
-  '24_ayar': number;
-  ceyrek: number;
-  tam: number;
-  usd: number;
-  eur: number;
-  tl: number;
-  gumus: number;
+  '22_ayar': number | null;
+  '24_ayar': number | null;
+  ceyrek: number | null;
+  tam: number | null;
+  usd: number | null;
+  eur: number | null;
+  tl: number | null;
+  gumus: number | null;
 }
 
 export interface PortfolioState {

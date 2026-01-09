@@ -102,16 +102,16 @@ const convertFromTL = (valueTL: number, targetCurrency: CurrencyType, prices: Pr
     case 'TL':
       return valueTL;
     case 'USD': {
-      const usdPrice = prices.usd || 0;
-      return usdPrice > 0 ? valueTL / usdPrice : 0;
+      const usdPrice = prices.usd;
+      return (usdPrice != null && usdPrice > 0) ? valueTL / usdPrice : 0;
     }
     case 'EUR': {
-      const eurPrice = prices.eur || 0;
-      return eurPrice > 0 ? valueTL / eurPrice : 0;
+      const eurPrice = prices.eur;
+      return (eurPrice != null && eurPrice > 0) ? valueTL / eurPrice : 0;
     }
     case 'ALTIN': {
-      const altinPrice = prices['24_ayar'] || 0;
-      return altinPrice > 0 ? valueTL / altinPrice : 0;
+      const altinPrice = prices['24_ayar'];
+      return (altinPrice != null && altinPrice > 0) ? valueTL / altinPrice : 0;
     }
     default:
       return valueTL;
@@ -272,7 +272,9 @@ const portfolioSlice = createSlice({
         if (prices && typeof prices === 'object') {
           const validatedPrices: Partial<Prices> = {};
           Object.entries(prices).forEach(([key, value]) => {
-            if (typeof value === 'number' && !isNaN(value) && isFinite(value) && value >= 0) {
+            // Accept both number and null values (null indicates unavailable/invalid data)
+            // Finance-safe: Do not hide errors by silently skipping null values
+            if (value === null || (typeof value === 'number' && !isNaN(value) && isFinite(value) && value >= 0)) {
               validatedPrices[key as keyof Prices] = value;
             }
           });
@@ -282,7 +284,8 @@ const portfolioSlice = createSlice({
         if (changes && typeof changes === 'object') {
           const validatedChanges: Partial<PriceChanges> = {};
           Object.entries(changes).forEach(([key, value]) => {
-            if (typeof value === 'number' && !isNaN(value) && isFinite(value)) {
+            // Accept both number and null values (null indicates invalid/missing data)
+            if (value === null || (typeof value === 'number' && !isNaN(value) && isFinite(value))) {
               validatedChanges[key as keyof PriceChanges] = value;
             }
           });

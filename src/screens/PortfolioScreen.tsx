@@ -572,14 +572,15 @@ const PortfolioScreen: React.FC = () => {
     return symbols[currency];
   };
 
-  const getCurrencyChange = (currency: CurrencyType): number => {
+  const getCurrencyChange = (currency: CurrencyType): number | null => {
     const changeMap: Record<CurrencyType, keyof typeof priceChanges> = {
       'TL': 'tl',
       'USD': 'usd',
       'EUR': 'eur',
       'ALTIN': '24_ayar', // Gram altın için 24 ayar change değeri
     };
-    return priceChanges[changeMap[currency]] ?? 0;
+    const change = priceChanges[changeMap[currency]];
+    return change ?? null; // Return null for unavailable data, not 0
   };
 
   const getCurrencyPrice = (currency: CurrencyType): number => {

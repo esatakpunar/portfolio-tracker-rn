@@ -321,7 +321,8 @@ export async function setPrices(prices: Partial<Prices>): Promise<void> {
 
     await db.withTransactionAsync(async () => {
       for (const [assetType, price] of Object.entries(prices)) {
-        if (typeof price === 'number' && !isNaN(price) && isFinite(price) && price >= 0) {
+        // Accept both number and null values (null indicates unavailable/invalid data)
+        if (price === null || (typeof price === 'number' && !isNaN(price) && isFinite(price) && price >= 0)) {
           await db.runAsync(
             `INSERT OR REPLACE INTO portfolio_prices (asset_type, price, updated_at)
              VALUES (?, ?, ?)`,
@@ -348,25 +349,26 @@ export async function getPriceChanges(): Promise<PriceChanges> {
     const db = getDatabase();
     const rows = await db.getAllAsync<{
       asset_type: string;
-      change: number;
+      change: number | null;
     }>(`SELECT asset_type, change FROM portfolio_price_changes`);
 
-    // Default changes (all zeros)
+    // Default changes (all null - indicates no data available)
     const defaultChanges: PriceChanges = {
-      '22_ayar': 0,
-      '24_ayar': 0,
-      ceyrek: 0,
-      tam: 0,
-      usd: 0,
-      eur: 0,
-      tl: 0,
-      gumus: 0,
+      '22_ayar': null,
+      '24_ayar': null,
+      ceyrek: null,
+      tam: null,
+      usd: null,
+      eur: null,
+      tl: null,
+      gumus: null,
     };
 
     // Merge with database values
     const changes: Partial<PriceChanges> = { ...defaultChanges };
     rows.forEach(row => {
       if (row.asset_type in defaultChanges) {
+        // Accept both number and null from database
         changes[row.asset_type as keyof PriceChanges] = row.change;
       }
     });
@@ -376,16 +378,16 @@ export async function getPriceChanges(): Promise<PriceChanges> {
     if (__DEV__) {
       console.error('[REPOSITORY] Error getting price changes:', error);
     }
-    // Return default changes on error
+    // Return default changes on error (all null - no data available)
     return {
-      '22_ayar': 0,
-      '24_ayar': 0,
-      ceyrek: 0,
-      tam: 0,
-      usd: 0,
-      eur: 0,
-      tl: 0,
-      gumus: 0,
+      '22_ayar': null,
+      '24_ayar': null,
+      ceyrek: null,
+      tam: null,
+      usd: null,
+      eur: null,
+      tl: null,
+      gumus: null,
     };
   }
 }
@@ -398,7 +400,8 @@ export async function setPriceChanges(changes: Partial<PriceChanges>): Promise<v
 
     await db.withTransactionAsync(async () => {
       for (const [assetType, change] of Object.entries(changes)) {
-        if (typeof change === 'number' && !isNaN(change) && isFinite(change)) {
+        // Accept both number and null values (null indicates unavailable/invalid data)
+        if (change === null || (typeof change === 'number' && !isNaN(change) && isFinite(change))) {
           await db.runAsync(
             `INSERT OR REPLACE INTO portfolio_price_changes (asset_type, change, updated_at)
              VALUES (?, ?, ?)`,
