@@ -42,7 +42,7 @@ export default function App() {
             const parsed = JSON.parse(storedValue);
             if (parsed.portfolio) {
               const portfolioSlice = await import('./src/store/portfolioSlice');
-              const { setPrices, setLanguage, addItem } = portfolioSlice;
+              const { setPrices, setLanguage, setHistory, setItems } = portfolioSlice;
               
               if (parsed.portfolio.prices) {
                 store.dispatch(setPrices(parsed.portfolio.prices));
@@ -52,15 +52,13 @@ export default function App() {
                 store.dispatch(setLanguage(parsed.portfolio.currentLanguage));
               }
               
+              if (parsed.portfolio.history && parsed.portfolio.history.length > 0) {
+                store.dispatch(setHistory(parsed.portfolio.history));
+              }
+              
               if (parsed.portfolio.items && parsed.portfolio.items.length > 0) {
-                const itemsToRestore = [...parsed.portfolio.items].reverse();
-                for (const item of itemsToRestore) {
-                  store.dispatch(addItem({
-                    type: item.type,
-                    amount: item.amount,
-                    description: item.description,
-                  }));
-                }
+                // Restore items directly without adding to history (history already restored above)
+                store.dispatch(setItems(parsed.portfolio.items));
               }
             }
           }

@@ -254,6 +254,15 @@ const portfolioSlice = createSlice({
     setPrices: (state, action: PayloadAction<Partial<Prices>>) => {
       // Merge strategy: only update provided prices, keep others unchanged
       state.prices = { ...state.prices, ...action.payload };
+    },
+    
+    setHistory: (state, action: PayloadAction<HistoryItem[]>) => {
+      state.history = action.payload;
+    },
+    
+    setItems: (state, action: PayloadAction<PortfolioItem[]>) => {
+      // Set items without adding to history (used for restore operations)
+      state.items = action.payload;
     }
   },
   extraReducers: (builder) => {
@@ -305,7 +314,9 @@ export const {
   updatePrice, 
   setLanguage, 
   resetAll, 
-  setPrices
+  setPrices,
+  setHistory,
+  setItems
 } = portfolioSlice.actions;
 
 export const selectItems = (state: { portfolio: PortfolioState }) => state.portfolio.items;
