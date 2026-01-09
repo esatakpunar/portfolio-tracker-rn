@@ -121,5 +121,10 @@ export default {
   currentMarketPrice: 'Current market price',
   buyPrice: 'Buy',
   sellPrice: 'Sell',
-  spread: 'Spread'
+  spread: 'Spread',
+  profit: 'Profit',
+  loss: 'Loss',
+  profitLoss: 'Profit/Loss',
+  totalProfitLoss: 'Total Profit/Loss',
+  averageCost: 'Average Cost'
 };

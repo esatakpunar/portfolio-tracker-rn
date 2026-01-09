@@ -121,5 +121,10 @@ export default {
   currentMarketPrice: 'Güncel piyasa fiyatı',
   buyPrice: 'Alış',
   sellPrice: 'Satış',
-  spread: 'Fark'
+  spread: 'Fark',
+  profit: 'Kar',
+  loss: 'Zarar',
+  profitLoss: 'Kar/Zarar',
+  totalProfitLoss: 'Toplam Kar/Zarar',
+  averageCost: 'Ortalama Maliyet'
 };

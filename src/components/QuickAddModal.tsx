@@ -19,7 +19,8 @@ import { getAmountPresets } from '../utils/amountPresets';
 import { AssetType } from '../types';
 import { hapticFeedback } from '../utils/haptics';
 import { useAppSelector } from '../hooks/useRedux';
-import { selectPrices } from '../store/portfolioSlice';
+import { selectPrices, selectHistory } from '../store/portfolioSlice';
+import { calculateAverageCost } from '../utils/portfolioUtils';
 
 interface QuickAddModalProps {
   visible: boolean;
@@ -38,12 +39,29 @@ const QuickAddModal: React.FC<QuickAddModalProps> = ({
 }) => {
   const { t, i18n } = useTranslation();
   const prices = useAppSelector(selectPrices);
+  const history = useAppSelector(selectHistory);
   const [amount, setAmount] = useState('');
   const [description, setDescription] = useState('');
   const [priceAtTime, setPriceAtTime] = useState('');
   const [slideAnim] = useState(new Animated.Value(0));
   const scrollViewRef = useRef<ScrollView>(null);
   const descriptionInputWrapperRef = useRef<any>(null);
+  
+  // Calculate average cost for current asset
+  const averageCost = useMemo(() => {
+    if (currentAmount <= 0) {
+      return null;
+    }
+    return calculateAverageCost(assetType, history, currentAmount);
+  }, [assetType, history, currentAmount]);
+  
+  // Calculate total cost
+  const totalCost = useMemo(() => {
+    if (averageCost == null || currentAmount <= 0) {
+      return null;
+    }
+    return currentAmount * averageCost;
+  }, [averageCost, currentAmount]);
   
   const amountValidation = useMemo(() => validateAmount(amount), [amount]);
   const isAmountValid = amountValidation.isValid;
@@ -187,6 +205,11 @@ const QuickAddModal: React.FC<QuickAddModalProps> = ({
                   'tr'
                 )} {getUnit()}
               </Text>
+              {totalCost != null && (
+                <Text style={styles.costText}>
+                  {t('averageCost')}: {formatCurrency(totalCost, i18n.language)} ₺
+                </Text>
+              )}
             </View>
 
             <ScrollView 
@@ -490,6 +513,12 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
     marginTop: spacing.xs,
     fontStyle: 'italic',
+  },
+  costText: {
+    fontSize: fontSize.sm,
+    color: colors.textMuted,
+    fontStyle: 'italic',
+    marginTop: spacing.xs,
   },
 });
 

@@ -16,7 +16,7 @@ import { Swipeable } from 'react-native-gesture-handler';
 import { useTranslation } from 'react-i18next';
 import { Text } from '../components/Text';
 import { useAppSelector, useAppDispatch } from '../hooks/useRedux';
-import { addItem, updateItemAmount, selectItems, selectPrices, selectPriceChanges, selectTotalIn, fetchPrices, selectPriceDataFetchedAt, selectIsUsingBackupPriceData, selectHasPartialPriceUpdate } from '../store/portfolioSlice';
+import { addItem, updateItemAmount, selectItems, selectPrices, selectPriceChanges, selectTotalIn, fetchPrices, selectPriceDataFetchedAt, selectIsUsingBackupPriceData, selectHasPartialPriceUpdate, selectHistory } from '../store/portfolioSlice';
 import { AppDispatch } from '../store';
 import { colors, spacing, borderRadius, fontSize, fontWeight, shadows } from '../theme';
 import { CurrencyType, AssetType, PortfolioItem } from '../types';
@@ -27,8 +27,9 @@ import SwipeableAssetItem from '../components/SwipeableAssetItem';
 import EmptyState from '../components/EmptyState';
 import PriceChangeIndicator from '../components/PriceChangeIndicator';
 import { hapticFeedback } from '../utils/haptics';
-import { formatCurrency, formatLastUpdateTime } from '../utils/formatUtils';
+import { formatCurrency, formatLastUpdateTime, formatPriceChange } from '../utils/formatUtils';
 import { getLastUpdateTime } from '../services/priceBackupService';
+import { calculateAverageCost, calculateProfitLoss } from '../utils/portfolioUtils';
 
 const { width } = Dimensions.get('window');
 const CURRENCIES: CurrencyType[] = ['TL', 'USD', 'EUR', 'ALTIN'];
@@ -42,6 +43,7 @@ const PortfolioScreen: React.FC = () => {
   const priceDataFetchedAt = useAppSelector(selectPriceDataFetchedAt);
   const isUsingBackupPriceData = useAppSelector(selectIsUsingBackupPriceData);
   const hasPartialPriceUpdate = useAppSelector(selectHasPartialPriceUpdate);
+  const history = useAppSelector(selectHistory);
   
   const [currentCurrencyIndex, setCurrentCurrencyIndex] = useState(0);
   const [showAddModal, setShowAddModal] = useState(false);
@@ -52,6 +54,7 @@ const PortfolioScreen: React.FC = () => {
   const [refreshing, setRefreshing] = useState(false);
   const [lastUpdateTime, setLastUpdateTime] = useState<number | null>(null);
   const [isInitialized, setIsInitialized] = useState(false);
+  const [showProfitLoss, setShowProfitLoss] = useState(false);
   
   const swipeableRefs = useRef<Record<string, Swipeable | null>>({});
   const currentlyOpenSwipeable = useRef<string | null>(null);
@@ -173,6 +176,128 @@ const PortfolioScreen: React.FC = () => {
   const uniqueAssetCount = useMemo(() => {
     return Object.keys(groupedItems).length;
   }, [groupedItems]);
+
+  // Calculate average costs and profit/loss for each asset type
+  const assetProfitLoss = useMemo(() => {
+    const result: Record<AssetType, { averageCost: number | null; profitLoss: { amount: number; percentage: number } | null }> = {} as Record<AssetType, { averageCost: number | null; profitLoss: { amount: number; percentage: number } | null }>;
+    
+    Object.entries(groupedItems).forEach(([type, groupItems]) => {
+      const assetType = type as AssetType;
+      const totalAmount = groupItems.reduce((sum, item) => {
+        if (!item || isNaN(item.amount) || !isFinite(item.amount)) {
+          return sum;
+        }
+        return sum + item.amount;
+      }, 0);
+      
+      if (totalAmount <= 0) {
+        result[assetType] = { averageCost: null, profitLoss: null };
+        return;
+      }
+      
+      // Calculate average cost
+      const averageCost = calculateAverageCost(assetType, history, totalAmount);
+      
+      // Calculate current value in TL
+      let currentValueTL: number | null = null;
+      if (assetType === 'tl') {
+        currentValueTL = totalAmount;
+      } else if (assetType === 'usd') {
+        const usdPrice = prices.usd;
+        if (usdPrice != null && !isNaN(usdPrice) && isFinite(usdPrice) && usdPrice > 0) {
+          currentValueTL = totalAmount * usdPrice;
+        }
+      } else if (assetType === 'eur') {
+        const eurPrice = prices.eur;
+        if (eurPrice != null && !isNaN(eurPrice) && isFinite(eurPrice) && eurPrice > 0) {
+          currentValueTL = totalAmount * eurPrice;
+        }
+      } else {
+        const price = prices[assetType];
+        if (price != null && !isNaN(price) && isFinite(price) && price > 0) {
+          currentValueTL = totalAmount * price;
+        }
+      }
+      
+      // Calculate profit/loss
+      const profitLoss = calculateProfitLoss(currentValueTL, averageCost, totalAmount);
+      
+      result[assetType] = { averageCost, profitLoss };
+    });
+    
+    return result;
+  }, [groupedItems, history, prices]);
+
+  // Calculate total profit/loss in TL
+  const totalProfitLoss = useMemo(() => {
+    let totalCost = 0;
+    let totalCurrentValue = 0;
+    let hasValidData = false;
+
+    Object.entries(groupedItems).forEach(([type, groupItems]) => {
+      const assetType = type as AssetType;
+      const totalAmount = groupItems.reduce((sum, item) => {
+        if (!item || isNaN(item.amount) || !isFinite(item.amount)) {
+          return sum;
+        }
+        return sum + item.amount;
+      }, 0);
+
+      if (totalAmount <= 0) {
+        return;
+      }
+
+      const profitLossData = assetProfitLoss[assetType];
+      if (!profitLossData?.averageCost) {
+        return;
+      }
+
+      // Calculate current value in TL
+      let currentValueTL: number | null = null;
+      if (assetType === 'tl') {
+        currentValueTL = totalAmount;
+      } else if (assetType === 'usd') {
+        const usdPrice = prices.usd;
+        if (usdPrice != null && !isNaN(usdPrice) && isFinite(usdPrice) && usdPrice > 0) {
+          currentValueTL = totalAmount * usdPrice;
+        }
+      } else if (assetType === 'eur') {
+        const eurPrice = prices.eur;
+        if (eurPrice != null && !isNaN(eurPrice) && isFinite(eurPrice) && eurPrice > 0) {
+          currentValueTL = totalAmount * eurPrice;
+        }
+      } else {
+        const price = prices[assetType];
+        if (price != null && !isNaN(price) && isFinite(price) && price > 0) {
+          currentValueTL = totalAmount * price;
+        }
+      }
+
+      if (currentValueTL != null && profitLossData.averageCost != null) {
+        const cost = totalAmount * profitLossData.averageCost;
+        totalCost += cost;
+        totalCurrentValue += currentValueTL;
+        hasValidData = true;
+      }
+    });
+
+    if (!hasValidData || totalCost <= 0) {
+      return null;
+    }
+
+    const profitLossAmount = totalCurrentValue - totalCost;
+    const profitLossPercentage = (profitLossAmount / totalCost) * 100;
+
+    if (isNaN(profitLossAmount) || !isFinite(profitLossAmount) ||
+        isNaN(profitLossPercentage) || !isFinite(profitLossPercentage)) {
+      return null;
+    }
+
+    return {
+      amount: profitLossAmount,
+      percentage: profitLossPercentage,
+    };
+  }, [groupedItems, assetProfitLoss, prices]);
 
   // Load last update time on mount
   useEffect(() => {
@@ -441,6 +566,22 @@ const PortfolioScreen: React.FC = () => {
                           <Text style={styles.totalLabel}>{t('total')}</Text>
                           <Text style={styles.currencyLabel}>{t(`currencies.${currency}`)}</Text>
                         </View>
+                        {currency === 'TL' && totalProfitLoss && (
+                          <TouchableOpacity
+                            style={styles.eyeIconButton}
+                            onPress={() => {
+                              hapticFeedback.light();
+                              setShowProfitLoss(!showProfitLoss);
+                            }}
+                            activeOpacity={0.7}
+                          >
+                            <Feather 
+                              name={showProfitLoss ? "eye" : "eye-off"} 
+                              size={20} 
+                              color={colors.textSecondary} 
+                            />
+                          </TouchableOpacity>
+                        )}
                       </View>
                       
                       <View style={styles.totalCardBody}>
@@ -472,10 +613,22 @@ const PortfolioScreen: React.FC = () => {
                             </View>
                           ) : (
                             <View style={styles.priceInfoContainer}>
-                              <Text style={styles.currentValueLabel}>{t('totalAssets')}</Text>
-                              <Text style={styles.totalAssetsText}>
-                                {uniqueAssetCount} {uniqueAssetCount === 1 ? t('asset') : t('assets')}
-                              </Text>
+                              {totalProfitLoss && showProfitLoss && (
+                                <View style={styles.totalProfitLossContainer}>
+                                  <Text style={styles.totalProfitLossLabel}>{t('totalProfitLoss')}</Text>
+                                  <View style={styles.totalProfitLossRow}>
+                                    <Text style={[
+                                      styles.totalProfitLossAmount,
+                                      { color: totalProfitLoss.amount >= 0 ? colors.success : colors.error }
+                                    ]}>
+                                      {totalProfitLoss.amount >= 0 ? t('profit') : t('loss')}: {formatCurrency(Math.abs(totalProfitLoss.amount), i18n.language)} ₺
+                                    </Text>
+                                    <View style={styles.changeIndicatorWrapper}>
+                                      <PriceChangeIndicator change={totalProfitLoss.percentage} />
+                                    </View>
+                                  </View>
+                                </View>
+                              )}
                             </View>
                           )}
                         </View>
@@ -720,6 +873,24 @@ const PortfolioScreen: React.FC = () => {
                 i18n.language
               )} {currencySymbol}
             </Text>
+            {(() => {
+              const profitLossData = assetProfitLoss[type];
+              if (showProfitLoss && profitLossData?.profitLoss && currentCurrency === 'TL') {
+                const { amount, percentage } = profitLossData.profitLoss;
+                const isProfit = amount >= 0;
+                return (
+                  <View style={styles.profitLossContainer}>
+                    <Text style={[
+                      styles.profitLossText,
+                      { color: isProfit ? colors.success : colors.error }
+                    ]}>
+                      {isProfit ? t('profit') : t('loss')}: {formatCurrency(Math.abs(amount), i18n.language)} ₺ ({formatPriceChange(percentage)})
+                    </Text>
+                  </View>
+                );
+              }
+              return null;
+            })()}
           </View>
         </TouchableOpacity>
       </SwipeableAssetItem>
@@ -763,7 +934,13 @@ const PortfolioScreen: React.FC = () => {
 
         <TouchableWithoutFeedback onPress={closeAllSwipeables}>
           <View style={styles.assetsContainer}>
-            <Text style={styles.sectionTitle}>{t('assets')}</Text>
+            <Text style={styles.sectionTitle}>
+              {t('assets')} {uniqueAssetCount > 0 && (
+                <Text style={styles.assetCountText}>
+                  ({uniqueAssetCount})
+                </Text>
+              )}
+            </Text>
             
             {items.length === 0 ? (
               <EmptyState
@@ -923,6 +1100,11 @@ const styles = StyleSheet.create({
   },
   currencyInfo: {
     flex: 1,
+  },
+  eyeIconButton: {
+    padding: spacing.xs,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   totalCardBody: {
     alignItems: 'flex-start',
@@ -1108,10 +1290,10 @@ const styles = StyleSheet.create({
   emptyChangeIndicator: {
     height: 20,
   },
-  totalAssetsText: {
-    fontSize: fontSize.sm,
-    fontWeight: fontWeight.medium,
-    color: colors.textSecondary,
+  assetCountText: {
+    fontSize: fontSize.lg,
+    fontWeight: fontWeight.normal,
+    color: colors.textMuted,
   },
   lastUpdateContainer: {
     marginTop: spacing.sm,
@@ -1130,6 +1312,36 @@ const styles = StyleSheet.create({
   partialUpdateWarningText: {
     fontSize: fontSize.xs,
     color: colors.error,
+    fontWeight: fontWeight.semibold,
+  },
+  profitLossContainer: {
+    marginTop: spacing.xs,
+    alignItems: 'flex-end',
+  },
+  profitLossText: {
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.medium,
+    lineHeight: 14,
+  },
+  totalProfitLossContainer: {
+    marginTop: spacing.md,
+    alignItems: 'flex-start',
+    alignSelf: 'stretch',
+  },
+  totalProfitLossLabel: {
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.medium,
+    color: colors.textSecondary,
+    marginBottom: spacing.xs,
+  },
+  totalProfitLossRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    width: '100%',
+  },
+  totalProfitLossAmount: {
+    fontSize: fontSize.sm,
     fontWeight: fontWeight.semibold,
   },
 });

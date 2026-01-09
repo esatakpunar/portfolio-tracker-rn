@@ -121,5 +121,10 @@ export default {
   currentMarketPrice: 'Aktueller Marktpreis',
   buyPrice: 'Kauf',
   sellPrice: 'Verkauf',
-  spread: 'Spannweite'
+  spread: 'Spannweite',
+  profit: 'Gewinn',
+  loss: 'Verlust',
+  profitLoss: 'Gewinn/Verlust',
+  totalProfitLoss: 'Gesamtgewinn/Verlust',
+  averageCost: 'Durchschnittskosten'
 };
