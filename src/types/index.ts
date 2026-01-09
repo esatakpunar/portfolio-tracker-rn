@@ -24,6 +24,7 @@ export interface HistoryItem {
   date: string;
   description?: string;
   previousAmount?: number;
+  priceAtTime?: number | null; // Price of the asset at the time of transaction (in TL)
 }
 
 export interface Prices {

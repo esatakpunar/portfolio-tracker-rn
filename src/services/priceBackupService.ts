@@ -45,6 +45,15 @@ export async function getBackup(): Promise<PriceData | null> {
       return null;
     }
 
+    // Finance-safe: Check backup age - reject backups older than 24 hours
+    const MAX_BACKUP_AGE_MS = 24 * 60 * 60 * 1000; // 24 hours
+    const backupAge = Date.now() - row.fetched_at;
+    
+    if (backupAge > MAX_BACKUP_AGE_MS) {
+      // Backup is too old, return null to force fresh fetch
+      return null;
+    }
+
     let prices: Prices;
     let changes: PriceChanges;
 
@@ -110,6 +119,7 @@ export async function getBackup(): Promise<PriceData | null> {
     return {
       prices,
       changes,
+      fetchedAt: row.fetched_at,
     };
   } catch (error) {
     return null;

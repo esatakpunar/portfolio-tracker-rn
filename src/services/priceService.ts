@@ -156,6 +156,8 @@ const validateApiResponse = (data: any): data is ApiResponse => {
 export interface PriceData {
   prices: Prices;
   changes: PriceChanges;
+  fetchedAt?: number; // Timestamp when prices were fetched (for backup age checking)
+  isBackup?: boolean; // Indicates if this data is from backup
 }
 
 /**
@@ -247,11 +249,19 @@ export const fetchPrices = async (): Promise<PriceData> => {
     
     await saveBackup(prices, changes);
     
-    return { prices, changes };
+    return { 
+      prices, 
+      changes,
+      fetchedAt: Date.now(),
+      isBackup: false
+    };
   } catch (error) {
     const backup = await getBackup();
     if (backup) {
-      return backup;
+      return {
+        ...backup,
+        isBackup: true
+      };
     }
     
     throw new Error('API failed and no backup available');

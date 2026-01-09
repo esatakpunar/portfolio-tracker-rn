@@ -114,5 +114,9 @@ export default {
   lastUpdated: 'Son güncelleme',
   justNow: 'Az önce',
   minutesAgo: 'dakika önce',
-  hoursAgo: 'saat önce'
+  hoursAgo: 'saat önce',
+  usingBackupData: 'Yedek veri kullanılıyor',
+  partialPriceUpdate: 'Bazı fiyatlar güncellenemedi',
+  priceAtTime: 'İşlem Anındaki Fiyat (TL)',
+  currentMarketPrice: 'Güncel piyasa fiyatı'
 };

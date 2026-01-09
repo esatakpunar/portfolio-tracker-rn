@@ -9,6 +9,9 @@ interface PortfolioState {
   priceChanges: PriceChanges;
   history: HistoryItem[];
   currentLanguage: string;
+  priceDataFetchedAt?: number; // Timestamp when prices were fetched
+  isUsingBackupPriceData?: boolean; // Indicates if current prices are from backup
+  hasPartialPriceUpdate?: boolean; // Indicates if some prices failed to update
 }
 
 const initialPrices: Prices = {
@@ -63,7 +66,7 @@ export const fetchPrices = createAsyncThunk(
   }
 );
 
-const getItemValueInTL = (item: PortfolioItem, prices: Prices): number => {
+const getItemValueInTL = (item: PortfolioItem, prices: Prices): number | null => {
   // Validate inputs
   if (!item || !item.type || isNaN(item.amount) || !isFinite(item.amount) || item.amount < 0) {
     return 0;
@@ -72,27 +75,30 @@ const getItemValueInTL = (item: PortfolioItem, prices: Prices): number => {
   if (item.type === 'tl') {
     return item.amount;
   } else if (item.type === 'usd') {
-    const usdPrice = prices.usd || 0;
-    if (isNaN(usdPrice) || !isFinite(usdPrice) || usdPrice < 0) {
-      return 0;
+    const usdPrice = prices.usd;
+    // Finance-safe: Return null if price is unavailable, do not hide errors with 0
+    if (usdPrice == null || isNaN(usdPrice) || !isFinite(usdPrice) || usdPrice <= 0) {
+      return null;
     }
     return item.amount * usdPrice;
   } else if (item.type === 'eur') {
-    const eurPrice = prices.eur || 0;
-    if (isNaN(eurPrice) || !isFinite(eurPrice) || eurPrice < 0) {
-      return 0;
+    const eurPrice = prices.eur;
+    // Finance-safe: Return null if price is unavailable, do not hide errors with 0
+    if (eurPrice == null || isNaN(eurPrice) || !isFinite(eurPrice) || eurPrice <= 0) {
+      return null;
     }
     return item.amount * eurPrice;
   } else {
-    const price = prices[item.type] || 0;
-    if (isNaN(price) || !isFinite(price) || price < 0) {
-      return 0;
+    const price = prices[item.type];
+    // Finance-safe: Return null if price is unavailable, do not hide errors with 0
+    if (price == null || isNaN(price) || !isFinite(price) || price <= 0) {
+      return null;
     }
     return item.amount * price;
   }
 };
 
-const convertFromTL = (valueTL: number, targetCurrency: CurrencyType, prices: Prices): number => {
+const convertFromTL = (valueTL: number, targetCurrency: CurrencyType, prices: Prices): number | null => {
   // Validate input
   if (isNaN(valueTL) || !isFinite(valueTL) || valueTL < 0) {
     return 0;
@@ -103,15 +109,27 @@ const convertFromTL = (valueTL: number, targetCurrency: CurrencyType, prices: Pr
       return valueTL;
     case 'USD': {
       const usdPrice = prices.usd;
-      return (usdPrice != null && usdPrice > 0) ? valueTL / usdPrice : 0;
+      // Finance-safe: Return null if price is unavailable, do not hide errors with 0
+      if (usdPrice == null || isNaN(usdPrice) || !isFinite(usdPrice) || usdPrice <= 0) {
+        return null;
+      }
+      return valueTL / usdPrice;
     }
     case 'EUR': {
       const eurPrice = prices.eur;
-      return (eurPrice != null && eurPrice > 0) ? valueTL / eurPrice : 0;
+      // Finance-safe: Return null if price is unavailable, do not hide errors with 0
+      if (eurPrice == null || isNaN(eurPrice) || !isFinite(eurPrice) || eurPrice <= 0) {
+        return null;
+      }
+      return valueTL / eurPrice;
     }
     case 'ALTIN': {
       const altinPrice = prices['24_ayar'];
-      return (altinPrice != null && altinPrice > 0) ? valueTL / altinPrice : 0;
+      // Finance-safe: Return null if price is unavailable, do not hide errors with 0
+      if (altinPrice == null || isNaN(altinPrice) || !isFinite(altinPrice) || altinPrice <= 0) {
+        return null;
+      }
+      return valueTL / altinPrice;
     }
     default:
       return valueTL;
@@ -122,8 +140,8 @@ const portfolioSlice = createSlice({
   name: 'portfolio',
   initialState,
   reducers: {
-    addItem: (state, action: PayloadAction<Omit<PortfolioItem, 'id' | 'date'>>) => {
-      const { type, amount } = action.payload;
+    addItem: (state, action: PayloadAction<Omit<PortfolioItem, 'id' | 'date'> & { priceAtTime?: number | null }>) => {
+      const { type, amount, priceAtTime } = action.payload;
       
       // Validate input
       if (!type || isNaN(amount) || !isFinite(amount) || amount <= 0) {
@@ -131,18 +149,26 @@ const portfolioSlice = createSlice({
       }
       
       const newItem: PortfolioItem = {
-        ...action.payload,
+        type,
+        amount,
+        description: action.payload.description,
         id: Date.now().toString(),
         date: new Date().toISOString()
       };
       
       state.items.push(newItem);
       
+      // Use provided priceAtTime or calculate from current prices
+      const finalPriceAtTime = priceAtTime != null 
+        ? priceAtTime 
+        : (getItemValueInTL(newItem, state.prices) ?? null);
+      
       state.history.unshift({
         type: 'add',
         item: newItem,
         date: new Date().toISOString(),
-        description: newItem.description || ''
+        description: newItem.description || '',
+        priceAtTime: finalPriceAtTime
       });
     },
     
@@ -153,16 +179,20 @@ const portfolioSlice = createSlice({
         const removed = state.items[index];
         state.items.splice(index, 1);
         
+        // Calculate price at time of transaction
+        const priceAtTime = getItemValueInTL(removed, state.prices);
+        
         state.history.unshift({
           type: 'remove',
           item: removed,
-          date: new Date().toISOString()
+          date: new Date().toISOString(),
+          priceAtTime: priceAtTime != null ? priceAtTime : null
         });
       }
     },
     
-    updateItemAmount: (state, action: PayloadAction<{ type: AssetType; newAmount: number; description?: string }>) => {
-      const { type, newAmount, description } = action.payload;
+    updateItemAmount: (state, action: PayloadAction<{ type: AssetType; newAmount: number; description?: string; priceAtTime?: number | null }>) => {
+      const { type, newAmount, description, priceAtTime } = action.payload;
       
       // Validate input
       if (!type || isNaN(newAmount) || !isFinite(newAmount) || newAmount < 0) {
@@ -190,11 +220,17 @@ const portfolioSlice = createSlice({
         
         state.items.push(newItem);
         
+        // Use provided priceAtTime or calculate from current prices
+        const finalPriceAtTime = priceAtTime != null 
+          ? priceAtTime 
+          : (getItemValueInTL(newItem, state.prices) ?? null);
+        
         state.history.unshift({
           type: 'add',
           item: newItem,
           date: new Date().toISOString(),
           description: description || undefined, // Description will be set in component level with i18n
+          priceAtTime: finalPriceAtTime
         });
       } else {
         // Removing assets (difference is negative)
@@ -219,6 +255,17 @@ const portfolioSlice = createSlice({
           }
         }
         
+        // Use provided priceAtTime or calculate from current prices for the removed amount
+        const removedItemForPrice: PortfolioItem = {
+          type,
+          amount: amountToRemove,
+          id: Date.now().toString(),
+          date: new Date().toISOString()
+        };
+        const finalPriceAtTime = priceAtTime != null 
+          ? priceAtTime 
+          : (getItemValueInTL(removedItemForPrice, state.prices) ?? null);
+        
         state.history.unshift({
           type: 'remove',
           item: { 
@@ -229,6 +276,7 @@ const portfolioSlice = createSlice({
           },
           date: new Date().toISOString(),
           description: description || undefined, // Description will be set in component level with i18n
+          priceAtTime: finalPriceAtTime
         });
       }
     },
@@ -276,17 +324,29 @@ const portfolioSlice = createSlice({
           return;
         }
 
-        const { prices, changes } = action.payload;
+        const { prices, changes, fetchedAt, isBackup } = action.payload;
+        
+        // Check if this is a partial update (some prices are null/missing)
+        const requiredPriceKeys: (keyof Prices)[] = ['22_ayar', '24_ayar', 'ceyrek', 'tam', 'usd', 'eur', 'tl', 'gumus'];
+        let hasPartialUpdate = false;
         
         if (prices && typeof prices === 'object') {
           const validatedPrices: Partial<Prices> = {};
+          const updatedKeys: string[] = [];
+          
           Object.entries(prices).forEach(([key, value]) => {
             // Accept both number and null values (null indicates unavailable/invalid data)
             // Finance-safe: Do not hide errors by silently skipping null values
             if (value === null || (typeof value === 'number' && !isNaN(value) && isFinite(value) && value >= 0)) {
               validatedPrices[key as keyof Prices] = value;
+              updatedKeys.push(key);
             }
           });
+          
+          // Check if all required prices were updated
+          const allPricesUpdated = requiredPriceKeys.every(key => updatedKeys.includes(key));
+          hasPartialUpdate = !allPricesUpdated;
+          
           state.prices = { ...state.prices, ...validatedPrices };
         }
         
@@ -300,6 +360,11 @@ const portfolioSlice = createSlice({
           });
           state.priceChanges = { ...state.priceChanges, ...validatedChanges };
         }
+        
+        // Store metadata about price data source
+        state.priceDataFetchedAt = fetchedAt || Date.now();
+        state.isUsingBackupPriceData = isBackup || false;
+        state.hasPartialPriceUpdate = hasPartialUpdate;
       })
       .addCase(fetchPrices.rejected, (state) => {
         // Keep existing prices on error
@@ -324,6 +389,9 @@ export const selectPrices = (state: { portfolio: PortfolioState }) => state.port
 export const selectPriceChanges = (state: { portfolio: PortfolioState }) => state.portfolio.priceChanges;
 export const selectHistory = (state: { portfolio: PortfolioState }) => state.portfolio.history;
 export const selectLanguage = (state: { portfolio: PortfolioState }) => state.portfolio.currentLanguage;
+export const selectPriceDataFetchedAt = (state: { portfolio: PortfolioState }) => state.portfolio.priceDataFetchedAt;
+export const selectIsUsingBackupPriceData = (state: { portfolio: PortfolioState }) => state.portfolio.isUsingBackupPriceData;
+export const selectHasPartialPriceUpdate = (state: { portfolio: PortfolioState }) => state.portfolio.hasPartialPriceUpdate;
 
 export const selectTotalTL = (state: { portfolio: PortfolioState }) => {
   if (!state.portfolio?.items || state.portfolio.items.length === 0) {
@@ -333,7 +401,9 @@ export const selectTotalTL = (state: { portfolio: PortfolioState }) => {
     if (!item || !item.type || isNaN(item.amount)) {
       return sum;
     }
-    return sum + getItemValueInTL(item, state.portfolio.prices);
+    const value = getItemValueInTL(item, state.portfolio.prices);
+    // Finance-safe: Skip items with null prices (unavailable data), do not add 0
+    return value != null ? sum + value : sum;
   }, 0);
 };
 
@@ -358,9 +428,13 @@ export const selectTotalIn = (currency: CurrencyType) => (state: { portfolio: Po
       return sum + (item.amount * gramEquivalents[item.type]);
     } else {
       const valueTL = getItemValueInTL(item, state.portfolio.prices);
+      // Finance-safe: Skip items with null prices (unavailable data)
+      if (valueTL == null) {
+        return sum;
+      }
       const convertedValue = convertFromTL(valueTL, currency, state.portfolio.prices);
-      // Check for NaN or Infinity
-      if (isNaN(convertedValue) || !isFinite(convertedValue)) {
+      // Finance-safe: Skip items with null conversion (unavailable price data)
+      if (convertedValue == null || isNaN(convertedValue) || !isFinite(convertedValue)) {
         return sum;
       }
       return sum + convertedValue;

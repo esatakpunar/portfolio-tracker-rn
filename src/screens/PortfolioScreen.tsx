@@ -15,7 +15,7 @@ import { Swipeable } from 'react-native-gesture-handler';
 import { useTranslation } from 'react-i18next';
 import { Text } from '../components/Text';
 import { useAppSelector, useAppDispatch } from '../hooks/useRedux';
-import { addItem, updateItemAmount, selectItems, selectPrices, selectPriceChanges, selectTotalIn, fetchPrices } from '../store/portfolioSlice';
+import { addItem, updateItemAmount, selectItems, selectPrices, selectPriceChanges, selectTotalIn, fetchPrices, selectPriceDataFetchedAt, selectIsUsingBackupPriceData, selectHasPartialPriceUpdate } from '../store/portfolioSlice';
 import { AppDispatch } from '../store';
 import { colors, spacing, borderRadius, fontSize, fontWeight, shadows } from '../theme';
 import { CurrencyType, AssetType, PortfolioItem } from '../types';
@@ -38,6 +38,9 @@ const PortfolioScreen: React.FC = () => {
   const items = useAppSelector(selectItems);
   const prices = useAppSelector(selectPrices);
   const priceChanges = useAppSelector(selectPriceChanges);
+  const priceDataFetchedAt = useAppSelector(selectPriceDataFetchedAt);
+  const isUsingBackupPriceData = useAppSelector(selectIsUsingBackupPriceData);
+  const hasPartialPriceUpdate = useAppSelector(selectHasPartialPriceUpdate);
   
   const [currentCurrencyIndex, setCurrentCurrencyIndex] = useState(0);
   const [showAddModal, setShowAddModal] = useState(false);
@@ -92,29 +95,55 @@ const PortfolioScreen: React.FC = () => {
           total += item.amount * gramEquivalents[item.type];
         } else {
           // Calculate value in TL first
-          let valueTL = 0;
+          let valueTL: number | null = null;
           if (item.type === 'tl') {
             valueTL = item.amount;
           } else if (item.type === 'usd') {
-            valueTL = item.amount * (prices.usd || 0);
+            const usdPrice = prices.usd;
+            // Finance-safe: Skip if price is unavailable (null), do not use 0
+            if (usdPrice != null && !isNaN(usdPrice) && isFinite(usdPrice) && usdPrice > 0) {
+              valueTL = item.amount * usdPrice;
+            }
           } else if (item.type === 'eur') {
-            valueTL = item.amount * (prices.eur || 0);
+            const eurPrice = prices.eur;
+            // Finance-safe: Skip if price is unavailable (null), do not use 0
+            if (eurPrice != null && !isNaN(eurPrice) && isFinite(eurPrice) && eurPrice > 0) {
+              valueTL = item.amount * eurPrice;
+            }
           } else {
-            valueTL = item.amount * (prices[item.type] || 0);
+            const price = prices[item.type];
+            // Finance-safe: Skip if price is unavailable (null), do not use 0
+            if (price != null && !isNaN(price) && isFinite(price) && price > 0) {
+              valueTL = item.amount * price;
+            }
+          }
+          
+          // Skip if valueTL is null (price unavailable)
+          if (valueTL == null) {
+            return; // Skip this item in calculation
           }
           
           // Convert to target currency
           if (currency === 'TL') {
             total += valueTL;
           } else if (currency === 'USD') {
-            const usdPrice = prices.usd || 0;
-            total += usdPrice > 0 ? valueTL / usdPrice : 0;
+            const usdPrice = prices.usd;
+            // Finance-safe: Skip if price is unavailable (null), do not use 0
+            if (usdPrice != null && !isNaN(usdPrice) && isFinite(usdPrice) && usdPrice > 0) {
+              total += valueTL / usdPrice;
+            }
           } else if (currency === 'EUR') {
-            const eurPrice = prices.eur || 0;
-            total += eurPrice > 0 ? valueTL / eurPrice : 0;
+            const eurPrice = prices.eur;
+            // Finance-safe: Skip if price is unavailable (null), do not use 0
+            if (eurPrice != null && !isNaN(eurPrice) && isFinite(eurPrice) && eurPrice > 0) {
+              total += valueTL / eurPrice;
+            }
           } else if (currency === 'ALTIN') {
-            const altinPrice = prices['24_ayar'] || 0;
-            total += altinPrice > 0 ? valueTL / altinPrice : 0;
+            const altinPrice = prices['24_ayar'];
+            // Finance-safe: Skip if price is unavailable (null), do not use 0
+            if (altinPrice != null && !isNaN(altinPrice) && isFinite(altinPrice) && altinPrice > 0) {
+              total += valueTL / altinPrice;
+            }
           }
         }
       });
@@ -190,12 +219,12 @@ const PortfolioScreen: React.FC = () => {
     ]).start();
   }, [safeCurrencyIndex]);
 
-  const handleAddItem = (type: AssetType, amount: number, description?: string) => {
+  const handleAddItem = (type: AssetType, amount: number, description?: string, priceAtTime?: number | null) => {
     // Validate inputs
     if (!type || isNaN(amount) || !isFinite(amount) || amount <= 0) {
       return;
     }
-    dispatch(addItem({ type, amount, description }));
+    dispatch(addItem({ type, amount, description, priceAtTime }));
     hapticFeedback.success();
   };
 
@@ -206,7 +235,7 @@ const PortfolioScreen: React.FC = () => {
     setShowQuickAddModal(true);
   };
 
-  const handleQuickAdd = (amount: number, description?: string) => {
+  const handleQuickAdd = (amount: number, description?: string, priceAtTime?: number | null) => {
     if (selectedAssetType) {
       // Validate amount
       if (isNaN(amount) || !isFinite(amount) || amount <= 0) {
@@ -229,7 +258,7 @@ const PortfolioScreen: React.FC = () => {
       }
 
       const finalDescription = description || t('amountIncreased');
-      dispatch(updateItemAmount({ type: selectedAssetType, newAmount, description: finalDescription }));
+      dispatch(updateItemAmount({ type: selectedAssetType, newAmount, description: finalDescription, priceAtTime }));
       hapticFeedback.medium();
       hapticFeedback.success();
     }
@@ -258,7 +287,7 @@ const PortfolioScreen: React.FC = () => {
     currentlyOpenSwipeable.current = null;
   };
 
-  const handleQuickRemove = (amountToRemove: number, description?: string) => {
+  const handleQuickRemove = (amountToRemove: number, description?: string, priceAtTime?: number | null) => {
     if (selectedAssetType) {
       // Validate amountToRemove
       if (isNaN(amountToRemove) || !isFinite(amountToRemove) || amountToRemove <= 0) {
@@ -281,7 +310,7 @@ const PortfolioScreen: React.FC = () => {
       }
       
       const finalDescription = description || t('amountDecreased');
-      dispatch(updateItemAmount({ type: selectedAssetType, newAmount, description: finalDescription }));
+      dispatch(updateItemAmount({ type: selectedAssetType, newAmount, description: finalDescription, priceAtTime }));
       hapticFeedback.heavy();
     }
   };
@@ -428,7 +457,12 @@ const PortfolioScreen: React.FC = () => {
                               <Text style={styles.currentValueLabel}>{t('currentValue')}</Text>
                               <View style={styles.priceInfoRow}>
                                 <Text style={styles.currentPriceText}>
-                                  {formatCurrency(getCurrencyPrice(currency), i18n.language)} ₺
+                                  {(() => {
+                                    const price = getCurrencyPrice(currency);
+                                    return price != null 
+                                      ? `${formatCurrency(price, i18n.language)} ₺`
+                                      : '—';
+                                  })()}
                                 </Text>
                                 <View style={styles.changeIndicatorWrapper}>
                                   <PriceChangeIndicator change={getCurrencyChange(currency)} />
@@ -444,10 +478,16 @@ const PortfolioScreen: React.FC = () => {
                             </View>
                           )}
                         </View>
-                        {lastUpdateTime && (
+                        {(priceDataFetchedAt || lastUpdateTime) && (
                           <View style={styles.lastUpdateContainer}>
                             <Text style={styles.lastUpdateText}>
-                              {t('lastUpdated')}: {formatLastUpdateTime(lastUpdateTime, i18n.language, t)}
+                              {t('lastUpdated')}: {formatLastUpdateTime(priceDataFetchedAt || lastUpdateTime || 0, i18n.language, t)}
+                              {isUsingBackupPriceData && (
+                                <Text style={styles.backupWarningText}> • {t('usingBackupData') || 'Using backup data'}</Text>
+                              )}
+                              {hasPartialPriceUpdate && (
+                                <Text style={styles.partialUpdateWarningText}> • {t('partialPriceUpdate') || 'Some prices unavailable'}</Text>
+                              )}
                             </Text>
                           </View>
                         )}
@@ -524,7 +564,7 @@ const PortfolioScreen: React.FC = () => {
     targetCurrency: CurrencyType, 
     itemType: AssetType,
     itemAmount: number
-  ): number => {
+  ): number | null => {
     // Validate inputs
     if (isNaN(valueTL) || !isFinite(valueTL) || valueTL < 0) {
       return 0;
@@ -537,12 +577,20 @@ const PortfolioScreen: React.FC = () => {
       return valueTL;
     }
     if (targetCurrency === 'USD') {
-      const usdPrice = prices.usd || 0;
-      return usdPrice > 0 ? valueTL / usdPrice : 0;
+      const usdPrice = prices.usd;
+      // Finance-safe: Return null if price is unavailable, do not use 0
+      if (usdPrice == null || isNaN(usdPrice) || !isFinite(usdPrice) || usdPrice <= 0) {
+        return null;
+      }
+      return valueTL / usdPrice;
     }
     if (targetCurrency === 'EUR') {
-      const eurPrice = prices.eur || 0;
-      return eurPrice > 0 ? valueTL / eurPrice : 0;
+      const eurPrice = prices.eur;
+      // Finance-safe: Return null if price is unavailable, do not use 0
+      if (eurPrice == null || isNaN(eurPrice) || !isFinite(eurPrice) || eurPrice <= 0) {
+        return null;
+      }
+      return valueTL / eurPrice;
     }
     if (targetCurrency === 'ALTIN') {
       const gramEquivalents: Record<string, number> = {
@@ -555,8 +603,12 @@ const PortfolioScreen: React.FC = () => {
       if (gramEquivalents[itemType]) {
         return itemAmount * gramEquivalents[itemType];
       } else {
-        const altinPrice = prices['24_ayar'] || 0;
-        return altinPrice > 0 ? valueTL / altinPrice : 0;
+        const altinPrice = prices['24_ayar'];
+        // Finance-safe: Return null if price is unavailable, do not use 0
+        if (altinPrice == null || isNaN(altinPrice) || !isFinite(altinPrice) || altinPrice <= 0) {
+          return null;
+        }
+        return valueTL / altinPrice;
       }
     }
     return valueTL;
@@ -583,14 +635,16 @@ const PortfolioScreen: React.FC = () => {
     return change ?? null; // Return null for unavailable data, not 0
   };
 
-  const getCurrencyPrice = (currency: CurrencyType): number => {
+  const getCurrencyPrice = (currency: CurrencyType): number | null => {
     const priceMap: Record<CurrencyType, keyof typeof prices> = {
       'TL': 'tl',
       'USD': 'usd',
       'EUR': 'eur',
       'ALTIN': '24_ayar', // Gram altın için 24 ayar fiyatı
     };
-    return prices[priceMap[currency]] ?? 0;
+    const price = prices[priceMap[currency]];
+    // Finance-safe: Return null for unavailable data, not 0
+    return price ?? null;
   };
 
   const renderAssetGroup = (type: AssetType, groupItems: PortfolioItem[]) => {
@@ -611,16 +665,17 @@ const PortfolioScreen: React.FC = () => {
       return null;
     }
     
-    const pricePerUnit = prices[type] || 0;
-    if (isNaN(pricePerUnit) || !isFinite(pricePerUnit) || pricePerUnit <= 0) {
+    const pricePerUnit = prices[type];
+    // Finance-safe: Return null if price is unavailable, do not use 0
+    if (pricePerUnit == null || isNaN(pricePerUnit) || !isFinite(pricePerUnit) || pricePerUnit <= 0) {
       return null;
     }
     
     const totalValueTL = totalAmount * pricePerUnit;
     const convertedValue = convertToTargetCurrency(totalValueTL, currentCurrency, type, totalAmount);
     
-    // Validate converted value
-    if (isNaN(convertedValue) || !isFinite(convertedValue)) {
+    // Finance-safe: Return null if conversion failed (unavailable price data)
+    if (convertedValue == null || isNaN(convertedValue) || !isFinite(convertedValue)) {
       return null;
     }
     
@@ -1071,6 +1126,16 @@ const styles = StyleSheet.create({
     fontSize: fontSize.xs,
     color: colors.textMuted,
     fontWeight: fontWeight.medium,
+  },
+  backupWarningText: {
+    fontSize: fontSize.xs,
+    color: colors.error,
+    fontWeight: fontWeight.semibold,
+  },
+  partialUpdateWarningText: {
+    fontSize: fontSize.xs,
+    color: colors.error,
+    fontWeight: fontWeight.semibold,
   },
 });
 

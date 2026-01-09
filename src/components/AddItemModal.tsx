@@ -18,11 +18,14 @@ import { validateAmount } from '../utils/validationUtils';
 import { getAmountPresets } from '../utils/amountPresets';
 import { AssetType } from '../types';
 import { hapticFeedback } from '../utils/haptics';
+import { useAppSelector } from '../hooks/useRedux';
+import { selectPrices } from '../store/portfolioSlice';
+import { formatCurrency } from '../utils/formatUtils';
 
 interface AddItemModalProps {
   visible: boolean;
   onClose: () => void;
-  onAdd: (type: AssetType, amount: number, description?: string) => void;
+  onAdd: (type: AssetType, amount: number, description?: string, priceAtTime?: number | null) => void;
 }
 
 const assetTypes: AssetType[] = [
@@ -37,15 +40,47 @@ const assetTypes: AssetType[] = [
 ];
 
 const AddItemModal: React.FC<AddItemModalProps> = ({ visible, onClose, onAdd }) => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const prices = useAppSelector(selectPrices);
   const [selectedType, setSelectedType] = useState<AssetType>('22_ayar');
   const [amount, setAmount] = useState('');
   const [description, setDescription] = useState('');
+  const [priceAtTime, setPriceAtTime] = useState('');
   const [showTypePicker, setShowTypePicker] = useState(false);
   const [slideAnim] = useState(new Animated.Value(0));
   
   const amountValidation = useMemo(() => validateAmount(amount), [amount]);
   const isAmountValid = amountValidation.isValid;
+  
+  // Calculate default price based on current prices and amount
+  const calculateDefaultPrice = useMemo(() => {
+    if (!amount || !amountValidation.isValid || !amountValidation.value) {
+      return null;
+    }
+    
+    const amountValue = amountValidation.value;
+    if (selectedType === 'tl') {
+      return amountValue;
+    } else if (selectedType === 'usd') {
+      const usdPrice = prices.usd;
+      return (usdPrice != null && usdPrice > 0) ? amountValue * usdPrice : null;
+    } else if (selectedType === 'eur') {
+      const eurPrice = prices.eur;
+      return (eurPrice != null && eurPrice > 0) ? amountValue * eurPrice : null;
+    } else {
+      const price = prices[selectedType];
+      return (price != null && price > 0) ? amountValue * price : null;
+    }
+  }, [amount, selectedType, prices, amountValidation]);
+  
+  // Update priceAtTime when amount or type changes
+  useEffect(() => {
+    if (calculateDefaultPrice != null) {
+      setPriceAtTime(calculateDefaultPrice.toFixed(2));
+    } else {
+      setPriceAtTime('');
+    }
+  }, [calculateDefaultPrice]);
 
   useEffect(() => {
     if (visible) {
@@ -58,6 +93,7 @@ const AddItemModal: React.FC<AddItemModalProps> = ({ visible, onClose, onAdd }) 
       setSelectedType('24_ayar');
       setAmount('');
       setDescription('');
+      setPriceAtTime('');
       setShowTypePicker(false);
     } else {
       slideAnim.setValue(0);
@@ -67,9 +103,20 @@ const AddItemModal: React.FC<AddItemModalProps> = ({ visible, onClose, onAdd }) 
   const handleAdd = () => {
     const validation = validateAmount(amount);
     if (validation.isValid && validation.value !== undefined) {
-      onAdd(selectedType, validation.value, description || undefined);
+      // Parse priceAtTime
+      let parsedPriceAtTime: number | null = null;
+      if (priceAtTime.trim() !== '') {
+        const normalized = priceAtTime.replace(',', '.');
+        const parsed = parseFloat(normalized);
+        if (!isNaN(parsed) && isFinite(parsed) && parsed >= 0) {
+          parsedPriceAtTime = parsed;
+        }
+      }
+      
+      onAdd(selectedType, validation.value, description || undefined, parsedPriceAtTime);
       setAmount('');
       setDescription('');
+      setPriceAtTime('');
       setSelectedType('22_ayar');
       setShowTypePicker(false);
       onClose();
@@ -79,6 +126,7 @@ const AddItemModal: React.FC<AddItemModalProps> = ({ visible, onClose, onAdd }) 
   const handleClose = () => {
     setAmount('');
     setDescription('');
+    setPriceAtTime('');
     setSelectedType('22_ayar');
     setShowTypePicker(false);
     onClose();
@@ -222,6 +270,29 @@ const AddItemModal: React.FC<AddItemModalProps> = ({ visible, onClose, onAdd }) 
                       </TouchableOpacity>
                     ))}
                   </View>
+                )}
+              </View>
+
+              <View style={styles.inputContainer}>
+                <Text style={styles.label}>
+                  {t('priceAtTime')} <Text style={styles.optionalText}>{t('optional')}</Text>
+                </Text>
+                <View style={styles.inputWrapper}>
+                  <TextInput
+                    style={styles.input}
+                    value={priceAtTime}
+                    onChangeText={setPriceAtTime}
+                    placeholder={calculateDefaultPrice != null ? formatCurrency(calculateDefaultPrice, i18n.language) : "0.00"}
+                    placeholderTextColor={colors.textMuted}
+                    keyboardType="decimal-pad"
+                    returnKeyType="done"
+                  />
+                  <Text style={styles.unit}>₺</Text>
+                </View>
+                {calculateDefaultPrice != null && (
+                  <Text style={styles.helperText}>
+                    {t('currentMarketPrice')}: {formatCurrency(calculateDefaultPrice, i18n.language)} ₺
+                  </Text>
                 )}
               </View>
 
@@ -490,6 +561,12 @@ const styles = StyleSheet.create({
   presetButtonTextActive: {
     color: colors.primaryStart,
     fontWeight: fontWeight.bold,
+  },
+  helperText: {
+    fontSize: fontSize.xs,
+    color: colors.textMuted,
+    marginTop: spacing.xs,
+    fontStyle: 'italic',
   },
 });
 

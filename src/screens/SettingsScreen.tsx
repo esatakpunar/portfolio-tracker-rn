@@ -79,10 +79,9 @@ const SettingsScreen: React.FC = () => {
   };
 
 
-  const renderPriceItem = (key: AssetType, value: number) => {
-    // Validate value
-    const safeValue = isNaN(value) || !isFinite(value) || value < 0 ? 0 : value;
+  const renderPriceItem = (key: AssetType, value: number | null) => {
     const priceColor = getAssetColor(key);
+    const isPriceAvailable = value != null && !isNaN(value) && isFinite(value) && value >= 0;
     
     return (
       <View key={key} style={styles.priceItem}>
@@ -105,10 +104,16 @@ const SettingsScreen: React.FC = () => {
           <ActivityIndicator size="small" color={colors.primaryStart} />
         ) : (
           <View style={styles.priceValueContainer}>
-            <Text style={styles.priceValue}>
-              {formatCurrency(safeValue, i18n.language)}
-            </Text>
-            <Text style={styles.priceCurrency}>₺</Text>
+            {isPriceAvailable ? (
+              <>
+                <Text style={styles.priceValue}>
+                  {formatCurrency(value, i18n.language)}
+                </Text>
+                <Text style={styles.priceCurrency}>₺</Text>
+              </>
+            ) : (
+              <Text style={styles.priceUnavailable}>—</Text>
+            )}
           </View>
         )}
       </View>
@@ -421,6 +426,12 @@ const styles = StyleSheet.create({
     fontWeight: fontWeight.semibold,
     color: colors.textSecondary,
     marginLeft: spacing.xs,
+  },
+  priceUnavailable: {
+    fontSize: fontSize.lg,
+    fontWeight: fontWeight.bold,
+    color: colors.textMuted,
+    fontStyle: 'italic',
   },
   dangerButton: {
     backgroundColor: colors.glassBackground,

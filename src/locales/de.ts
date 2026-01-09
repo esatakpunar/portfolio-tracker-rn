@@ -114,5 +114,9 @@ export default {
   lastUpdated: 'Zuletzt aktualisiert',
   justNow: 'Gerade eben',
   minutesAgo: 'Minuten her',
-  hoursAgo: 'Stunden her'
+  hoursAgo: 'Stunden her',
+  usingBackupData: 'Backup-Daten werden verwendet',
+  partialPriceUpdate: 'Einige Preise nicht verfügbar',
+  priceAtTime: 'Preis zum Transaktionszeitpunkt (TL)',
+  currentMarketPrice: 'Aktueller Marktpreis'
 };

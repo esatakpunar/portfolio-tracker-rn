@@ -77,6 +77,11 @@ const HistoryScreen: React.FC = () => {
               )}
             </Text>
           </View>
+          {item.priceAtTime != null && (
+            <Text style={styles.historyPrice}>
+              {formatCurrency(item.priceAtTime, i18n.language)} ₺
+            </Text>
+          )}
           <Text style={styles.historyDate}>
             {formatRelativeDate(item.date, i18n.language, t)}
           </Text>
@@ -224,6 +229,12 @@ const styles = StyleSheet.create({
   historyAmount: {
     fontSize: fontSize.lg,
     fontWeight: fontWeight.bold,
+  },
+  historyPrice: {
+    fontSize: fontSize.xs,
+    color: colors.textSecondary,
+    marginTop: spacing.xs / 2,
+    fontWeight: fontWeight.medium,
   },
   historyDate: {
     fontSize: fontSize.xs,

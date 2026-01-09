@@ -17,11 +17,13 @@ import { formatCurrency } from '../utils/formatUtils';
 import { getAmountPresets } from '../utils/amountPresets';
 import { AssetType } from '../types';
 import { hapticFeedback } from '../utils/haptics';
+import { useAppSelector } from '../hooks/useRedux';
+import { selectPrices } from '../store/portfolioSlice';
 
 interface QuickRemoveModalProps {
   visible: boolean;
   onClose: () => void;
-  onRemove: (amount: number, description?: string) => void;
+  onRemove: (amount: number, description?: string, priceAtTime?: number | null) => void;
   assetType: AssetType;
   currentAmount: number;
 }
@@ -33,9 +35,11 @@ const QuickRemoveModal: React.FC<QuickRemoveModalProps> = ({
   assetType,
   currentAmount,
 }) => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const prices = useAppSelector(selectPrices);
   const [amount, setAmount] = useState('');
   const [description, setDescription] = useState('');
+  const [priceAtTime, setPriceAtTime] = useState('');
   const [slideAnim] = useState(new Animated.Value(0));
 
   useEffect(() => {
@@ -53,9 +57,20 @@ const QuickRemoveModal: React.FC<QuickRemoveModalProps> = ({
   const handleRemove = () => {
     const validation = validateRemoveAmount(amount, currentAmount);
     if (validation.isValid && validation.value !== undefined) {
-      onRemove(validation.value, description || undefined);
+      // Parse priceAtTime
+      let parsedPriceAtTime: number | null = null;
+      if (priceAtTime.trim() !== '') {
+        const normalized = priceAtTime.replace(',', '.');
+        const parsed = parseFloat(normalized);
+        if (!isNaN(parsed) && isFinite(parsed) && parsed >= 0) {
+          parsedPriceAtTime = parsed;
+        }
+      }
+      
+      onRemove(validation.value, description || undefined, parsedPriceAtTime);
       setAmount('');
       setDescription('');
+      setPriceAtTime('');
       onClose();
     }
   };
@@ -63,6 +78,7 @@ const QuickRemoveModal: React.FC<QuickRemoveModalProps> = ({
   const handleClose = () => {
     setAmount('');
     setDescription('');
+    setPriceAtTime('');
     onClose();
   };
 
@@ -101,6 +117,36 @@ const QuickRemoveModal: React.FC<QuickRemoveModalProps> = ({
   const isValidAmount = () => {
     return amountValidation.isValid;
   };
+  
+  // Calculate default price based on current prices and amount
+  const calculateDefaultPrice = useMemo(() => {
+    if (!amount || !amountValidation.isValid || !amountValidation.value) {
+      return null;
+    }
+    
+    const amountValue = amountValidation.value;
+    if (assetType === 'tl') {
+      return amountValue;
+    } else if (assetType === 'usd') {
+      const usdPrice = prices.usd;
+      return (usdPrice != null && usdPrice > 0) ? amountValue * usdPrice : null;
+    } else if (assetType === 'eur') {
+      const eurPrice = prices.eur;
+      return (eurPrice != null && eurPrice > 0) ? amountValue * eurPrice : null;
+    } else {
+      const price = prices[assetType];
+      return (price != null && price > 0) ? amountValue * price : null;
+    }
+  }, [amount, assetType, prices, amountValidation]);
+  
+  // Update priceAtTime when amount changes
+  useEffect(() => {
+    if (calculateDefaultPrice != null) {
+      setPriceAtTime(calculateDefaultPrice.toFixed(2));
+    } else {
+      setPriceAtTime('');
+    }
+  }, [calculateDefaultPrice]);
 
   const presets = useMemo(() => getAmountPresets(assetType), [assetType]);
   
@@ -207,6 +253,29 @@ const QuickRemoveModal: React.FC<QuickRemoveModalProps> = ({
               {amount && !isValidAmount() && (
                 <Text style={styles.errorText}>
                   {t('invalidAmount')}
+                </Text>
+              )}
+            </View>
+
+            <View style={styles.inputContainer}>
+              <Text style={styles.label}>
+                {t('priceAtTime')} <Text style={styles.optionalText}>{t('optional')}</Text>
+              </Text>
+              <View style={styles.inputWrapper}>
+                <TextInput
+                  style={styles.input}
+                  value={priceAtTime}
+                  onChangeText={setPriceAtTime}
+                  placeholder={calculateDefaultPrice != null ? formatCurrency(calculateDefaultPrice, i18n.language) : "0.00"}
+                  placeholderTextColor={colors.textMuted}
+                  keyboardType="decimal-pad"
+                  returnKeyType="done"
+                />
+                <Text style={styles.unit}>₺</Text>
+              </View>
+              {calculateDefaultPrice != null && (
+                <Text style={styles.helperText}>
+                  {t('currentMarketPrice')}: {formatCurrency(calculateDefaultPrice, i18n.language)} ₺
                 </Text>
               )}
             </View>
@@ -423,6 +492,12 @@ const styles = StyleSheet.create({
   presetButtonTextActive: {
     color: colors.error,
     fontWeight: fontWeight.semibold,
+  },
+  helperText: {
+    fontSize: fontSize.xs,
+    color: colors.textMuted,
+    marginTop: spacing.xs,
+    fontStyle: 'italic',
   },
 });
 

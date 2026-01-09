@@ -53,12 +53,25 @@ export async function addItem(item: Omit<PortfolioItem, 'id' | 'date'>): Promise
         [id, item.type, item.amount, item.description || null, date, now]
       );
 
+      // Calculate price at time of transaction
+      const prices = await getPrices();
+      let priceAtTime: number | null = null;
+      if (item.type === 'tl') {
+        priceAtTime = item.amount;
+      } else if (item.type === 'usd' && prices.usd != null && prices.usd > 0) {
+        priceAtTime = item.amount * prices.usd;
+      } else if (item.type === 'eur' && prices.eur != null && prices.eur > 0) {
+        priceAtTime = item.amount * prices.eur;
+      } else if (prices[item.type] != null && prices[item.type]! > 0) {
+        priceAtTime = item.amount * prices[item.type]!;
+      }
+      
       // Insert history entry
       const historyId = `${now}_add`;
       await db.runAsync(
         `INSERT INTO portfolio_history 
-         (id, type, item_id, item_type, item_amount, item_description, item_date, description, date, created_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         (id, type, item_id, item_type, item_amount, item_description, item_date, price_at_time, description, date, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           historyId,
           'add',
@@ -67,6 +80,7 @@ export async function addItem(item: Omit<PortfolioItem, 'id' | 'date'>): Promise
           item.amount,
           item.description || null,
           date,
+          priceAtTime,
           item.description || null,
           date,
           now,
@@ -119,12 +133,25 @@ export async function removeItem(itemId: string): Promise<void> {
         [itemId]
       );
 
+      // Calculate price at time of transaction
+      const prices = await getPrices();
+      let priceAtTime: number | null = null;
+      if (item.type === 'tl') {
+        priceAtTime = item.amount;
+      } else if (item.type === 'usd' && prices.usd != null && prices.usd > 0) {
+        priceAtTime = item.amount * prices.usd;
+      } else if (item.type === 'eur' && prices.eur != null && prices.eur > 0) {
+        priceAtTime = item.amount * prices.eur;
+      } else if (prices[item.type] != null && prices[item.type]! > 0) {
+        priceAtTime = item.amount * prices[item.type]!;
+      }
+      
       // Insert history entry
       const historyId = `${now}_remove`;
       await db.runAsync(
         `INSERT INTO portfolio_history 
-         (id, type, item_id, item_type, item_amount, item_description, item_date, description, date, created_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         (id, type, item_id, item_type, item_amount, item_description, item_date, price_at_time, description, date, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           historyId,
           'remove',
@@ -133,6 +160,7 @@ export async function removeItem(itemId: string): Promise<void> {
           item.amount,
           item.description || null,
           item.date,
+          priceAtTime,
           null,
           date,
           now,
@@ -190,12 +218,25 @@ export async function updateItemAmount(
           [id, type, difference, description || null, date, now]
         );
 
+        // Calculate price at time of transaction
+        const prices = await getPrices();
+        let priceAtTime: number | null = null;
+        if (type === 'tl') {
+          priceAtTime = difference;
+        } else if (type === 'usd' && prices.usd != null && prices.usd > 0) {
+          priceAtTime = difference * prices.usd;
+        } else if (type === 'eur' && prices.eur != null && prices.eur > 0) {
+          priceAtTime = difference * prices.eur;
+        } else if (prices[type] != null && prices[type]! > 0) {
+          priceAtTime = difference * prices[type]!;
+        }
+        
         // History entry
         const historyId = `${now}_add`;
         await db.runAsync(
           `INSERT INTO portfolio_history 
-           (id, type, item_id, item_type, item_amount, item_description, item_date, description, date, created_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+           (id, type, item_id, item_type, item_amount, item_description, item_date, price_at_time, description, date, created_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
           [
             historyId,
             'add',
@@ -204,6 +245,7 @@ export async function updateItemAmount(
             difference,
             description || null,
             date,
+            priceAtTime,
             description || null,
             date,
             now,
@@ -232,12 +274,25 @@ export async function updateItemAmount(
           }
         }
 
+        // Calculate price at time of transaction
+        const prices = await getPrices();
+        let priceAtTime: number | null = null;
+        if (type === 'tl') {
+          priceAtTime = amountToRemove;
+        } else if (type === 'usd' && prices.usd != null && prices.usd > 0) {
+          priceAtTime = amountToRemove * prices.usd;
+        } else if (type === 'eur' && prices.eur != null && prices.eur > 0) {
+          priceAtTime = amountToRemove * prices.eur;
+        } else if (prices[type] != null && prices[type]! > 0) {
+          priceAtTime = amountToRemove * prices[type]!;
+        }
+        
         // History entry
         const historyId = `${now}_remove`;
         await db.runAsync(
           `INSERT INTO portfolio_history 
-           (id, type, item_id, item_type, item_amount, item_description, item_date, description, date, created_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+           (id, type, item_id, item_type, item_amount, item_description, item_date, price_at_time, description, date, created_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
           [
             historyId,
             'remove',
@@ -246,6 +301,7 @@ export async function updateItemAmount(
             amountToRemove,
             null,
             date,
+            priceAtTime,
             description || null,
             date,
             now,
@@ -435,11 +491,12 @@ export async function getHistory(): Promise<HistoryItem[]> {
       item_description: string | null;
       item_date: string;
       previous_amount: number | null;
+      price_at_time: number | null;
       description: string | null;
       date: string;
     }>(
       `SELECT id, type, item_id, item_type, item_amount, item_description, item_date, 
-              previous_amount, description, date
+              previous_amount, price_at_time, description, date
        FROM portfolio_history 
        ORDER BY date DESC, created_at DESC`
     );
@@ -456,6 +513,7 @@ export async function getHistory(): Promise<HistoryItem[]> {
       date: row.date,
       description: row.description || undefined,
       previousAmount: row.previous_amount || undefined,
+      priceAtTime: row.price_at_time ?? undefined,
     }));
   } catch (error) {
     if (__DEV__) {

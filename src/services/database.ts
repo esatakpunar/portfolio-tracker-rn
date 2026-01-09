@@ -7,7 +7,7 @@ let db: SQLite.SQLiteDatabase | null = null;
 let initPromise: Promise<void> | null = null;
 
 // Schema version
-const SCHEMA_VERSION = 2;
+const SCHEMA_VERSION = 3;
 
 /**
  * Initialize the database and create schema if needed
@@ -155,6 +155,7 @@ async function createSchema(database: SQLite.SQLiteDatabase): Promise<void> {
       item_description TEXT,
       item_date TEXT NOT NULL,
       previous_amount REAL,
+      price_at_time REAL,
       description TEXT,
       date TEXT NOT NULL,
       created_at INTEGER NOT NULL
@@ -234,6 +235,22 @@ async function migrateSchema(
     // Optional: Migrate existing data from portfolio_prices and portfolio_price_changes
     // This is optional since those tables are typically empty
     // If needed, we could read from those tables and create a backup entry
+  }
+  
+  // Migration from version 2 to 3: Add price_at_time column to portfolio_history
+  if (fromVersion < 3) {
+    // Check if column already exists (in case migration runs multiple times)
+    const tableInfo = await database.getAllAsync<{ name: string }>(
+      `PRAGMA table_info(portfolio_history)`
+    );
+    const hasPriceAtTime = tableInfo.some(col => col.name === 'price_at_time');
+    
+    if (!hasPriceAtTime) {
+      await database.execAsync(`
+        ALTER TABLE portfolio_history 
+        ADD COLUMN price_at_time REAL;
+      `);
+    }
   }
 }
 
