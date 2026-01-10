@@ -14,6 +14,7 @@ import BottomTabNavigator from './src/navigation/BottomTabNavigator';
 import { useToast } from './src/hooks/useToast';
 import ToastNotification from './src/components/ToastNotification';
 import ErrorBoundary from './src/components/ErrorBoundary';
+import { colors } from './src/theme';
 
 if ((RNText as any).defaultProps == null) {
   (RNText as any).defaultProps = {};
@@ -87,7 +88,7 @@ export default function App() {
   if (!isReady) {
     return (
       <View style={[styles.container, styles.loadingContainer]}>
-        <ActivityIndicator size="large" color="#A78BFA" />
+        <ActivityIndicator size="large" color={colors.accent} />
       </View>
     );
   }
@@ -129,6 +130,6 @@ const styles = StyleSheet.create({
   loadingContainer: {
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#0F172A',
+    backgroundColor: colors.background,
   },
 });

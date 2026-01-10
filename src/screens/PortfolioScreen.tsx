@@ -482,10 +482,10 @@ const PortfolioScreen: React.FC = () => {
 
   const getCurrencyColor = (currency: CurrencyType): string => {
     const colors_map: Record<CurrencyType, string> = {
-      'TL': '#dc2626',
-      'USD': '#10b981',
-      'EUR': '#3b82f6',
-      'ALTIN': '#f59e0b',
+      'TL': colors.negative,
+      'USD': colors.positive,
+      'EUR': colors.accent,
+      'ALTIN': colors.warning,
     };
     return colors_map[currency];
   };
@@ -1039,7 +1039,7 @@ const styles = StyleSheet.create({
     borderColor: colors.primaryStart,
     justifyContent: 'center',
     alignItems: 'center',
-    ...shadows.glass,
+    ...shadows.medium,
   },
   content: {
     flex: 1,
@@ -1065,7 +1065,7 @@ const styles = StyleSheet.create({
     borderColor: colors.glassBorder,
     overflow: 'hidden',
     minHeight: 180,
-    ...shadows.glass,
+    ...shadows.medium,
   },
   gradientOverlay: {
     position: 'absolute',
@@ -1214,19 +1214,19 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
   },
   iconGold: {
-    backgroundColor: '#f59e0b',
+    backgroundColor: colors.warning,
   },
   iconUSD: {
-    backgroundColor: '#10b981',
+    backgroundColor: colors.positive,
   },
   iconEUR: {
-    backgroundColor: '#3b82f6',
+    backgroundColor: colors.accent,
   },
   iconTL: {
-    backgroundColor: '#dc2626',
+    backgroundColor: colors.negative,
   },
   iconSilver: {
-    backgroundColor: '#6b7280',
+    backgroundColor: colors.textMuted,
   },
   iconDefault: {
     backgroundColor: colors.primaryStart,

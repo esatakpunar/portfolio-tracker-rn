@@ -1,4 +1,5 @@
 import { AssetType } from '../types';
+import { colors } from '../theme';
 
 export const getAssetIcon = (type: AssetType): string => {
   const iconMap: Record<AssetType, string> = {
@@ -16,16 +17,16 @@ export const getAssetIcon = (type: AssetType): string => {
 
 export const getAssetColor = (type: AssetType): string => {
   const colorMap: Record<AssetType, string> = {
-    'tl': '#dc2626',
-    'usd': '#10b981',
-    'eur': '#3b82f6',
-    'gumus': '#6b7280',
-    'tam': '#f59e0b',
-    'ceyrek': '#f59e0b',
-    '22_ayar': '#f59e0b',
-    '24_ayar': '#f59e0b',
+    'tl': colors.negative,
+    'usd': colors.positive,
+    'eur': colors.accent,
+    'gumus': colors.textMuted,
+    'tam': colors.warning,
+    'ceyrek': colors.warning,
+    '22_ayar': colors.warning,
+    '24_ayar': colors.warning,
   };
-  return colorMap[type] || '#6366f1';
+  return colorMap[type] || colors.accent;
 };
 
 export const getAssetUnit = (type: AssetType, t: (key: string) => string): string => {

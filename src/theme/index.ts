@@ -3,40 +3,50 @@ import { Dimensions } from 'react-native';
 const { width, height } = Dimensions.get('window');
 
 export const colors = {
-  // Primary gradient colors
-  primaryStart: '#667eea',
-  primaryEnd: '#764ba2',
+  // Background - true black / near-black
+  background: '#000000',
+  backgroundDark: '#000000',
   
-  // Glass effect colors
-  glassBackground: 'rgba(255, 255, 255, 0.08)',
-  glassBorder: 'rgba(255, 255, 255, 0.1)',
+  // Cards - dark gray, soft contrast
+  cardBackground: '#161A1E',
+  cardBackgroundElevated: '#1B1F24',
+  cardBorder: 'rgba(255, 255, 255, 0.05)',
   
-  // Background
-  background: '#0f172a',
-  backgroundDark: '#020617',
+  // Text - high readability
+  textPrimary: '#F2F4F7',
+  textSecondary: '#9AA0A6',
+  textMuted: '#6B7280',
   
-  // Text colors
-  textPrimary: '#f8fafc',
-  textSecondary: '#cbd5e1',
-  textMuted: '#64748b',
+  // Financial colors - controlled and meaning-based
+  positive: '#2ECC71',
+  negative: '#E74C3C',
   
-  // Status colors
-  success: '#10b981',
-  error: '#ef4444',
-  warning: '#f59e0b',
-  info: '#3b82f6',
+  // Accent - modern finance blue
+  accent: '#3B82F6',
+  accentLight: '#60A5FA',
   
-  // Card colors
-  cardBackground: 'rgba(255, 255, 255, 0.05)',
-  cardBorder: 'rgba(255, 255, 255, 0.08)',
+  // Status colors (aligned with financial theme)
+  success: '#2ECC71',
+  error: '#E74C3C',
+  warning: '#F59E0B',
+  info: '#3B82F6',
   
-  // Button colors
-  buttonPrimary: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+  // Legacy support (map old names to new)
+  primaryStart: '#3B82F6',
+  primaryEnd: '#3B82F6',
+  glassBackground: '#161A1E',
+  glassBorder: 'rgba(255, 255, 255, 0.05)',
+  
+  // Buttons
+  buttonPrimary: '#3B82F6',
   buttonSecondary: 'rgba(255, 255, 255, 0.1)',
   
   // Overlay
   overlay: 'rgba(0, 0, 0, 0.7)',
   overlayLight: 'rgba(0, 0, 0, 0.5)',
+  
+  // Dividers
+  divider: 'rgba(255, 255, 255, 0.08)',
 };
 
 export const spacing = {
@@ -79,31 +89,24 @@ export const fontWeight = {
 export const shadows = {
   small: {
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 3,
     elevation: 2,
   },
   medium: {
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 6,
     elevation: 4,
   },
   large: {
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.2,
-    shadowRadius: 16,
-    elevation: 8,
-  },
-  glass: {
-    shadowColor: '#667eea',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
+    shadowOpacity: 0.12,
     shadowRadius: 12,
-    elevation: 6,
+    elevation: 8,
   },
 };
 

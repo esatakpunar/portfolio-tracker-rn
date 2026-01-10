@@ -455,10 +455,10 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.lg,
     paddingHorizontal: spacing.md,
     borderWidth: 2,
-    borderColor: colors.error,
+    borderColor: colors.textMuted,
   },
   inputWrapperError: {
-    borderColor: '#dc2626',
+    borderColor: colors.error,
   },
   input: {
     flex: 1,
@@ -474,7 +474,7 @@ const styles = StyleSheet.create({
   },
   errorText: {
     fontSize: fontSize.sm,
-    color: '#dc2626',
+    color: colors.error,
     marginTop: spacing.xs,
   },
   optionalText: {
@@ -487,8 +487,8 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.lg,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.md,
-    borderWidth: 1,
-    borderColor: colors.glassBorder,
+    borderWidth: 2,
+    borderColor: colors.textMuted,
     fontSize: fontSize.base,
     color: colors.textPrimary,
     minHeight: 60,

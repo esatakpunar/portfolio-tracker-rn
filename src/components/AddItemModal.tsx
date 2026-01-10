@@ -439,7 +439,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.md,
     borderWidth: 2,
-    borderColor: colors.primaryStart,
+    borderColor: colors.textMuted,
   },
   pickerButtonContent: {
     flexDirection: 'row',
@@ -513,7 +513,7 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.lg,
     paddingHorizontal: spacing.md,
     borderWidth: 2,
-    borderColor: colors.primaryStart,
+    borderColor: colors.textMuted,
   },
   input: {
     flex: 1,
@@ -537,8 +537,8 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.lg,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.md,
-    borderWidth: 1,
-    borderColor: colors.glassBorder,
+    borderWidth: 2,
+    borderColor: colors.textMuted,
     fontSize: fontSize.base,
     color: colors.textPrimary,
     minHeight: 60,

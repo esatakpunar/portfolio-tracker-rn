@@ -39,13 +39,13 @@ const PriceChangeIndicator: React.FC<PriceChangeIndicatorProps> = ({ change }) =
   let iconName: 'trending-up' | 'trending-down' | null;
   
   if (change > 0) {
-    indicatorColor = colors.success; // Green: #10b981
+    indicatorColor = colors.success; // Green: #2ECC71
     iconName = 'trending-up';
   } else if (change < 0) {
-    indicatorColor = colors.error; // Red: #ef4444
+    indicatorColor = colors.error; // Red: #E74C3C
     iconName = 'trending-down';
   } else {
-    indicatorColor = colors.textMuted; // Gray: #64748b
+    indicatorColor = colors.textMuted; // Gray: #6B7280
     iconName = null;
   }
 
