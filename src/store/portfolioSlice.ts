@@ -328,6 +328,11 @@ const portfolioSlice = createSlice({
   },
   extraReducers: (builder) => {
     builder
+      .addCase(fetchPrices.pending, (state) => {
+        // Clear backup flag when starting a new fetch
+        // This ensures that if the fetch succeeds, we don't show backup warning
+        state.isUsingBackupPriceData = false;
+      })
       .addCase(fetchPrices.fulfilled, (state, action) => {
         // Check if payload is valid PriceData
         if (!action.payload || typeof action.payload !== 'object' || !('prices' in action.payload) || !('changes' in action.payload)) {
@@ -387,12 +392,16 @@ const portfolioSlice = createSlice({
         }
         
         // Store metadata about price data source
+        // Explicitly set isUsingBackupPriceData based on isBackup flag
+        // Only set to true if isBackup is explicitly true, otherwise false
         state.priceDataFetchedAt = fetchedAt || Date.now();
-        state.isUsingBackupPriceData = isBackup || false;
+        state.isUsingBackupPriceData = isBackup === true;
         state.hasPartialPriceUpdate = hasPartialUpdate;
       })
       .addCase(fetchPrices.rejected, (state) => {
         // Keep existing prices on error
+        // Don't change isUsingBackupPriceData here - it should remain as it was
+        // If we're using backup, we'll still be using backup after the error
       });
   }
 });

@@ -339,7 +339,7 @@ const styles = StyleSheet.create({
     borderColor: colors.primaryStart,
     justifyContent: 'center',
     alignItems: 'center',
-    ...shadows.glass,
+    ...shadows.medium,
   },
   languagePickerOverlay: {
     position: 'absolute',
@@ -412,7 +412,7 @@ const styles = StyleSheet.create({
     borderColor: colors.primaryStart,
     justifyContent: 'center',
     alignItems: 'center',
-    ...shadows.glass,
+    ...shadows.medium,
   },
   refreshIconButtonDisabled: {
     borderColor: colors.textMuted,
@@ -451,7 +451,7 @@ const styles = StyleSheet.create({
     borderColor: colors.glassBorder,
     padding: spacing.lg,
     marginBottom: spacing.md,
-    ...shadows.glass,
+    ...shadows.medium,
   },
   priceCardContent: {
     width: '100%',
@@ -559,7 +559,7 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.xl,
     paddingVertical: spacing.md,
     paddingHorizontal: spacing.lg,
-    ...shadows.glass,
+    ...shadows.medium,
   },
   dangerButtonContent: {
     flexDirection: 'row',

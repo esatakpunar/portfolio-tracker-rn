@@ -47,6 +47,9 @@ export const colors = {
   
   // Dividers
   divider: 'rgba(255, 255, 255, 0.08)',
+  
+  // Pagination
+  paginationDotInactive: 'rgba(255, 255, 255, 0.25)',
 };
 
 export const spacing = {
