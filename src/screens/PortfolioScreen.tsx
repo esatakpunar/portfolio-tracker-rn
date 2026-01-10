@@ -1181,7 +1181,7 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.md,
     paddingHorizontal: spacing.xl,
     borderRadius: borderRadius.lg,
-    ...shadows.glass,
+    ...shadows.small,
   },
   emptyStateButtonText: {
     fontSize: fontSize.base,
@@ -1198,7 +1198,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     minHeight: 60,
-    ...shadows.glass,
+    ...shadows.medium,
   },
   assetIcon: {
     width: 40,
