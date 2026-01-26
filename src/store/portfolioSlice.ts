@@ -1,7 +1,9 @@
 import { createSlice, PayloadAction, createAsyncThunk } from '@reduxjs/toolkit';
 import { PortfolioItem, HistoryItem, Prices, PriceChanges, AssetType, CurrencyType, BuyPrices } from '../types';
 import { fetchPrices as fetchPricesFromAPI } from '../services/priceService';
+import { getBackup } from '../services/priceBackupService';
 import { safeAdd, safeSubtract } from '../utils/numberUtils';
+import { trackPriceFetchError } from '../utils/errorTracking';
 
 interface PortfolioState {
   items: PortfolioItem[];
@@ -13,6 +15,8 @@ interface PortfolioState {
   priceDataFetchedAt?: number; // Timestamp when prices were fetched
   isUsingBackupPriceData?: boolean; // Indicates if current prices are from backup
   hasPartialPriceUpdate?: boolean; // Indicates if some prices failed to update
+  isFetchingPrices?: boolean; // Indicates if prices are currently being fetched (race condition prevention)
+  priceFetchError?: string | null; // Error message if price fetch failed
 }
 
 const initialPrices: Prices = {
@@ -54,27 +58,39 @@ export const initialState: PortfolioState = {
   buyPrices: initialBuyPrices,
   priceChanges: initialChanges,
   history: [],
-  currentLanguage: 'tr'
+  currentLanguage: 'tr',
+  isFetchingPrices: false,
+  priceFetchError: null
 };
 
-// Race condition prevention
-let isFetchingPrices = false;
+// Module-level flag for immediate race condition prevention
+// This is checked synchronously before Redux state update
+let isFetchingPricesModule = false;
 
 export const fetchPrices = createAsyncThunk(
   'portfolio/fetchPrices',
-  async (_, { rejectWithValue }) => {
-    if (isFetchingPrices) {
-      return rejectWithValue('Already fetching prices');
+  async (_, { getState, rejectWithValue, dispatch }) => {
+    // Check module-level flag first for immediate synchronization
+    if (isFetchingPricesModule) {
+      // Also check Redux state as secondary check
+      const state = getState() as { portfolio: PortfolioState };
+      if (state.portfolio.isFetchingPrices) {
+        return rejectWithValue('Already fetching prices');
+      }
     }
     
-    isFetchingPrices = true;
+    // Set module-level flag immediately
+    isFetchingPricesModule = true;
+    
     try {
       const priceData = await fetchPricesFromAPI();
       return priceData;
     } catch (error) {
-      return rejectWithValue('Failed to fetch prices');
+      const errorMessage = error instanceof Error ? error.message : 'Failed to fetch prices';
+      return rejectWithValue(errorMessage);
     } finally {
-      isFetchingPrices = false;
+      // Always clear the flag when done
+      isFetchingPricesModule = false;
     }
   }
 );
@@ -329,41 +345,57 @@ const portfolioSlice = createSlice({
   extraReducers: (builder) => {
     builder
       .addCase(fetchPrices.pending, (state) => {
+        // Set fetching flag and clear error
+        // Note: Module-level flag is already set in the thunk for immediate synchronization
+        state.isFetchingPrices = true;
+        state.priceFetchError = null;
         // Clear backup flag when starting a new fetch
         // This ensures that if the fetch succeeds, we don't show backup warning
         state.isUsingBackupPriceData = false;
       })
       .addCase(fetchPrices.fulfilled, (state, action) => {
+        // Clear fetching flag
+        state.isFetchingPrices = false;
+        state.priceFetchError = null;
+        
         // Check if payload is valid PriceData
         if (!action.payload || typeof action.payload !== 'object' || !('prices' in action.payload) || !('changes' in action.payload)) {
           if (__DEV__) {
             console.warn('[PORTFOLIO] Invalid payload structure');
           }
+          state.priceFetchError = 'Invalid response structure';
           return;
         }
 
         const { prices, buyPrices, changes, fetchedAt, isBackup } = action.payload;
         
         // Check if this is a partial update (some prices are null/missing)
+        // Fix: Check for non-null values, not just key presence
         const requiredPriceKeys: (keyof Prices)[] = ['22_ayar', '24_ayar', 'ceyrek', 'tam', 'usd', 'eur', 'tl', 'gumus'];
         let hasPartialUpdate = false;
         
         if (prices && typeof prices === 'object') {
           const validatedPrices: Partial<Prices> = {};
-          const updatedKeys: string[] = [];
+          const validPriceKeys: string[] = [];
           
           Object.entries(prices).forEach(([key, value]) => {
             // Accept both number and null values (null indicates unavailable/invalid data)
             // Finance-safe: Do not hide errors by silently skipping null values
             if (value === null || (typeof value === 'number' && !isNaN(value) && isFinite(value) && value >= 0)) {
               validatedPrices[key as keyof Prices] = value;
-              updatedKeys.push(key);
+              // Only count non-null values as valid updates
+              if (value !== null) {
+                validPriceKeys.push(key);
+              }
             }
           });
           
-          // Check if all required prices were updated
-          const allPricesUpdated = requiredPriceKeys.every(key => updatedKeys.includes(key));
-          hasPartialUpdate = !allPricesUpdated;
+          // Check if all required prices have non-null values
+          const allPricesValid = requiredPriceKeys.every(key => {
+            const priceValue = validatedPrices[key];
+            return priceValue !== null && priceValue !== undefined;
+          });
+          hasPartialUpdate = !allPricesValid;
           
           state.prices = { ...state.prices, ...validatedPrices };
         }
@@ -398,10 +430,36 @@ const portfolioSlice = createSlice({
         state.isUsingBackupPriceData = isBackup === true;
         state.hasPartialPriceUpdate = hasPartialUpdate;
       })
-      .addCase(fetchPrices.rejected, (state) => {
-        // Keep existing prices on error
-        // Don't change isUsingBackupPriceData here - it should remain as it was
-        // If we're using backup, we'll still be using backup after the error
+      .addCase(fetchPrices.rejected, (state, action) => {
+        // Clear fetching flag
+        // Note: Module-level flag is already cleared in the thunk's finally block
+        state.isFetchingPrices = false;
+        
+        // Set error message
+        const errorMessage = typeof action.payload === 'string' ? action.payload : 'Failed to fetch prices';
+        state.priceFetchError = errorMessage;
+        
+        // Don't track "Already fetching prices" as an error - it's expected behavior
+        if (errorMessage !== 'Already fetching prices') {
+          // Track the error (pass string directly, trackPriceFetchError accepts Error | string)
+          try {
+            trackPriceFetchError(errorMessage, 'Redux Thunk', undefined, false);
+          } catch (trackingError) {
+            // Don't let error tracking break the app
+            if (__DEV__) {
+              console.warn('[PORTFOLIO] Error tracking failed:', trackingError);
+            }
+          }
+        }
+        
+        // Attempt to load backup as fallback
+        // Note: This is async, so we'll handle it in a thunk if needed
+        // For now, we keep existing prices and set error flag
+        // The backup will be attempted automatically on next fetch
+        
+        if (__DEV__ && errorMessage !== 'Already fetching prices') {
+          console.warn('[PORTFOLIO] Price fetch rejected:', errorMessage);
+        }
       });
   }
 });
@@ -427,6 +485,8 @@ export const selectLanguage = (state: { portfolio: PortfolioState }) => state.po
 export const selectPriceDataFetchedAt = (state: { portfolio: PortfolioState }) => state.portfolio.priceDataFetchedAt;
 export const selectIsUsingBackupPriceData = (state: { portfolio: PortfolioState }) => state.portfolio.isUsingBackupPriceData;
 export const selectHasPartialPriceUpdate = (state: { portfolio: PortfolioState }) => state.portfolio.hasPartialPriceUpdate;
+export const selectIsFetchingPrices = (state: { portfolio: PortfolioState }) => state.portfolio.isFetchingPrices ?? false;
+export const selectPriceFetchError = (state: { portfolio: PortfolioState }) => state.portfolio.priceFetchError;
 
 export const selectTotalTL = (state: { portfolio: PortfolioState }) => {
   if (!state.portfolio?.items || state.portfolio.items.length === 0) {

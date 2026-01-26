@@ -549,12 +549,22 @@ export async function clearAll(): Promise<void> {
 export async function getLanguage(): Promise<string> {
   try {
     const db = getDatabase();
-    const row = await db.getFirstAsync<{ value: string }>(
+    const row = await db.getFirstAsync<{ value: any }>(
       `SELECT value FROM app_settings WHERE key = ?`,
       ['current_language']
     );
 
-    return row?.value || 'tr'; // Default to Turkish
+    // Type-safe value extraction - handle all possible types from SQLite
+    if (row && row.value !== null && row.value !== undefined) {
+      // Ensure value is converted to string (SQLite can return various types)
+      const value = String(row.value);
+      // Validate it's a valid language code
+      if (value && value.length > 0 && value.length <= 5) {
+        return value;
+      }
+    }
+
+    return 'tr'; // Default to Turkish
   } catch (error) {
     if (__DEV__) {
       console.error('[REPOSITORY] Error getting language:', error);

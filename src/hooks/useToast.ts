@@ -14,7 +14,7 @@ export const useToast = () => {
   const showToast = useCallback((message: string, type: ToastType = 'info') => {
     const id = `${Date.now()}-${Math.random()}`;
     const newToast: Toast = { message, type, id };
-    
+
     setToasts(prev => [...prev, newToast]);
 
     // Auto remove after 3 seconds

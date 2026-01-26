@@ -29,10 +29,12 @@ if ((RNTextInput as any).defaultProps == null) {
 export default function App() {
   const [isReady, setIsReady] = useState(false);
   const [isStateRestored, setIsStateRestored] = useState(false);
+  const [i18nReady, setI18nReady] = useState(false);
 
   useEffect(() => {
     const initialize = async () => {
       try {
+        // Ensure database is fully initialized
         await initDatabase();
         
         try {
@@ -64,15 +66,37 @@ export default function App() {
             }
           }
         } catch (error) {
-          // Silently fail - app will start with empty state
+          // Log error but continue - app will start with empty state
+          // fetchPrices will still be called to attempt backup load
+          if (__DEV__) {
+            console.warn('[APP] State restore failed:', error);
+          }
         }
         
         setIsStateRestored(true);
-        await initializeI18n();
+
+        // Initialize i18n separately and set flag when done
+        try {
+          await initializeI18n();
+          setI18nReady(true);
+        } catch (i18nError) {
+          if (__DEV__) {
+            console.error('[APP] i18n initialization failed:', i18nError);
+          }
+          // Set ready anyway to allow app to start with fallback
+          setI18nReady(true);
+        }
+
         setIsReady(true);
       } catch (error) {
+        // Even if initialization fails, set ready flags so app can start
+        // fetchPrices will still attempt to load backup
+        if (__DEV__) {
+          console.error('[APP] Initialization failed:', error);
+        }
         setIsReady(true);
         setIsStateRestored(true);
+        setI18nReady(true);
       }
     };
 
@@ -80,15 +104,39 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    if (isReady && isStateRestored) {
-      (store.dispatch as AppDispatch)(fetchPrices());
-    }
+    const fetchInitialPrices = async () => {
+      if (isReady && isStateRestored) {
+        try {
+          // Database is already initialized in first useEffect, no need to call again
+          const result = await (store.dispatch as AppDispatch)(fetchPrices());
+
+          // Check if fetch failed - error handling is done in slice
+          if (fetchPrices.rejected.match(result)) {
+            if (__DEV__) {
+              console.warn('[APP] Initial price fetch failed:', result.payload);
+            }
+          }
+        } catch (error) {
+          // Log error but don't block app startup
+          if (__DEV__) {
+            console.error('[APP] Error fetching initial prices:', error);
+          }
+        }
+      }
+    };
+
+    fetchInitialPrices();
   }, [isReady, isStateRestored]);
 
-  if (!isReady) {
+  if (!isReady || !i18nReady) {
     return (
       <View style={[styles.container, styles.loadingContainer]}>
         <ActivityIndicator size="large" color={colors.accent} />
+        {__DEV__ && (
+          <RNText style={{ color: colors.textMuted, marginTop: 10 }}>
+            {!isReady ? 'Initializing app...' : 'Loading translations...'}
+          </RNText>
+        )}
       </View>
     );
   }
@@ -96,13 +144,13 @@ export default function App() {
   return (
     <ErrorBoundary>
       <GestureHandlerRootView style={styles.container}>
-             <Provider store={store}>
-                 <SafeAreaProvider>
-                   <NavigationContainer>
-                     <AppContent />
-                   </NavigationContainer>
-                 </SafeAreaProvider>
-               </Provider>
+        <Provider store={store}>
+          <SafeAreaProvider>
+            <NavigationContainer>
+              <AppContent />
+            </NavigationContainer>
+          </SafeAreaProvider>
+        </Provider>
       </GestureHandlerRootView>
     </ErrorBoundary>
   );
@@ -114,9 +162,9 @@ const AppContent: React.FC = () => {
   return (
     <View style={styles.container}>
       <BottomTabNavigator />
-      <ToastNotification 
-        toasts={toasts} 
-        onRemove={removeToast} 
+      <ToastNotification
+        toasts={toasts}
+        onRemove={removeToast}
       />
       <StatusBar style="light" />
     </View>

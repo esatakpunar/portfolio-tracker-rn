@@ -16,7 +16,7 @@ import { Swipeable } from 'react-native-gesture-handler';
 import { useTranslation } from 'react-i18next';
 import { Text } from '../components/Text';
 import { useAppSelector, useAppDispatch } from '../hooks/useRedux';
-import { addItem, updateItemAmount, selectItems, selectPrices, selectPriceChanges, selectTotalIn, fetchPrices, selectPriceDataFetchedAt, selectIsUsingBackupPriceData, selectHasPartialPriceUpdate } from '../store/portfolioSlice';
+import { addItem, updateItemAmount, selectItems, selectPrices, selectPriceChanges, selectTotalIn, fetchPrices, selectPriceDataFetchedAt, selectIsUsingBackupPriceData, selectHasPartialPriceUpdate, selectPriceFetchError } from '../store/portfolioSlice';
 import { AppDispatch } from '../store';
 import { colors, spacing, borderRadius, fontSize, fontWeight, shadows } from '../theme';
 import { CurrencyType, AssetType, PortfolioItem } from '../types';
@@ -28,6 +28,7 @@ import EmptyState from '../components/EmptyState';
 import PriceChangeIndicator from '../components/PriceChangeIndicator';
 import { hapticFeedback } from '../utils/haptics';
 import { formatCurrency } from '../utils/formatUtils';
+import { useToast } from '../hooks/useToast';
 
 const { width } = Dimensions.get('window');
 const CURRENCIES: CurrencyType[] = ['TL', 'USD', 'EUR', 'ALTIN'];
@@ -41,6 +42,8 @@ const PortfolioScreen: React.FC = () => {
   const priceDataFetchedAt = useAppSelector(selectPriceDataFetchedAt);
   const isUsingBackupPriceData = useAppSelector(selectIsUsingBackupPriceData);
   const hasPartialPriceUpdate = useAppSelector(selectHasPartialPriceUpdate);
+  const priceFetchError = useAppSelector(selectPriceFetchError);
+  const { showToast } = useToast();
   
   const [currentCurrencyIndex, setCurrentCurrencyIndex] = useState(0);
   const [showAddModal, setShowAddModal] = useState(false);
@@ -54,6 +57,7 @@ const PortfolioScreen: React.FC = () => {
   const currentlyOpenSwipeable = useRef<string | null>(null);
   const currencyAnimation = useRef(new Animated.Value(1)).current;
   const currencyFlatListRef = useRef<FlatList<CurrencyType> | null>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   // Bounds check for currency index to prevent out-of-bounds access
   const safeCurrencyIndex = useMemo(() => {
@@ -294,21 +298,80 @@ const PortfolioScreen: React.FC = () => {
   };
 
   const onRefresh = async () => {
+    // Cancel any ongoing request
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    
+    // Create new AbortController for this request
+    const abortController = new AbortController();
+    abortControllerRef.current = abortController;
+    
     hapticFeedback.light();
     setRefreshing(true);
     try {
       const result = await (dispatch as AppDispatch)(fetchPrices());
+      
+      // Check if request was cancelled
+      if (abortController.signal.aborted) {
+        return;
+      }
+      
       if (fetchPrices.fulfilled.match(result)) {
         hapticFeedback.success();
+        // Show success message if using backup
+        if (result.payload?.isBackup) {
+          showToast(t('usingBackupData'), 'warning');
+        } else if (result.payload && 'hasPartialPriceUpdate' in result.payload && result.payload.hasPartialPriceUpdate) {
+          showToast(t('partialPriceUpdate'), 'warning');
+        }
       } else {
         hapticFeedback.error();
+        const errorMessage = fetchPrices.rejected.match(result) 
+          ? (result.payload as string) || t('pricesUpdateFailed')
+          : t('pricesUpdateFailed');
+        showToast(errorMessage, 'error');
       }
     } catch (error) {
+      // Don't show error if request was cancelled
+      if (abortController.signal.aborted) {
+        return;
+      }
       hapticFeedback.error();
+      showToast(t('pricesUpdateFailed'), 'error');
     } finally {
-      setRefreshing(false);
+      if (!abortController.signal.aborted) {
+        setRefreshing(false);
+      }
+      // Clear abort controller if this was the current one
+      if (abortControllerRef.current === abortController) {
+        abortControllerRef.current = null;
+      }
     }
   };
+
+  // Cleanup: cancel any ongoing requests on unmount
+  useEffect(() => {
+    return () => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+    };
+  }, []);
+
+  // Show error toast when price fetch error is detected
+  useEffect(() => {
+    if (priceFetchError) {
+      // Check if error is about network
+      if (priceFetchError.includes('network') || priceFetchError.includes('No network')) {
+        showToast(t('noNetworkConnection'), 'error');
+      } else if (priceFetchError.includes('backup')) {
+        showToast(t('noBackupAvailable'), 'warning');
+      } else {
+        showToast(priceFetchError, 'error');
+      }
+    }
+  }, [priceFetchError, showToast, t]);
 
 
   const getCurrencyIcon = (currency: CurrencyType): string => {

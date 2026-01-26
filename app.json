@@ -8,18 +8,7 @@
     "userInterfaceStyle": "dark",
     "newArchEnabled": true,
     "description": "Track your investment portfolio with gold, silver, and currency assets. Modern glassmorphism design with multi-language support.",
-    "keywords": [
-      "portfolio",
-      "investment",
-      "gold",
-      "silver",
-      "currency",
-      "finance",
-      "tracker"
-    ],
-    "privacy": "public",
     "githubUrl": "https://github.com/esatakpunar/portfolio-tracker-rn",
-    "privacyPolicy": "https://esatakpunar.github.io/portfolio-tracker-privacy/",
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
@@ -53,8 +42,6 @@
       },
       "package": "com.portfoliotracker.app",
       "versionCode": 2,
-      "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false,
       "permissions": []
     },
     "web": {

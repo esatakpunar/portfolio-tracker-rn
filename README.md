@@ -78,10 +78,12 @@ src/
 ## 🛠️ Installation
 
 ### Requirements
-- Node.js ^20.19.0 || >=22.12.0
-- npm
+- Node.js >=20.19.4 (LTS recommended)
+- npm >=9.6.6
 - Expo CLI
 - iOS Simulator (Mac) or Android Emulator
+
+> **Note**: Check [SECURITY.md](SECURITY.md) for security and maintenance guidelines.
 
 ### Installation Steps
 
@@ -92,8 +94,14 @@ git clone https://github.com/esatakpunar/portfolio-tracker-rn.git
 # Navigate to project directory
 cd portfolio-tracker-rn
 
+# Use recommended Node.js version (with nvm)
+nvm use
+
 # Install dependencies
 npm install
+
+# For native modules (if needed)
+npx expo prebuild --clean
 ```
 
 ### Development
@@ -116,15 +124,15 @@ npm run web
 
 | Technology | Version | Purpose |
 |-----------|----------|----------------|
-| **React Native** | 0.81.4 | Mobile application framework |
-| **Expo** | ~54.0.12 | Development and build platform |
+| **React** | 18.2.0 | Core UI library (LTS) |
+| **React Native** | 0.76.5 | Mobile application framework |
+| **Expo** | ~54.0.17 | Development and build platform |
 | **TypeScript** | ~5.9.2 | Type-safe development |
-| **Redux Toolkit** | ^2.9.0 | State management |
+| **Redux Toolkit** | ^2.11.2 | State management |
 | **React Navigation** | ^7.x | Navigation system |
-| **i18next** | ^25.5.3 | Multi-language support |
-| **AsyncStorage** | ^2.2.0 | Local data storage |
-| **React Native Reanimated** | ^4.1.2 | Performant animations |
-| **React Native Gesture Handler** | ^2.28.0 | Advanced gestures |
+| **i18next** | ^25.8.0 | Multi-language support |
+| **SQLite** | ~16.0.10 | Local database |
+| **React Native Gesture Handler** | ^2.30.0 | Advanced gestures |
 
 ## 🎯 Main Features
 
@@ -187,10 +195,15 @@ The app offers seamless transitions in 3 languages:
 
 ## 🚀 Roadmap
 
-### Short Term
+### Recently Completed
 - [x] **Multi-language Support**: Turkish, English, German ✅
 - [x] **Toast Notifications**: Success/error notifications ✅
-- [ ] **Real-time API**: Live price data integration
+- [x] **Real-time API**: Live price data with Truncgil API ✅
+- [x] **Offline Support**: Backup mechanism for offline use ✅
+- [x] **Error Tracking**: Comprehensive error monitoring ✅
+- [x] **Network Resilience**: Retry logic and graceful degradation ✅
+
+### Short Term
 - [ ] **Edit Assets**: Update existing assets
 - [ ] **Data Export**: CSV/JSON export
 - [ ] **Theme Selector**: Dark/Light mode
@@ -208,6 +221,10 @@ The app offers seamless transitions in 3 languages:
 - [ ] **Advanced Analytics**: Detailed financial analysis
 - [ ] **Social Features**: Portfolio sharing
 - [ ] **Widget Support**: iOS and Android widgets
+
+## 🔒 Security
+
+See [SECURITY.md](SECURITY.md) for security policies, vulnerability reporting, and maintenance guidelines.
 
 ## 📄 License
 

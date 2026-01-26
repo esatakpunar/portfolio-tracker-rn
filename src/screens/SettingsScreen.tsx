@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   StyleSheet,
@@ -35,6 +35,8 @@ const SettingsScreen: React.FC = () => {
   const [showLanguagePicker, setShowLanguagePicker] = useState(false);
   const [isRefreshingPrices, setIsRefreshingPrices] = useState(false);
   const [lastUpdateTime, setLastUpdateTime] = useState<number | null>(null);
+  const lastRefreshTimeRef = React.useRef<number>(0);
+  const DEBOUNCE_DELAY_MS = 2500; // 2.5 seconds
 
   // Load last update time on mount
   useEffect(() => {
@@ -63,6 +65,21 @@ const SettingsScreen: React.FC = () => {
   }, [isRefreshingPrices]);
 
   const handleRefreshPrices = async () => {
+    // Debounce: prevent spamming refresh button
+    const now = Date.now();
+    const timeSinceLastRefresh = now - lastRefreshTimeRef.current;
+    
+    if (timeSinceLastRefresh < DEBOUNCE_DELAY_MS) {
+      // Too soon since last refresh, ignore
+      return;
+    }
+    
+    // Check if already refreshing
+    if (isRefreshingPrices) {
+      return;
+    }
+    
+    lastRefreshTimeRef.current = now;
     hapticFeedback.light();
     setIsRefreshingPrices(true);
     try {
@@ -71,13 +88,24 @@ const SettingsScreen: React.FC = () => {
         hapticFeedback.success();
         const updateTime = await getLastUpdateTime();
         setLastUpdateTime(updateTime);
+        
+        // Show warning if using backup or partial update
+        if (result.payload?.isBackup) {
+          Alert.alert(t('warning'), t('usingBackupData'));
+        } else if (result.payload && 'hasPartialPriceUpdate' in result.payload && result.payload.hasPartialPriceUpdate) {
+          Alert.alert(t('warning'), t('partialPriceUpdate'));
+        }
       } else {
         hapticFeedback.error();
-        Alert.alert(t('error'), t('pricesUpdateFailed'));
+        const errorMessage = fetchPrices.rejected.match(result)
+          ? (result.payload as string) || t('pricesUpdateFailed')
+          : t('pricesUpdateFailed');
+        Alert.alert(t('error'), errorMessage);
       }
     } catch (error) {
       hapticFeedback.error();
-      Alert.alert(t('error'), t('pricesUpdateFailed'));
+      const errorMessage = error instanceof Error ? error.message : t('pricesUpdateFailed');
+      Alert.alert(t('error'), errorMessage);
     } finally {
       setIsRefreshingPrices(false);
     }
