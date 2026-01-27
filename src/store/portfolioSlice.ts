@@ -14,6 +14,7 @@ interface PortfolioState {
   currentLanguage: string;
   priceDataFetchedAt?: number; // Timestamp when prices were fetched
   isUsingBackupPriceData?: boolean; // Indicates if current prices are from backup
+  isUsingOldBackup?: boolean; // Indicates if backup is older than 24 hours (stale)
   hasPartialPriceUpdate?: boolean; // Indicates if some prices failed to update
   isFetchingPrices?: boolean; // Indicates if prices are currently being fetched (race condition prevention)
   priceFetchError?: string | null; // Error message if price fetch failed
@@ -63,34 +64,60 @@ export const initialState: PortfolioState = {
   priceFetchError: null
 };
 
-// Module-level flag for immediate race condition prevention
-// This is checked synchronously before Redux state update
-let isFetchingPricesModule = false;
+// Promise cache for preventing race conditions
+// Multiple simultaneous calls will share the same promise
+let activeFetchPromise: Promise<any> | null = null;
+let activeFetchStartTime: number | null = null;
+const FETCH_CACHE_TIMEOUT_MS = 30000; // 30 seconds - clear cache if taking too long
 
 export const fetchPrices = createAsyncThunk(
   'portfolio/fetchPrices',
-  async (_, { getState, rejectWithValue, dispatch }) => {
-    // Check module-level flag first for immediate synchronization
-    if (isFetchingPricesModule) {
-      // Also check Redux state as secondary check
-      const state = getState() as { portfolio: PortfolioState };
-      if (state.portfolio.isFetchingPrices) {
-        return rejectWithValue('Already fetching prices');
+  async (signal: AbortSignal | undefined, { rejectWithValue }) => {
+    // Check if cached promise is stale (hung request)
+    if (activeFetchPromise && activeFetchStartTime) {
+      const elapsed = Date.now() - activeFetchStartTime;
+      if (elapsed > FETCH_CACHE_TIMEOUT_MS) {
+        if (__DEV__) {
+          console.warn('[PORTFOLIO] Cached promise is stale (hung request), clearing cache');
+        }
+        activeFetchPromise = null;
+        activeFetchStartTime = null;
       }
     }
-    
-    // Set module-level flag immediately
-    isFetchingPricesModule = true;
-    
+
+    // If there's already an active fetch, return its promise
+    // This ensures all concurrent calls wait for the same fetch
+    if (activeFetchPromise) {
+      if (__DEV__) {
+        console.log('[PORTFOLIO] Reusing active fetch promise');
+      }
+      try {
+        return await activeFetchPromise;
+      } catch (error) {
+        // If the cached promise rejected, we'll try a fresh fetch below
+        activeFetchPromise = null;
+        activeFetchStartTime = null;
+      }
+    }
+
+    // Create new fetch promise and cache it
+    activeFetchStartTime = Date.now();
+    activeFetchPromise = (async () => {
+      try {
+        const priceData = await fetchPricesFromAPI(signal);
+        return priceData;
+      } finally {
+        // Clear cache when done (success or failure)
+        activeFetchPromise = null;
+        activeFetchStartTime = null;
+      }
+    })();
+
     try {
-      const priceData = await fetchPricesFromAPI();
-      return priceData;
+      return await activeFetchPromise;
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to fetch prices';
       return rejectWithValue(errorMessage);
-    } finally {
-      // Always clear the flag when done
-      isFetchingPricesModule = false;
     }
   }
 );
@@ -346,12 +373,12 @@ const portfolioSlice = createSlice({
     builder
       .addCase(fetchPrices.pending, (state) => {
         // Set fetching flag and clear error
-        // Note: Module-level flag is already set in the thunk for immediate synchronization
         state.isFetchingPrices = true;
         state.priceFetchError = null;
-        // Clear backup flag when starting a new fetch
+        // Clear backup flags when starting a new fetch
         // This ensures that if the fetch succeeds, we don't show backup warning
         state.isUsingBackupPriceData = false;
+        state.isUsingOldBackup = false;
       })
       .addCase(fetchPrices.fulfilled, (state, action) => {
         // Clear fetching flag
@@ -367,7 +394,7 @@ const portfolioSlice = createSlice({
           return;
         }
 
-        const { prices, buyPrices, changes, fetchedAt, isBackup } = action.payload;
+        const { prices, buyPrices, changes, fetchedAt, isBackup, isOldBackup } = action.payload;
         
         // Check if this is a partial update (some prices are null/missing)
         // Fix: Check for non-null values, not just key presence
@@ -428,36 +455,33 @@ const portfolioSlice = createSlice({
         // Only set to true if isBackup is explicitly true, otherwise false
         state.priceDataFetchedAt = fetchedAt || Date.now();
         state.isUsingBackupPriceData = isBackup === true;
+        state.isUsingOldBackup = isOldBackup === true;
         state.hasPartialPriceUpdate = hasPartialUpdate;
       })
       .addCase(fetchPrices.rejected, (state, action) => {
         // Clear fetching flag
-        // Note: Module-level flag is already cleared in the thunk's finally block
         state.isFetchingPrices = false;
-        
+
         // Set error message
         const errorMessage = typeof action.payload === 'string' ? action.payload : 'Failed to fetch prices';
         state.priceFetchError = errorMessage;
-        
-        // Don't track "Already fetching prices" as an error - it's expected behavior
-        if (errorMessage !== 'Already fetching prices') {
-          // Track the error (pass string directly, trackPriceFetchError accepts Error | string)
-          try {
-            trackPriceFetchError(errorMessage, 'Redux Thunk', undefined, false);
-          } catch (trackingError) {
-            // Don't let error tracking break the app
-            if (__DEV__) {
-              console.warn('[PORTFOLIO] Error tracking failed:', trackingError);
-            }
+
+        // Track the error (pass string directly, trackPriceFetchError accepts Error | string)
+        try {
+          trackPriceFetchError(errorMessage, 'Redux Thunk', undefined, false);
+        } catch (trackingError) {
+          // Don't let error tracking break the app
+          if (__DEV__) {
+            console.warn('[PORTFOLIO] Error tracking failed:', trackingError);
           }
         }
-        
+
         // Attempt to load backup as fallback
         // Note: This is async, so we'll handle it in a thunk if needed
         // For now, we keep existing prices and set error flag
         // The backup will be attempted automatically on next fetch
-        
-        if (__DEV__ && errorMessage !== 'Already fetching prices') {
+
+        if (__DEV__) {
           console.warn('[PORTFOLIO] Price fetch rejected:', errorMessage);
         }
       });
@@ -484,6 +508,7 @@ export const selectHistory = (state: { portfolio: PortfolioState }) => state.por
 export const selectLanguage = (state: { portfolio: PortfolioState }) => state.portfolio.currentLanguage;
 export const selectPriceDataFetchedAt = (state: { portfolio: PortfolioState }) => state.portfolio.priceDataFetchedAt;
 export const selectIsUsingBackupPriceData = (state: { portfolio: PortfolioState }) => state.portfolio.isUsingBackupPriceData;
+export const selectIsUsingOldBackup = (state: { portfolio: PortfolioState }) => state.portfolio.isUsingOldBackup;
 export const selectHasPartialPriceUpdate = (state: { portfolio: PortfolioState }) => state.portfolio.hasPartialPriceUpdate;
 export const selectIsFetchingPrices = (state: { portfolio: PortfolioState }) => state.portfolio.isFetchingPrices ?? false;
 export const selectPriceFetchError = (state: { portfolio: PortfolioState }) => state.portfolio.priceFetchError;

@@ -16,7 +16,7 @@ import { Swipeable } from 'react-native-gesture-handler';
 import { useTranslation } from 'react-i18next';
 import { Text } from '../components/Text';
 import { useAppSelector, useAppDispatch } from '../hooks/useRedux';
-import { addItem, updateItemAmount, selectItems, selectPrices, selectPriceChanges, selectTotalIn, fetchPrices, selectPriceDataFetchedAt, selectIsUsingBackupPriceData, selectHasPartialPriceUpdate, selectPriceFetchError } from '../store/portfolioSlice';
+import { addItem, updateItemAmount, selectItems, selectPrices, selectPriceChanges, selectTotalIn, fetchPrices, selectPriceDataFetchedAt, selectIsUsingBackupPriceData, selectIsUsingOldBackup, selectHasPartialPriceUpdate, selectPriceFetchError } from '../store/portfolioSlice';
 import { AppDispatch } from '../store';
 import { colors, spacing, borderRadius, fontSize, fontWeight, shadows } from '../theme';
 import { CurrencyType, AssetType, PortfolioItem } from '../types';
@@ -41,6 +41,7 @@ const PortfolioScreen: React.FC = () => {
   const priceChanges = useAppSelector(selectPriceChanges);
   const priceDataFetchedAt = useAppSelector(selectPriceDataFetchedAt);
   const isUsingBackupPriceData = useAppSelector(selectIsUsingBackupPriceData);
+  const isUsingOldBackup = useAppSelector(selectIsUsingOldBackup);
   const hasPartialPriceUpdate = useAppSelector(selectHasPartialPriceUpdate);
   const priceFetchError = useAppSelector(selectPriceFetchError);
   const { showToast } = useToast();
@@ -302,15 +303,15 @@ const PortfolioScreen: React.FC = () => {
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
     }
-    
+
     // Create new AbortController for this request
     const abortController = new AbortController();
     abortControllerRef.current = abortController;
-    
+
     hapticFeedback.light();
     setRefreshing(true);
     try {
-      const result = await (dispatch as AppDispatch)(fetchPrices());
+      const result = await (dispatch as AppDispatch)(fetchPrices(abortController.signal));
       
       // Check if request was cancelled
       if (abortController.signal.aborted) {
@@ -319,9 +320,13 @@ const PortfolioScreen: React.FC = () => {
       
       if (fetchPrices.fulfilled.match(result)) {
         hapticFeedback.success();
-        // Show success message if using backup
+        // Show warning if using backup (especially if it's old)
         if (result.payload?.isBackup) {
-          showToast(t('usingBackupData'), 'warning');
+          if (result.payload?.isOldBackup) {
+            showToast(t('usingOldBackupData'), 'warning');
+          } else {
+            showToast(t('usingBackupData'), 'warning');
+          }
         } else if (result.payload && 'hasPartialPriceUpdate' in result.payload && result.payload.hasPartialPriceUpdate) {
           showToast(t('partialPriceUpdate'), 'warning');
         }

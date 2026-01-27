@@ -116,6 +116,7 @@ export default {
   minutesAgo: 'minutes ago',
   hoursAgo: 'hours ago',
   usingBackupData: 'Using backup data',
+  usingOldBackupData: 'Using old backup data (older than 24 hours)',
   partialPriceUpdate: 'Some prices unavailable',
   noNetworkConnection: 'No network connection',
   noBackupAvailable: 'No backup available',

@@ -47,14 +47,10 @@ export async function getBackup(): Promise<PriceData | null> {
       return null;
     }
 
-    // Finance-safe: Check backup age - reject backups older than 24 hours
-    const MAX_BACKUP_AGE_MS = 24 * 60 * 60 * 1000; // 24 hours
-    const backupAge = Date.now() - row.fetched_at;
-    
-    if (backupAge > MAX_BACKUP_AGE_MS) {
-      // Backup is too old, return null to force fresh fetch
-      return null;
-    }
+    // Finance-safe: Accept backups of any age
+    // Old data is better than no data when API fails
+    // The isOldBackup flag will allow UI to warn users if backup is stale
+    // Removed strict 24-hour limit - better to show old prices with warning than no prices
 
     let prices: Prices;
     let buyPrices: BuyPrices | undefined;
@@ -153,11 +149,17 @@ export async function getBackup(): Promise<PriceData | null> {
       }
     }
 
+    // Check if backup is older than 24 hours (stale)
+    const MAX_BACKUP_AGE_MS = 24 * 60 * 60 * 1000; // 24 hours
+    const backupAge = Date.now() - row.fetched_at;
+    const isOldBackup = backupAge > MAX_BACKUP_AGE_MS;
+
     return {
       prices,
       buyPrices,
       changes,
       fetchedAt: row.fetched_at,
+      isOldBackup,
     };
   } catch (error) {
     return null;

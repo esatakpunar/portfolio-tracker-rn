@@ -10,13 +10,15 @@ export interface PriceData {
   changes: PriceChanges;
   fetchedAt?: number; // Timestamp when prices were fetched (for backup age checking)
   isBackup?: boolean; // Indicates if this data is from backup
+  isOldBackup?: boolean; // Indicates if backup is older than 24 hours (stale)
 }
 
 /**
  * Type for price API provider functions.
  * New API providers should implement this interface.
+ * @param signal Optional AbortSignal for request cancellation
  */
-type PriceApiProvider = () => Promise<PriceData>;
+type PriceApiProvider = (signal?: AbortSignal) => Promise<PriceData>;
 
 /**
  * List of price API providers to try in order.
@@ -38,9 +40,15 @@ const PRICE_API_PROVIDERS: PriceApiProvider[] = [
  * 2. Tries each API provider in order until one succeeds
  * 3. If all providers fail, uses backup if available
  * 4. If no backup is available, throws an error
+ * @param signal Optional AbortSignal for request cancellation
  */
-export const fetchPrices = async (): Promise<PriceData> => {
+export const fetchPrices = async (signal?: AbortSignal): Promise<PriceData> => {
   const errors: string[] = [];
+
+  // Check if request was already aborted
+  if (signal?.aborted) {
+    throw new Error('Request aborted');
+  }
 
   // Check network connectivity but don't block API calls
   // This is advisory only - we'll still try the API even if network check fails
@@ -53,12 +61,18 @@ export const fetchPrices = async (): Promise<PriceData> => {
   // Try each API provider in order
   for (let i = 0; i < PRICE_API_PROVIDERS.length; i++) {
     const provider = PRICE_API_PROVIDERS[i];
+
+    // Check if aborted before trying next provider
+    if (signal?.aborted) {
+      throw new Error('Request aborted');
+    }
+
     try {
       if (__DEV__) {
         console.log(`[PRICE_SERVICE] Attempting provider ${i + 1}/${PRICE_API_PROVIDERS.length}...`);
       }
 
-      const data = await provider();
+      const data = await provider(signal);
 
       if (__DEV__) {
         console.log(`[PRICE_SERVICE] Provider ${i + 1} succeeded, saving backup...`);
@@ -107,10 +121,14 @@ export const fetchPrices = async (): Promise<PriceData> => {
   if (backup) {
     if (__DEV__) {
       console.log('[PRICE_SERVICE] Loaded backup data successfully');
+      if (backup.isOldBackup) {
+        console.warn('[PRICE_SERVICE] Backup is older than 24 hours (stale)');
+      }
     }
     return {
       ...backup,
       isBackup: true,
+      // isOldBackup is already in backup from getBackup()
     };
   }
 

@@ -116,6 +116,7 @@ export default {
   minutesAgo: 'dakika önce',
   hoursAgo: 'saat önce',
   usingBackupData: 'Yedek veri kullanılıyor',
+  usingOldBackupData: 'Eski yedek veri kullanılıyor (24 saatten eski)',
   partialPriceUpdate: 'Bazı fiyatlar güncellenemedi',
   noNetworkConnection: 'İnternet bağlantısı yok',
   noBackupAvailable: 'Yedek veri bulunamadı',

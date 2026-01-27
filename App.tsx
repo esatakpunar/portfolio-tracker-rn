@@ -104,11 +104,13 @@ export default function App() {
   }, []);
 
   useEffect(() => {
+    const abortController = new AbortController();
+
     const fetchInitialPrices = async () => {
       if (isReady && isStateRestored) {
         try {
           // Database is already initialized in first useEffect, no need to call again
-          const result = await (store.dispatch as AppDispatch)(fetchPrices());
+          const result = await (store.dispatch as AppDispatch)(fetchPrices(abortController.signal));
 
           // Check if fetch failed - error handling is done in slice
           if (fetchPrices.rejected.match(result)) {
@@ -126,6 +128,11 @@ export default function App() {
     };
 
     fetchInitialPrices();
+
+    // Cleanup: abort fetch if component unmounts before completion
+    return () => {
+      abortController.abort();
+    };
   }, [isReady, isStateRestored]);
 
   if (!isReady || !i18nReady) {

@@ -4,9 +4,9 @@ import { PriceData } from './priceService';
 import { trackPriceFetchError, trackNetworkError } from '../utils/errorTracking';
 
 const API_URL = 'https://finans.truncgil.com/v4/today.json';
-const MAX_RETRIES = 3;
+const MAX_RETRIES = 2; // Reduced from 3 to minimize wait time
 const INITIAL_RETRY_DELAY_MS = 1000; // 1 second
-const REQUEST_TIMEOUT_MS = 18000; // 18 seconds (increased from 10s for slow networks)
+const REQUEST_TIMEOUT_MS = 10000; // 10 seconds (total max time: ~23s with retries)
 
 interface TruncgilApiAsset {
   Type?: string;
@@ -95,8 +95,31 @@ const parseChange = (value: string | number | null | undefined): number | null =
 
 const validateApiResponse = (data: any): data is TruncgilApiResponse => {
   if (!data || typeof data !== 'object') {
+    if (__DEV__) {
+      console.warn('[TRUNCGIL] Validation failed: data is not an object', typeof data);
+    }
     return false;
   }
+
+  // Check if response has expected structure (at least one currency field)
+  const hasExpectedFields = !!(
+    data.USD ||
+    data.EUR ||
+    data.GUMUS ||
+    data.TAMALTIN ||
+    data.CEYREKALTIN ||
+    data.YIA ||
+    data.GRA
+  );
+
+  if (!hasExpectedFields) {
+    if (__DEV__) {
+      console.warn('[TRUNCGIL] Validation failed: missing expected currency fields');
+      console.warn('[TRUNCGIL] Response keys:', Object.keys(data));
+    }
+    return false;
+  }
+
   return true;
 };
 
@@ -108,13 +131,43 @@ const sleep = (ms: number): Promise<void> => {
 };
 
 /**
+ * Manual timeout wrapper for promises
+ * React Native's axios timeout is not always reliable, especially during network changes
+ */
+const withTimeout = <T>(promise: Promise<T>, timeoutMs: number, errorMessage: string): Promise<T> => {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => {
+      reject(new Error(errorMessage));
+    }, timeoutMs);
+
+    promise
+      .then((value) => {
+        clearTimeout(timer);
+        resolve(value);
+      })
+      .catch((error) => {
+        clearTimeout(timer);
+        reject(error);
+      });
+  });
+};
+
+/**
  * Attempts to fetch prices from Truncgil API with exponential backoff retry
  */
-const attemptFetch = async (signal?: AbortSignal): Promise<PriceData> => {
+const attemptFetchInternal = async (signal?: AbortSignal): Promise<PriceData> => {
+  // Check if already aborted before making request
+  if (signal?.aborted) {
+    throw new Error('Request aborted');
+  }
+
   const response = await axios.get<TruncgilApiResponse>(API_URL, {
-    timeout: REQUEST_TIMEOUT_MS,
+    timeout: REQUEST_TIMEOUT_MS + 1000, // Slightly higher than manual timeout for fallback
     validateStatus: (status) => status === 200,
-    signal, // Support request cancellation
+    responseType: 'json', // Explicitly request JSON parsing
+    // Note: signal is intentionally not passed to axios because React Native's
+    // XMLHttpRequest doesn't fully support AbortSignal. We handle cancellation
+    // manually by checking signal.aborted before and during retries.
     // Cache-busting: Add timestamp to prevent iOS/system caching issues
     params: {
       _t: Date.now(),
@@ -124,10 +177,46 @@ const attemptFetch = async (signal?: AbortSignal): Promise<PriceData> => {
       'Cache-Control': 'no-cache, no-store, must-revalidate',
       'Pragma': 'no-cache',
       'Expires': '0',
+      'Accept': 'application/json', // Explicitly request JSON
     },
   });
 
+  // Debug: Log response type and sample data in dev
+  if (__DEV__) {
+    console.log('[TRUNCGIL] Response type:', typeof response.data);
+    console.log('[TRUNCGIL] Response is string?', typeof response.data === 'string');
+    if (typeof response.data === 'string') {
+      console.log('[TRUNCGIL] String response (first 200 chars):', response.data.substring(0, 200));
+      console.log('[TRUNCGIL] String length:', response.data.length);
+      // If response is a string, try to parse it manually
+      try {
+        const parsed = JSON.parse(response.data);
+        console.log('[TRUNCGIL] Successfully parsed string response');
+        response.data = parsed;
+      } catch (e) {
+        console.error('[TRUNCGIL] Failed to parse string response (likely incomplete/truncated):', e instanceof Error ? e.message : e);
+      }
+    } else if (response.data) {
+      console.log('[TRUNCGIL] Response keys:', Object.keys(response.data).slice(0, 10));
+      console.log('[TRUNCGIL] Has USD?', !!response.data.USD);
+    }
+  }
+
+  // Handle string responses in production too
+  if (typeof response.data === 'string') {
+    try {
+      response.data = JSON.parse(response.data);
+    } catch (parseError) {
+      // Likely incomplete/truncated response - will be caught by retry mechanism
+      const error = parseError instanceof Error ? parseError : new Error('Parse error');
+      throw new Error(`Failed to parse API response: ${error.message} (response may be incomplete)`);
+    }
+  }
+
   if (!validateApiResponse(response.data)) {
+    if (__DEV__) {
+      console.error('[TRUNCGIL] Full response data:', JSON.stringify(response.data).substring(0, 500));
+    }
     throw new Error('Invalid API response structure');
   }
 
@@ -189,6 +278,18 @@ const attemptFetch = async (signal?: AbortSignal): Promise<PriceData> => {
 };
 
 /**
+ * Wrapper for attemptFetchInternal with manual timeout
+ * React Native's axios timeout is not reliable, so we implement our own
+ */
+const attemptFetch = async (signal?: AbortSignal): Promise<PriceData> => {
+  return withTimeout(
+    attemptFetchInternal(signal),
+    REQUEST_TIMEOUT_MS,
+    `Request timeout after ${REQUEST_TIMEOUT_MS}ms`
+  );
+};
+
+/**
  * Fetches prices from Truncgil API with exponential backoff retry mechanism
  * @param signal Optional AbortSignal for request cancellation
  */
@@ -208,7 +309,12 @@ export const fetchPricesFromTruncgil = async (signal?: AbortSignal): Promise<Pri
       const result = await attemptFetch(signal);
 
       if (__DEV__) {
-        console.log(`[TRUNCGIL] Fetch successful on attempt ${attempt + 1}`);
+        console.log(`[TRUNCGIL] ✅ Fetch successful on attempt ${attempt + 1}`);
+        console.log(`[TRUNCGIL] Prices fetched:`, {
+          usd: result.prices.usd,
+          eur: result.prices.eur,
+          hasAllPrices: Object.values(result.prices).every(p => p !== null),
+        });
       }
 
       return result;
@@ -225,16 +331,36 @@ export const fetchPricesFromTruncgil = async (signal?: AbortSignal): Promise<Pri
 
       // Log detailed error info in dev mode
       if (__DEV__) {
+        console.warn(`[TRUNCGIL] ============ ERROR on attempt ${attempt + 1}/${MAX_RETRIES} ============`);
         if (axios.isAxiosError(error)) {
-          console.warn(`[TRUNCGIL] Axios error on attempt ${attempt + 1}:`, {
+          console.warn('[TRUNCGIL] Axios error details:', {
             message: error.message,
             code: error.code,
             status: error.response?.status,
             statusText: error.response?.statusText,
+            timeout: error.code === 'ECONNABORTED',
+            responseType: typeof error.response?.data,
+            hasResponse: !!error.response,
+            hasRequest: !!error.request,
           });
+
+          // If response exists but validation failed, show response
+          if (error.response?.data) {
+            console.warn('[TRUNCGIL] Response data type:', typeof error.response.data);
+            if (typeof error.response.data === 'string') {
+              console.warn('[TRUNCGIL] String response preview:', error.response.data.substring(0, 300));
+            } else {
+              console.warn('[TRUNCGIL] Response keys:', Object.keys(error.response.data || {}).slice(0, 15));
+            }
+          }
         } else {
-          console.warn(`[TRUNCGIL] Error on attempt ${attempt + 1}:`, lastError.message);
+          console.warn('[TRUNCGIL] Non-axios error:', {
+            message: lastError.message,
+            name: lastError.name,
+            stack: lastError.stack?.substring(0, 200),
+          });
         }
+        console.warn('[TRUNCGIL] ===================================================');
       }
 
       // Track network errors
@@ -270,7 +396,21 @@ export const fetchPricesFromTruncgil = async (signal?: AbortSignal): Promise<Pri
   }
 
   // All retries exhausted - track the error
-  const finalError = new Error(`Truncgil API failed after ${MAX_RETRIES} attempts: ${lastError?.message || 'Unknown error'}`);
+  const errorDetails = lastError instanceof Error ? {
+    message: lastError.message,
+    name: lastError.name,
+    code: (lastError as any).code,
+  } : { message: 'Unknown error' };
+
+  if (__DEV__) {
+    console.error('[TRUNCGIL] ❌ All retry attempts exhausted');
+    console.error('[TRUNCGIL] Last error details:', errorDetails);
+  }
+
+  const finalError = new Error(
+    `Truncgil API failed after ${MAX_RETRIES} attempts: ${errorDetails.message}` +
+    (errorDetails.code ? ` (code: ${errorDetails.code})` : '')
+  );
   trackPriceFetchError(finalError, 'Truncgil', MAX_RETRIES, false);
   throw finalError;
 };
