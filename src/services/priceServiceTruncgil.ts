@@ -115,6 +115,16 @@ const attemptFetch = async (signal?: AbortSignal): Promise<PriceData> => {
     timeout: REQUEST_TIMEOUT_MS,
     validateStatus: (status) => status === 200,
     signal, // Support request cancellation
+    // Cache-busting: Add timestamp to prevent iOS/system caching issues
+    params: {
+      _t: Date.now(),
+    },
+    // HTTP headers to prevent caching
+    headers: {
+      'Cache-Control': 'no-cache, no-store, must-revalidate',
+      'Pragma': 'no-cache',
+      'Expires': '0',
+    },
   });
 
   if (!validateApiResponse(response.data)) {
