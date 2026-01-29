@@ -12,7 +12,7 @@ import { Feather } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { Text } from '../components/Text';
 import { useAppSelector, useAppDispatch } from '../hooks/useRedux';
-import { selectPrices, selectBuyPrices, selectPriceChanges, resetAll, setLanguage, selectLanguage, fetchPrices, selectPriceDataFetchedAt, selectIsUsingBackupPriceData, selectHasPartialPriceUpdate } from '../store/portfolioSlice';
+import { selectPrices, selectBuyPrices, selectPriceChanges, resetAll, setLanguage, selectLanguage, fetchPrices, selectPriceDataFetchedAt, selectIsUsingBackupPriceData, selectHasPartialPriceUpdate, selectPriceSource } from '../store/portfolioSlice';
 import { AppDispatch } from '../store';
 import { colors, spacing, borderRadius, fontSize, fontWeight, shadows } from '../theme';
 import { availableLanguages, saveLanguage } from '../locales';
@@ -32,6 +32,7 @@ const SettingsScreen: React.FC = () => {
   const priceDataFetchedAt = useAppSelector(selectPriceDataFetchedAt);
   const isUsingBackupPriceData = useAppSelector(selectIsUsingBackupPriceData);
   const hasPartialPriceUpdate = useAppSelector(selectHasPartialPriceUpdate);
+  const priceSource = useAppSelector(selectPriceSource);
   const [showLanguagePicker, setShowLanguagePicker] = useState(false);
   const [isRefreshingPrices, setIsRefreshingPrices] = useState(false);
   const [lastUpdateTime, setLastUpdateTime] = useState<number | null>(null);
@@ -263,6 +264,9 @@ const SettingsScreen: React.FC = () => {
               {(priceDataFetchedAt || lastUpdateTime) && (
                 <Text style={styles.sectionSubtitle}>
                   {t('lastUpdated')}: {formatLastUpdateTime(priceDataFetchedAt || lastUpdateTime || 0, i18n.language, t)}
+                  {priceSource && (
+                    <Text style={styles.priceSourceText}> • {priceSource}</Text>
+                  )}
                   {isUsingBackupPriceData && (
                     <Text style={styles.backupWarningText}> • {t('usingBackupData')}</Text>
                   )}
@@ -420,6 +424,11 @@ const styles = StyleSheet.create({
     fontSize: fontSize.sm,
     color: colors.textSecondary,
     marginTop: 2,
+  },
+  priceSourceText: {
+    fontSize: fontSize.xs,
+    color: colors.textMuted,
+    fontWeight: fontWeight.medium,
   },
   backupWarningText: {
     fontSize: fontSize.xs,

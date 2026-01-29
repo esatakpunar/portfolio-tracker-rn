@@ -18,6 +18,7 @@ interface PortfolioState {
   hasPartialPriceUpdate?: boolean; // Indicates if some prices failed to update
   isFetchingPrices?: boolean; // Indicates if prices are currently being fetched (race condition prevention)
   priceFetchError?: string | null; // Error message if price fetch failed
+  priceSource?: string; // Name of the API provider that supplied the price data
 }
 
 const initialPrices: Prices = {
@@ -394,7 +395,7 @@ const portfolioSlice = createSlice({
           return;
         }
 
-        const { prices, buyPrices, changes, fetchedAt, isBackup, isOldBackup } = action.payload;
+        const { prices, buyPrices, changes, fetchedAt, isBackup, isOldBackup, priceSource } = action.payload;
         
         // Check if this is a partial update (some prices are null/missing)
         // Fix: Check for non-null values, not just key presence
@@ -457,6 +458,7 @@ const portfolioSlice = createSlice({
         state.isUsingBackupPriceData = isBackup === true;
         state.isUsingOldBackup = isOldBackup === true;
         state.hasPartialPriceUpdate = hasPartialUpdate;
+        state.priceSource = priceSource || undefined;
       })
       .addCase(fetchPrices.rejected, (state, action) => {
         // Clear fetching flag
@@ -512,6 +514,7 @@ export const selectIsUsingOldBackup = (state: { portfolio: PortfolioState }) => 
 export const selectHasPartialPriceUpdate = (state: { portfolio: PortfolioState }) => state.portfolio.hasPartialPriceUpdate;
 export const selectIsFetchingPrices = (state: { portfolio: PortfolioState }) => state.portfolio.isFetchingPrices ?? false;
 export const selectPriceFetchError = (state: { portfolio: PortfolioState }) => state.portfolio.priceFetchError;
+export const selectPriceSource = (state: { portfolio: PortfolioState }) => state.portfolio.priceSource;
 
 export const selectTotalTL = (state: { portfolio: PortfolioState }) => {
   if (!state.portfolio?.items || state.portfolio.items.length === 0) {

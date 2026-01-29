@@ -1,6 +1,7 @@
 import { Prices, PriceChanges, BuyPrices } from '../types';
 import { saveBackup, getBackup } from './priceBackupService';
 import { fetchPricesFromTruncgil } from './priceServiceTruncgil';
+import { fetchPricesFromInvesting } from './priceServiceInvesting';
 import { isOnline } from '../utils/networkUtils';
 import { trackPriceFetchError } from '../utils/errorTracking';
 
@@ -11,6 +12,7 @@ export interface PriceData {
   fetchedAt?: number; // Timestamp when prices were fetched (for backup age checking)
   isBackup?: boolean; // Indicates if this data is from backup
   isOldBackup?: boolean; // Indicates if backup is older than 24 hours (stale)
+  priceSource?: string; // Name of the API provider that supplied the data
 }
 
 /**
@@ -21,17 +23,27 @@ export interface PriceData {
 type PriceApiProvider = (signal?: AbortSignal) => Promise<PriceData>;
 
 /**
+ * Map of provider functions to their display names.
+ * Used to show the user which API provider is currently active.
+ */
+const PROVIDER_NAMES: Record<string, string> = {
+  fetchPricesFromTruncgil: 'Truncgil API',
+  fetchPricesFromInvesting: 'Investing.com',
+};
+
+/**
  * List of price API providers to try in order.
  * If one fails, the next one will be tried.
  * To add a new API provider:
  * 1. Create a new service file (e.g., priceServiceNewApi.ts)
  * 2. Export a function that returns Promise<PriceData>
  * 3. Add it to this array
+ * 4. Add its display name to PROVIDER_NAMES
  */
 const PRICE_API_PROVIDERS: PriceApiProvider[] = [
   fetchPricesFromTruncgil,
+  fetchPricesFromInvesting, // Fallback: only provides EUR, USD, GAU, XAG (partial data)
   // Add more API providers here as needed
-  // Example: fetchPricesFromNewApi,
 ];
 
 /**
@@ -74,8 +86,11 @@ export const fetchPrices = async (signal?: AbortSignal): Promise<PriceData> => {
 
       const data = await provider(signal);
 
+      // Get provider name for display
+      const providerName = PROVIDER_NAMES[provider.name] || `Provider ${i + 1}`;
+
       if (__DEV__) {
-        console.log(`[PRICE_SERVICE] Provider ${i + 1} succeeded, saving backup...`);
+        console.log(`[PRICE_SERVICE] ${providerName} succeeded, saving backup...`);
       }
 
       // Save successful fetch to backup
@@ -100,6 +115,7 @@ export const fetchPrices = async (signal?: AbortSignal): Promise<PriceData> => {
       return {
         ...data,
         isBackup: false,
+        priceSource: providerName,
       };
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
@@ -128,6 +144,7 @@ export const fetchPrices = async (signal?: AbortSignal): Promise<PriceData> => {
     return {
       ...backup,
       isBackup: true,
+      priceSource: 'Backup',
       // isOldBackup is already in backup from getBackup()
     };
   }

@@ -97,6 +97,7 @@ export default {
   close: 'Close',
   save: 'Save',
   loading: 'Loading...',
+  priceSource: 'Price Source',
   error: 'An error occurred',
   success: 'Success',
   retry: 'Retry',

@@ -97,6 +97,7 @@ export default {
   close: 'Kapat',
   save: 'Kaydet',
   loading: 'Yükleniyor...',
+  priceSource: 'Fiyat Kaynağı',
   error: 'Hata oluştu',
   success: 'Başarılı',
   retry: 'Tekrar Dene',
