@@ -21,6 +21,7 @@ import { getLastUpdateTime } from '../services/priceBackupService';
 import { AssetType } from '../types';
 import { hapticFeedback } from '../utils/haptics';
 import PriceChangeIndicator from '../components/PriceChangeIndicator';
+import { getPriceSourcePreference, savePriceSourcePreference, PriceSource, PRICE_SOURCES } from '../utils/preferenceStorage';
 
 const SettingsScreen: React.FC = () => {
   const { t, i18n } = useTranslation();
@@ -34,22 +35,27 @@ const SettingsScreen: React.FC = () => {
   const hasPartialPriceUpdate = useAppSelector(selectHasPartialPriceUpdate);
   const priceSource = useAppSelector(selectPriceSource);
   const [showLanguagePicker, setShowLanguagePicker] = useState(false);
+  const [showPriceSourcePicker, setShowPriceSourcePicker] = useState(false);
   const [isRefreshingPrices, setIsRefreshingPrices] = useState(false);
   const [lastUpdateTime, setLastUpdateTime] = useState<number | null>(null);
+  const [priceSourcePreference, setPriceSourcePreference] = useState<PriceSource>(PRICE_SOURCES.AUTO);
   const lastRefreshTimeRef = React.useRef<number>(0);
   const DEBOUNCE_DELAY_MS = 2500; // 2.5 seconds
 
-  // Load last update time on mount
+  // Load last update time and price source preference on mount
   useEffect(() => {
     const initializePreferences = async () => {
       try {
         const updateTime = await getLastUpdateTime();
         setLastUpdateTime(updateTime);
+
+        const priceSource = await getPriceSourcePreference();
+        setPriceSourcePreference(priceSource);
       } catch (error) {
         // Ignore error
       }
     };
-    
+
     initializePreferences();
   }, []);
 
@@ -141,6 +147,13 @@ const SettingsScreen: React.FC = () => {
     dispatch(setLanguage(languageCode));
     await saveLanguage(languageCode);
     setShowLanguagePicker(false);
+  };
+
+  const handlePriceSourceChange = async (source: PriceSource) => {
+    hapticFeedback.selection();
+    await savePriceSourcePreference(source);
+    setPriceSourcePreference(source);
+    setShowPriceSourcePicker(false);
   };
 
 
@@ -262,18 +275,24 @@ const SettingsScreen: React.FC = () => {
             <View style={styles.sectionHeaderContent}>
               <Text style={styles.sectionTitle}>{t('refreshPrices')}</Text>
               {(priceDataFetchedAt || lastUpdateTime) && (
-                <Text style={styles.sectionSubtitle}>
-                  {t('lastUpdated')}: {formatLastUpdateTime(priceDataFetchedAt || lastUpdateTime || 0, i18n.language, t)}
-                  {priceSource && (
-                    <Text style={styles.priceSourceText}> • {priceSource}</Text>
-                  )}
+                <>
+                  <Text style={styles.sectionSubtitle}>
+                    {t('lastUpdated')}: {formatLastUpdateTime(priceDataFetchedAt || lastUpdateTime || 0, i18n.language, t)}
+                    {priceSource && (
+                      <Text style={styles.priceSourceText}> • {priceSource}</Text>
+                    )}
+                  </Text>
                   {isUsingBackupPriceData && (
-                    <Text style={styles.backupWarningText}> • {t('usingBackupData')}</Text>
+                    <Text style={styles.backupWarningText}>
+                      ⚠️ {t('usingBackupData')}
+                    </Text>
                   )}
-                  {hasPartialPriceUpdate && (
-                    <Text style={styles.partialUpdateWarningText}> • {t('partialPriceUpdate')}</Text>
+                  {hasPartialPriceUpdate && !isUsingBackupPriceData && (
+                    <Text style={styles.partialUpdateWarningText}>
+                      ⚠️ {t('partialPriceUpdate')}
+                    </Text>
                   )}
-                </Text>
+                </>
               )}
             </View>
             <TouchableOpacity
@@ -306,6 +325,109 @@ const SettingsScreen: React.FC = () => {
                 renderPriceItem(key as AssetType)
               )}
           </View>
+        </View>
+
+        <View style={styles.section}>
+          <View style={styles.sectionHeaderContainer}>
+            <View style={[styles.sectionIconWrapper, { backgroundColor: colors.accent + '20' }]}>
+              <Feather name="database" size={24} color={colors.accent} />
+            </View>
+            <View style={styles.sectionHeaderContent}>
+              <Text style={styles.sectionTitle}>{t('priceSource')}</Text>
+              <Text style={styles.sectionSubtitle}>{t('priceSourceSubtitle')}</Text>
+            </View>
+          </View>
+
+          <TouchableOpacity
+            style={styles.priceSourceButton}
+            onPress={() => {
+              hapticFeedback.light();
+              setShowPriceSourcePicker(!showPriceSourcePicker);
+            }}
+          >
+            <View style={styles.priceSourceContent}>
+              <View style={styles.priceSourceLeft}>
+                <Text style={styles.priceSourceLabel}>
+                  {priceSourcePreference === PRICE_SOURCES.AUTO && t('priceSourceAuto')}
+                  {priceSourcePreference === PRICE_SOURCES.TRUNCGIL && t('priceSourceTruncgil')}
+                  {priceSourcePreference === PRICE_SOURCES.INVESTING && t('priceSourceInvesting')}
+                </Text>
+                <Text style={styles.priceSourceDesc}>
+                  {priceSourcePreference === PRICE_SOURCES.AUTO && t('priceSourceAutoDesc')}
+                  {priceSourcePreference === PRICE_SOURCES.TRUNCGIL && t('priceSourceTruncgilDesc')}
+                  {priceSourcePreference === PRICE_SOURCES.INVESTING && t('priceSourceInvestingDesc')}
+                </Text>
+              </View>
+              <Feather name="chevron-down" size={20} color={colors.textSecondary} />
+            </View>
+          </TouchableOpacity>
+
+          {showPriceSourcePicker && (
+            <View style={styles.priceSourceOptions}>
+              <TouchableOpacity
+                style={[
+                  styles.priceSourceOption,
+                  priceSourcePreference === PRICE_SOURCES.AUTO && styles.priceSourceOptionSelected
+                ]}
+                onPress={() => handlePriceSourceChange(PRICE_SOURCES.AUTO)}
+              >
+                <View style={styles.priceSourceOptionContent}>
+                  <Text style={[
+                    styles.priceSourceOptionLabel,
+                    priceSourcePreference === PRICE_SOURCES.AUTO && styles.priceSourceOptionLabelSelected
+                  ]}>
+                    {t('priceSourceAuto')}
+                  </Text>
+                  <Text style={styles.priceSourceOptionDesc}>{t('priceSourceAutoDesc')}</Text>
+                </View>
+                {priceSourcePreference === PRICE_SOURCES.AUTO && (
+                  <Feather name="check" size={20} color={colors.accent} />
+                )}
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[
+                  styles.priceSourceOption,
+                  priceSourcePreference === PRICE_SOURCES.TRUNCGIL && styles.priceSourceOptionSelected
+                ]}
+                onPress={() => handlePriceSourceChange(PRICE_SOURCES.TRUNCGIL)}
+              >
+                <View style={styles.priceSourceOptionContent}>
+                  <Text style={[
+                    styles.priceSourceOptionLabel,
+                    priceSourcePreference === PRICE_SOURCES.TRUNCGIL && styles.priceSourceOptionLabelSelected
+                  ]}>
+                    {t('priceSourceTruncgil')}
+                  </Text>
+                  <Text style={styles.priceSourceOptionDesc}>{t('priceSourceTruncgilDesc')}</Text>
+                </View>
+                {priceSourcePreference === PRICE_SOURCES.TRUNCGIL && (
+                  <Feather name="check" size={20} color={colors.accent} />
+                )}
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[
+                  styles.priceSourceOption,
+                  priceSourcePreference === PRICE_SOURCES.INVESTING && styles.priceSourceOptionSelected
+                ]}
+                onPress={() => handlePriceSourceChange(PRICE_SOURCES.INVESTING)}
+              >
+                <View style={styles.priceSourceOptionContent}>
+                  <Text style={[
+                    styles.priceSourceOptionLabel,
+                    priceSourcePreference === PRICE_SOURCES.INVESTING && styles.priceSourceOptionLabelSelected
+                  ]}>
+                    {t('priceSourceInvesting')}
+                  </Text>
+                  <Text style={styles.priceSourceOptionDesc}>{t('priceSourceInvestingDesc')}</Text>
+                </View>
+                {priceSourcePreference === PRICE_SOURCES.INVESTING && (
+                  <Feather name="check" size={20} color={colors.accent} />
+                )}
+              </TouchableOpacity>
+            </View>
+          )}
         </View>
 
         <View style={styles.section}>
@@ -608,6 +730,71 @@ const styles = StyleSheet.create({
     fontSize: fontSize.base,
     fontWeight: fontWeight.bold,
     color: colors.error,
+  },
+  priceSourceButton: {
+    backgroundColor: colors.glassBackground,
+    borderRadius: borderRadius.xl,
+    borderWidth: 1,
+    borderColor: colors.glassBorder,
+    padding: spacing.lg,
+    ...shadows.medium,
+  },
+  priceSourceContent: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  priceSourceLeft: {
+    flex: 1,
+    marginRight: spacing.md,
+  },
+  priceSourceLabel: {
+    fontSize: fontSize.base,
+    fontWeight: fontWeight.semibold,
+    color: colors.textPrimary,
+    marginBottom: spacing.xs,
+  },
+  priceSourceDesc: {
+    fontSize: fontSize.sm,
+    color: colors.textSecondary,
+  },
+  priceSourceOptions: {
+    marginTop: spacing.md,
+    backgroundColor: colors.glassBackground,
+    borderRadius: borderRadius.xl,
+    borderWidth: 1,
+    borderColor: colors.glassBorder,
+    overflow: 'hidden',
+    ...shadows.medium,
+  },
+  priceSourceOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: spacing.lg,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.glassBorder,
+  },
+  priceSourceOptionSelected: {
+    backgroundColor: colors.accent + '10',
+  },
+  priceSourceOptionContent: {
+    flex: 1,
+    marginRight: spacing.md,
+  },
+  priceSourceOptionLabel: {
+    fontSize: fontSize.base,
+    fontWeight: fontWeight.medium,
+    color: colors.textSecondary,
+    marginBottom: spacing.xs,
+  },
+  priceSourceOptionLabelSelected: {
+    color: colors.textPrimary,
+    fontWeight: fontWeight.semibold,
+  },
+  priceSourceOptionDesc: {
+    fontSize: fontSize.xs,
+    color: colors.textMuted,
   },
 });
 

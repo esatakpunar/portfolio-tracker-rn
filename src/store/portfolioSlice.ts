@@ -385,27 +385,39 @@ const portfolioSlice = createSlice({
         // Clear fetching flag
         state.isFetchingPrices = false;
         state.priceFetchError = null;
-        
+
         // Check if payload is valid PriceData
         if (!action.payload || typeof action.payload !== 'object' || !('prices' in action.payload) || !('changes' in action.payload)) {
-          if (__DEV__) {
-            console.warn('[PORTFOLIO] Invalid payload structure');
-          }
+          console.warn('[PORTFOLIO] Invalid payload structure');
           state.priceFetchError = 'Invalid response structure';
           return;
         }
 
         const { prices, buyPrices, changes, fetchedAt, isBackup, isOldBackup, priceSource } = action.payload;
-        
+
+        // CRITICAL: Explicitly set backup flags based on payload
+        // Default to false if not explicitly set to true
+        const isActuallyBackup = isBackup === true;
+        const isActuallyOldBackup = isOldBackup === true;
+
+        if (__DEV__) {
+          console.log('[PORTFOLIO] Processing price update:', {
+            source: priceSource || 'Unknown',
+            isBackup: isActuallyBackup,
+            isOldBackup: isActuallyOldBackup,
+            timestamp: fetchedAt || Date.now(),
+          });
+        }
+
         // Check if this is a partial update (some prices are null/missing)
         // Fix: Check for non-null values, not just key presence
         const requiredPriceKeys: (keyof Prices)[] = ['22_ayar', '24_ayar', 'ceyrek', 'tam', 'usd', 'eur', 'tl', 'gumus'];
         let hasPartialUpdate = false;
-        
+
         if (prices && typeof prices === 'object') {
           const validatedPrices: Partial<Prices> = {};
           const validPriceKeys: string[] = [];
-          
+
           Object.entries(prices).forEach(([key, value]) => {
             // Accept both number and null values (null indicates unavailable/invalid data)
             // Finance-safe: Do not hide errors by silently skipping null values
@@ -417,17 +429,23 @@ const portfolioSlice = createSlice({
               }
             }
           });
-          
+
           // Check if all required prices have non-null values
           const allPricesValid = requiredPriceKeys.every(key => {
             const priceValue = validatedPrices[key];
             return priceValue !== null && priceValue !== undefined;
           });
           hasPartialUpdate = !allPricesValid;
-          
+
+          if (hasPartialUpdate && __DEV__) {
+            console.warn('[PORTFOLIO] Partial price update detected. Missing prices:',
+              requiredPriceKeys.filter(key => !validatedPrices[key] || validatedPrices[key] === null)
+            );
+          }
+
           state.prices = { ...state.prices, ...validatedPrices };
         }
-        
+
         // Update buy prices if provided
         if (buyPrices && typeof buyPrices === 'object') {
           const validatedBuyPrices: Partial<BuyPrices> = {};
@@ -439,7 +457,7 @@ const portfolioSlice = createSlice({
           });
           state.buyPrices = { ...state.buyPrices, ...validatedBuyPrices };
         }
-        
+
         if (changes && typeof changes === 'object') {
           const validatedChanges: Partial<PriceChanges> = {};
           Object.entries(changes).forEach(([key, value]) => {
@@ -450,15 +468,23 @@ const portfolioSlice = createSlice({
           });
           state.priceChanges = { ...state.priceChanges, ...validatedChanges };
         }
-        
+
         // Store metadata about price data source
-        // Explicitly set isUsingBackupPriceData based on isBackup flag
-        // Only set to true if isBackup is explicitly true, otherwise false
+        // CRITICAL: Use the explicitly determined values
         state.priceDataFetchedAt = fetchedAt || Date.now();
-        state.isUsingBackupPriceData = isBackup === true;
-        state.isUsingOldBackup = isOldBackup === true;
+        state.isUsingBackupPriceData = isActuallyBackup;
+        state.isUsingOldBackup = isActuallyOldBackup;
         state.hasPartialPriceUpdate = hasPartialUpdate;
         state.priceSource = priceSource || undefined;
+
+        if (__DEV__) {
+          console.log('[PORTFOLIO] State updated:', {
+            isUsingBackupPriceData: state.isUsingBackupPriceData,
+            isUsingOldBackup: state.isUsingOldBackup,
+            hasPartialPriceUpdate: state.hasPartialPriceUpdate,
+            priceSource: state.priceSource,
+          });
+        }
       })
       .addCase(fetchPrices.rejected, (state, action) => {
         // Clear fetching flag
