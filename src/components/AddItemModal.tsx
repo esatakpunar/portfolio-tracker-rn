@@ -9,6 +9,7 @@ import {
   Animated,
   ScrollView,
 } from 'react-native';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { useTranslation } from 'react-i18next';
 import { Text } from './Text';
 import { TextInput } from './TextInput';
@@ -20,12 +21,25 @@ import { AssetType } from '../types';
 import { hapticFeedback } from '../utils/haptics';
 import { useAppSelector } from '../hooks/useRedux';
 import { selectPrices } from '../store/portfolioSlice';
-import { formatCurrency } from '../utils/formatUtils';
+import { formatCurrency, formatDate } from '../utils/formatUtils';
+import {
+  dateToTransactionISO,
+  getMarketUnitPrice,
+  parseDecimalInput,
+} from '../utils/lotEntryUtils';
+
+export interface AddItemPayload {
+  description?: string;
+  priceAtTime?: number | null;
+  unitBuyPrice?: number | null;
+  useExplicitTotalCost?: boolean;
+  transactionDate?: string;
+}
 
 interface AddItemModalProps {
   visible: boolean;
   onClose: () => void;
-  onAdd: (type: AssetType, amount: number, description?: string, priceAtTime?: number | null) => void;
+  onAdd: (type: AssetType, amount: number, options?: AddItemPayload) => void;
 }
 
 const assetTypes: AssetType[] = [
@@ -45,7 +59,11 @@ const AddItemModal: React.FC<AddItemModalProps> = ({ visible, onClose, onAdd }) 
   const [selectedType, setSelectedType] = useState<AssetType>('22_ayar');
   const [amount, setAmount] = useState('');
   const [description, setDescription] = useState('');
-  const [priceAtTime, setPriceAtTime] = useState('');
+  const [unitBuyPrice, setUnitBuyPrice] = useState('');
+  const [totalCost, setTotalCost] = useState('');
+  const [totalCostDirty, setTotalCostDirty] = useState(false);
+  const [transactionDate, setTransactionDate] = useState(new Date());
+  const [showDatePicker, setShowDatePicker] = useState(false);
   const [showTypePicker, setShowTypePicker] = useState(false);
   const [slideAnim] = useState(new Animated.Value(0));
   const scrollViewRef = useRef<ScrollView>(null);
@@ -54,35 +72,34 @@ const AddItemModal: React.FC<AddItemModalProps> = ({ visible, onClose, onAdd }) 
   const amountValidation = useMemo(() => validateAmount(amount), [amount]);
   const isAmountValid = amountValidation.isValid;
   
-  // Calculate default price based on current prices and amount
-  const calculateDefaultPrice = useMemo(() => {
-    if (!amount || !amountValidation.isValid || !amountValidation.value) {
-      return null;
+  const marketUnitPrice = useMemo(
+    () => getMarketUnitPrice(selectedType, prices),
+    [selectedType, prices]
+  );
+
+  const syncCostsFromUnit = (unitStr: string, amountValue: number | undefined) => {
+    const unit = parseDecimalInput(unitStr);
+    if (unit != null && amountValue != null && amountValue > 0) {
+      const total = selectedType === 'tl' ? amountValue : unit * amountValue;
+      setTotalCost(total.toFixed(2));
+      setTotalCostDirty(false);
     }
-    
-    const amountValue = amountValidation.value;
-    if (selectedType === 'tl') {
-      return amountValue;
-    } else if (selectedType === 'usd') {
-      const usdPrice = prices.usd;
-      return (usdPrice != null && usdPrice > 0) ? amountValue * usdPrice : null;
-    } else if (selectedType === 'eur') {
-      const eurPrice = prices.eur;
-      return (eurPrice != null && eurPrice > 0) ? amountValue * eurPrice : null;
-    } else {
-      const price = prices[selectedType];
-      return (price != null && price > 0) ? amountValue * price : null;
-    }
-  }, [amount, selectedType, prices, amountValidation]);
-  
-  // Update priceAtTime when amount or type changes
+  };
+
   useEffect(() => {
-    if (calculateDefaultPrice != null) {
-      setPriceAtTime(calculateDefaultPrice.toFixed(2));
-    } else {
-      setPriceAtTime('');
+    if (totalCostDirty) {
+      return;
     }
-  }, [calculateDefaultPrice]);
+    if (marketUnitPrice != null) {
+      setUnitBuyPrice(selectedType === 'tl' ? '1' : marketUnitPrice.toFixed(2));
+    }
+    if (amountValidation.isValid && amountValidation.value) {
+      syncCostsFromUnit(
+        selectedType === 'tl' ? '1' : (marketUnitPrice?.toFixed(2) ?? unitBuyPrice),
+        amountValidation.value
+      );
+    }
+  }, [amount, selectedType, marketUnitPrice, amountValidation.isValid, amountValidation.value]);
 
   useEffect(() => {
     if (visible) {
@@ -95,7 +112,11 @@ const AddItemModal: React.FC<AddItemModalProps> = ({ visible, onClose, onAdd }) 
       setSelectedType('24_ayar');
       setAmount('');
       setDescription('');
-      setPriceAtTime('');
+      setUnitBuyPrice('');
+      setTotalCost('');
+      setTotalCostDirty(false);
+      setTransactionDate(new Date());
+      setShowDatePicker(false);
       setShowTypePicker(false);
     } else {
       slideAnim.setValue(0);
@@ -105,20 +126,21 @@ const AddItemModal: React.FC<AddItemModalProps> = ({ visible, onClose, onAdd }) 
   const handleAdd = () => {
     const validation = validateAmount(amount);
     if (validation.isValid && validation.value !== undefined) {
-      // Parse priceAtTime
-      let parsedPriceAtTime: number | null = null;
-      if (priceAtTime.trim() !== '') {
-        const normalized = priceAtTime.replace(',', '.');
-        const parsed = parseFloat(normalized);
-        if (!isNaN(parsed) && isFinite(parsed) && parsed >= 0) {
-          parsedPriceAtTime = parsed;
-        }
-      }
-      
-      onAdd(selectedType, validation.value, description || undefined, parsedPriceAtTime);
+      const parsedUnit = parseDecimalInput(unitBuyPrice);
+      const parsedTotal = parseDecimalInput(totalCost);
+
+      onAdd(selectedType, validation.value, {
+        description: description || undefined,
+        unitBuyPrice: parsedUnit,
+        priceAtTime: parsedTotal,
+        useExplicitTotalCost: totalCostDirty,
+        transactionDate: dateToTransactionISO(transactionDate),
+      });
       setAmount('');
       setDescription('');
-      setPriceAtTime('');
+      setUnitBuyPrice('');
+      setTotalCost('');
+      setTotalCostDirty(false);
       setSelectedType('22_ayar');
       setShowTypePicker(false);
       onClose();
@@ -128,10 +150,25 @@ const AddItemModal: React.FC<AddItemModalProps> = ({ visible, onClose, onAdd }) 
   const handleClose = () => {
     setAmount('');
     setDescription('');
-    setPriceAtTime('');
+    setUnitBuyPrice('');
+    setTotalCost('');
+    setTotalCostDirty(false);
     setSelectedType('22_ayar');
     setShowTypePicker(false);
     onClose();
+  };
+
+  const handleUnitChange = (text: string) => {
+    setUnitBuyPrice(text);
+    setTotalCostDirty(false);
+    if (amountValidation.isValid && amountValidation.value) {
+      syncCostsFromUnit(text, amountValidation.value);
+    }
+  };
+
+  const handleTotalChange = (text: string) => {
+    setTotalCost(text);
+    setTotalCostDirty(true);
   };
 
   const presets = useMemo(() => getAmountPresets(selectedType), [selectedType]);
@@ -282,30 +319,91 @@ const AddItemModal: React.FC<AddItemModalProps> = ({ visible, onClose, onAdd }) 
               </View>
 
               <View style={styles.inputContainer}>
+                <Text style={styles.label}>{t('transactionDate')}</Text>
+                <TouchableOpacity
+                  style={styles.dateButton}
+                  onPress={() => setShowDatePicker(true)}
+                  activeOpacity={0.7}
+                >
+                  <Text style={styles.dateButtonText}>
+                    {formatDate(transactionDate, i18n.language, {
+                      day: '2-digit',
+                      month: '2-digit',
+                      year: 'numeric',
+                    })}
+                  </Text>
+                </TouchableOpacity>
+                {showDatePicker && (
+                  <DateTimePicker
+                    value={transactionDate}
+                    mode="date"
+                    display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                    maximumDate={new Date()}
+                    onChange={(_, selected) => {
+                      if (Platform.OS === 'android') {
+                        setShowDatePicker(false);
+                      }
+                      if (selected) {
+                        setTransactionDate(selected);
+                      }
+                    }}
+                  />
+                )}
+                {Platform.OS === 'ios' && showDatePicker && (
+                  <TouchableOpacity
+                    style={styles.dateDoneButton}
+                    onPress={() => setShowDatePicker(false)}
+                  >
+                    <Text style={styles.dateDoneText}>OK</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+
+              {selectedType !== 'tl' && (
+                <View style={styles.inputContainer}>
+                  <Text style={styles.label}>
+                    {t('unitBuyPrice')} <Text style={styles.optionalText}>{t('optional')}</Text>
+                  </Text>
+                  <View style={styles.inputWrapper}>
+                    <TextInput
+                      style={styles.input}
+                      value={unitBuyPrice}
+                      onChangeText={handleUnitChange}
+                      placeholder="0.00"
+                      placeholderTextColor={colors.textMuted}
+                      keyboardType="decimal-pad"
+                    />
+                    <Text style={styles.unit}>₺/{getAssetUnit(selectedType, t)}</Text>
+                  </View>
+                  {marketUnitPrice != null && (
+                    <Text style={styles.helperText}>
+                      {t('currentMarketPrice')}: {formatCurrency(marketUnitPrice, i18n.language)} ₺
+                    </Text>
+                  )}
+                </View>
+              )}
+
+              <View style={styles.inputContainer}>
                 <Text style={styles.label}>
-                  {t('priceAtTime')} <Text style={styles.optionalText}>{t('optional')}</Text>
+                  {t('totalCost')} <Text style={styles.optionalText}>{t('optional')}</Text>
                 </Text>
                 <View style={styles.inputWrapper}>
                   <TextInput
                     style={styles.input}
-                    value={priceAtTime}
-                    onChangeText={setPriceAtTime}
-                    placeholder={calculateDefaultPrice != null ? formatCurrency(calculateDefaultPrice, i18n.language) : "0.00"}
+                    value={totalCost}
+                    onChangeText={handleTotalChange}
+                    placeholder="0.00"
                     placeholderTextColor={colors.textMuted}
                     keyboardType="decimal-pad"
                   />
                   <Text style={styles.unit}>₺</Text>
                 </View>
-                {calculateDefaultPrice != null && (
-                  <Text style={styles.helperText}>
-                    {t('currentMarketPrice')}: {formatCurrency(calculateDefaultPrice, i18n.language)} ₺
-                  </Text>
-                )}
               </View>
 
               <View style={styles.inputContainer}>
                 <Text style={styles.label}>
-                  {t('description')} <Text style={styles.optionalText}>{t('optional')}</Text>
+                  {t('description')}{' '}
+                  <Text style={styles.optionalText}>{t('optional')}</Text>
                 </Text>
                 <View ref={descriptionInputWrapperRef}>
                   <TextInput
@@ -614,6 +712,29 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
     marginTop: spacing.xs,
     fontStyle: 'italic',
+  },
+  dateButton: {
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.lg,
+    borderRadius: borderRadius.lg,
+    borderWidth: 1,
+    borderColor: colors.glassBorder,
+    backgroundColor: colors.glassBackground,
+  },
+  dateButtonText: {
+    fontSize: fontSize.base,
+    color: colors.textPrimary,
+    fontWeight: fontWeight.medium,
+  },
+  dateDoneButton: {
+    alignSelf: 'flex-end',
+    marginTop: spacing.sm,
+    paddingVertical: spacing.xs,
+    paddingHorizontal: spacing.md,
+  },
+  dateDoneText: {
+    color: colors.primaryStart,
+    fontWeight: fontWeight.semibold,
   },
 });
 

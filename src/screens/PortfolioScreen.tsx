@@ -16,7 +16,9 @@ import { Swipeable } from 'react-native-gesture-handler';
 import { useTranslation } from 'react-i18next';
 import { Text } from '../components/Text';
 import { useAppSelector, useAppDispatch } from '../hooks/useRedux';
-import { addItem, updateItemAmount, selectItems, selectPrices, selectPriceChanges, selectTotalIn, fetchPrices, selectPriceDataFetchedAt, selectIsUsingBackupPriceData, selectIsUsingOldBackup, selectHasPartialPriceUpdate, selectPriceFetchError } from '../store/portfolioSlice';
+import { addItem, updateItemAmount, selectItems, selectPrices, selectPriceChanges, selectHistory, selectTotalIn, fetchPrices, selectPriceDataFetchedAt, selectIsUsingBackupPriceData, selectIsUsingOldBackup, selectHasPartialPriceUpdate, selectPriceFetchError } from '../store/portfolioSlice';
+import PortfolioProfitSummary from '../components/PortfolioProfitSummary';
+import { getAssetProfitLoss, getPortfolioProfitLoss } from '../utils/portfolioUtils';
 import { AppDispatch } from '../store';
 import { colors, spacing, borderRadius, fontSize, fontWeight, shadows } from '../theme';
 import { CurrencyType, AssetType, PortfolioItem } from '../types';
@@ -37,6 +39,7 @@ const PortfolioScreen: React.FC = () => {
   const { t, i18n } = useTranslation();
   const dispatch = useAppDispatch();
   const items = useAppSelector(selectItems);
+  const history = useAppSelector(selectHistory);
   const prices = useAppSelector(selectPrices);
   const priceChanges = useAppSelector(selectPriceChanges);
   const priceDataFetchedAt = useAppSelector(selectPriceDataFetchedAt);
@@ -176,6 +179,10 @@ const PortfolioScreen: React.FC = () => {
     return Object.keys(groupedItems).length;
   }, [groupedItems]);
 
+  const portfolioProfitLoss = useMemo(
+    () => getPortfolioProfitLoss(items, history, prices),
+    [items, history, prices]
+  );
 
   // Currency change animation
   useEffect(() => {
@@ -193,12 +200,22 @@ const PortfolioScreen: React.FC = () => {
     ]).start();
   }, [safeCurrencyIndex]);
 
-  const handleAddItem = (type: AssetType, amount: number, description?: string, priceAtTime?: number | null) => {
+  const handleAddItem = (
+    type: AssetType,
+    amount: number,
+    options?: {
+      description?: string;
+      priceAtTime?: number | null;
+      unitBuyPrice?: number | null;
+      useExplicitTotalCost?: boolean;
+      transactionDate?: string;
+    }
+  ) => {
     // Validate inputs
     if (!type || isNaN(amount) || !isFinite(amount) || amount <= 0) {
       return;
     }
-    dispatch(addItem({ type, amount, description, priceAtTime }));
+    dispatch(addItem({ type, amount, ...options }));
     hapticFeedback.success();
   };
 
@@ -209,7 +226,18 @@ const PortfolioScreen: React.FC = () => {
     setShowQuickAddModal(true);
   };
 
-  const handleQuickAdd = (amount: number, description?: string, priceAtTime?: number | null) => {
+  const handleQuickAdd = (
+    amount: number,
+    options?: {
+      description?: string;
+      priceAtTime?: number | null;
+      unitBuyPrice?: number | null;
+      useExplicitTotalCost?: boolean;
+      transactionDate?: string;
+    }
+  ) => {
+    const { description, priceAtTime, unitBuyPrice, useExplicitTotalCost, transactionDate } =
+      options ?? {};
     if (selectedAssetType) {
       // Validate amount
       if (isNaN(amount) || !isFinite(amount) || amount <= 0) {
@@ -232,7 +260,17 @@ const PortfolioScreen: React.FC = () => {
       }
 
       const finalDescription = description || t('amountIncreased');
-      dispatch(updateItemAmount({ type: selectedAssetType, newAmount, description: finalDescription, priceAtTime }));
+      dispatch(
+        updateItemAmount({
+          type: selectedAssetType,
+          newAmount,
+          description: finalDescription,
+          priceAtTime,
+          unitBuyPrice,
+          useExplicitTotalCost,
+          transactionDate,
+        })
+      );
       hapticFeedback.medium();
       hapticFeedback.success();
     }
@@ -702,6 +740,7 @@ const PortfolioScreen: React.FC = () => {
     }
     
     const currencySymbol = getCurrencySymbol(currentCurrency);
+    const assetProfit = getAssetProfitLoss(type, items, history, prices);
 
     return (
       <SwipeableAssetItem
@@ -732,6 +771,18 @@ const PortfolioScreen: React.FC = () => {
                 i18n.language
               )}{getDefaultUnit(type) && ' '}{getDefaultUnit(type)}
             </Text>
+            {assetProfit && (
+              <Text
+                style={[
+                  styles.assetProfitLine,
+                  { color: assetProfit.profitAmount >= 0 ? colors.success : colors.error },
+                ]}
+              >
+                {assetProfit.profitAmount >= 0 ? '+' : '−'}
+                {Math.abs(assetProfit.profitPct).toFixed(1)}% · {assetProfit.profitAmount >= 0 ? '+' : '−'}
+                {formatCurrency(Math.abs(assetProfit.profitAmount), i18n.language)} ₺
+              </Text>
+            )}
           </View>
           
           <View style={styles.assetValueContainer}>
@@ -781,6 +832,10 @@ const PortfolioScreen: React.FC = () => {
         }
       >
         {renderCurrencySlider()}
+
+        {portfolioProfitLoss && (
+          <PortfolioProfitSummary data={portfolioProfitLoss} />
+        )}
 
         <TouchableWithoutFeedback onPress={closeAllSwipeables}>
           <View style={styles.assetsContainer}>
@@ -1087,6 +1142,12 @@ const styles = StyleSheet.create({
     fontWeight: fontWeight.medium,
     color: colors.textSecondary,
     lineHeight: 16,
+  },
+  assetProfitLine: {
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.medium,
+    marginTop: 2,
+    lineHeight: 14,
   },
   assetValueContainer: {
     marginRight: spacing.sm,

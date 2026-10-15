@@ -18,7 +18,16 @@ export interface PortfolioItem {
   date: string;
 }
 
+/** Optional fields when adding or increasing holdings */
+export interface LotEntryOptions {
+  transactionDate?: string;
+  unitBuyPrice?: number | null;
+  priceAtTime?: number | null;
+  useExplicitTotalCost?: boolean;
+}
+
 export interface HistoryItem {
+  id: string;
   type: 'add' | 'remove' | 'update';
   item: PortfolioItem;
   date: string;
@@ -72,5 +81,6 @@ export type RootStackParamList = {
   Home: undefined;
   Portfolio: undefined;
   History: undefined;
-  Settings: undefined;
+  Markets: undefined;
+  AppSettings: undefined;
 };

@@ -1,52 +1,105 @@
-import React, { useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   View,
   StyleSheet,
   FlatList,
   RefreshControl,
+  TouchableOpacity,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
+import { Swipeable } from 'react-native-gesture-handler';
 import { useTranslation } from 'react-i18next';
 import { Text } from '../components/Text';
-import { useAppSelector } from '../hooks/useRedux';
-import { selectHistory } from '../store/portfolioSlice';
+import { useAppSelector, useAppDispatch } from '../hooks/useRedux';
+import { selectHistory, selectTotalTL, undoHistoryEntry } from '../store/portfolioSlice';
+import { getAllSnapshots, recordDailySnapshot } from '../services/dailySnapshotService';
 import { colors, spacing, borderRadius, fontSize, fontWeight } from '../theme';
 import { getAssetIcon, getAssetColor } from '../utils/assetUtils';
-import { formatRelativeDate, formatCurrency } from '../utils/formatUtils';
+import { formatRelativeDate, formatCurrency, formatDate } from '../utils/formatUtils';
 import { HistoryItem } from '../types';
 import EmptyState from '../components/EmptyState';
 import { hapticFeedback } from '../utils/haptics';
-
 const HistoryScreen: React.FC = () => {
   const { t, i18n } = useTranslation();
+  const dispatch = useAppDispatch();
   const history = useAppSelector(selectHistory);
+  const totalTL = useAppSelector(selectTotalTL);
   const [refreshing, setRefreshing] = useState(false);
+  const [showDailyTotals, setShowDailyTotals] = useState(false);
+  const [snapshots, setSnapshots] = useState<{ date: string; totalTl: number }[]>([]);
 
+  const loadSnapshots = useCallback(async () => {
+    if (totalTL > 0) {
+      try {
+        await recordDailySnapshot(totalTL);
+      } catch {
+        // Silent fail
+      }
+    }
+    const rows = await getAllSnapshots();
+    setSnapshots(rows);
+  }, [totalTL]);
+
+  useEffect(() => {
+    if (showDailyTotals) {
+      loadSnapshots();
+    }
+  }, [showDailyTotals, loadSnapshots]);
+
+  const confirmUndo = (entry: HistoryItem) => {
+    if (entry.type === 'update') {
+      Alert.alert(t('error'), t('undoUnsupported'));
+      return;
+    }
+    Alert.alert(t('undoTransaction'), t('undoConfirm'), [
+      { text: t('cancel'), style: 'cancel' },
+      {
+        text: t('undoTransaction'),
+        style: 'destructive',
+        onPress: () => {
+          dispatch(undoHistoryEntry(entry.id));
+          hapticFeedback.success();
+        },
+      },
+    ]);
+  };
+
+  const renderRightActions = (entry: HistoryItem) => (
+    <TouchableOpacity
+      style={styles.undoAction}
+      onPress={() => confirmUndo(entry)}
+      activeOpacity={0.8}
+    >
+      <Feather name="rotate-ccw" size={22} color={colors.textPrimary} />
+      <Text style={styles.undoText}>{t('undoTransaction')}</Text>
+    </TouchableOpacity>
+  );
 
   const renderHistoryItem = ({ item }: { item: HistoryItem }) => {
     const isAdd = item.type === 'add';
     const assetColor = getAssetColor(item.item.type);
-    
-    return (
+
+    const row = (
       <View style={styles.historyItem}>
         <View style={styles.historyLeft}>
-          <View style={[
-            styles.assetIconContainer,
-            { 
-              backgroundColor: assetColor + '20',
-              borderColor: assetColor + '40',
-            }
-          ]}>
+          <View
+            style={[
+              styles.assetIconContainer,
+              {
+                backgroundColor: assetColor + '20',
+                borderColor: assetColor + '40',
+              },
+            ]}
+          >
             <Text style={[styles.assetIcon, { color: assetColor }]}>
               {getAssetIcon(item.item.type)}
             </Text>
           </View>
-          
+
           <View style={styles.historyInfo}>
-            <Text style={styles.assetType}>
-              {t(`assetTypes.${item.item.type}`)}
-            </Text>
+            <Text style={styles.assetType}>{t(`assetTypes.${item.item.type}`)}</Text>
             {item.description && (
               <Text style={styles.historyDescription} numberOfLines={1}>
                 {item.description}
@@ -54,24 +107,26 @@ const HistoryScreen: React.FC = () => {
             )}
           </View>
         </View>
-        
+
         <View style={styles.historyRight}>
           <View style={styles.amountContainer}>
-            <View style={[
-              styles.actionBadge,
-              { backgroundColor: isAdd ? colors.success + '20' : colors.error + '20' }
-            ]}>
-              <Feather 
-                name={isAdd ? 'trending-up' : 'trending-down'} 
-                size={14} 
-                color={isAdd ? colors.success : colors.error} 
+            <View
+              style={[
+                styles.actionBadge,
+                { backgroundColor: isAdd ? colors.success + '20' : colors.error + '20' },
+              ]}
+            >
+              <Feather
+                name={isAdd ? 'trending-up' : 'trending-down'}
+                size={14}
+                color={isAdd ? colors.success : colors.error}
               />
             </View>
-            <Text style={[
-              styles.historyAmount,
-              { color: isAdd ? colors.success : colors.error }
-            ]}>
-              {isAdd ? '+' : '−'}{formatCurrency(
+            <Text
+              style={[styles.historyAmount, { color: isAdd ? colors.success : colors.error }]}
+            >
+              {isAdd ? '+' : '−'}
+              {formatCurrency(
                 isNaN(item.item.amount) || !isFinite(item.item.amount) ? 0 : item.item.amount,
                 i18n.language
               )}
@@ -88,28 +143,90 @@ const HistoryScreen: React.FC = () => {
         </View>
       </View>
     );
+
+    return (
+      <Swipeable renderRightActions={() => renderRightActions(item)} overshootRight={false}>
+        {row}
+      </Swipeable>
+    );
   };
 
   const onRefresh = () => {
     hapticFeedback.light();
     setRefreshing(true);
-    // UI-only refresh - history is derived from items, no fetch needed
-    setTimeout(() => {
+    const done = () => {
       setRefreshing(false);
       hapticFeedback.success();
-    }, 500);
+    };
+    if (showDailyTotals) {
+      loadSnapshots().finally(done);
+    } else {
+      setTimeout(done, 500);
+    }
   };
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
       <View style={styles.header}>
-        <View>
-          <Text style={styles.headerTitle}>{t('historyTitle')}</Text>
-          <Text style={styles.headerSubtitle}>{t('historySubtitle')}</Text>
+        <View style={styles.headerTop}>
+          <View>
+            <Text style={styles.headerTitle}>
+              {showDailyTotals ? t('dailyTotalsTitle') : t('historyTitle')}
+            </Text>
+            <Text style={styles.headerSubtitle}>
+              {showDailyTotals ? t('dailyTotalsSubtitle') : t('historySubtitle')}
+            </Text>
+          </View>
+          <TouchableOpacity
+            style={styles.headerToggle}
+            onPress={() => {
+              hapticFeedback.selection();
+              setShowDailyTotals((v) => !v);
+            }}
+          >
+            <Text style={styles.headerToggleText}>
+              {showDailyTotals ? t('historyTitle') : t('dailyTotalsTitle')}
+            </Text>
+          </TouchableOpacity>
         </View>
       </View>
 
-      {history.length === 0 ? (
+      {showDailyTotals ? (
+        snapshots.length === 0 ? (
+          <EmptyState
+            icon={<Feather name="calendar" size={40} color={colors.textMuted} />}
+            title={t('noDailyTotals')}
+            description={t('dailyTotalsSubtitle')}
+          />
+        ) : (
+          <FlatList
+            data={snapshots}
+            keyExtractor={(item) => item.date}
+            contentContainerStyle={styles.listContainer}
+            refreshControl={
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={onRefresh}
+                tintColor={colors.primaryStart}
+              />
+            }
+            renderItem={({ item }) => (
+              <View style={styles.snapshotRow}>
+                <Text style={styles.snapshotDate}>
+                  {formatDate(new Date(item.date + 'T12:00:00'), i18n.language, {
+                    day: '2-digit',
+                    month: '2-digit',
+                    year: 'numeric',
+                  })}
+                </Text>
+                <Text style={styles.snapshotValue}>
+                  {formatCurrency(item.totalTl, i18n.language)} ₺
+                </Text>
+              </View>
+            )}
+          />
+        )
+      ) : history.length === 0 ? (
         <EmptyState
           icon={<Feather name="file-text" size={40} color={colors.textMuted} />}
           title={t('noHistory')}
@@ -119,11 +236,7 @@ const HistoryScreen: React.FC = () => {
         <FlatList
           data={history}
           renderItem={renderHistoryItem}
-          keyExtractor={(item, index) => {
-            // Create a unique key combining date, type, item.id, amount, and index
-            // This ensures uniqueness even if multiple history items share the same PortfolioItem
-            return `${item.date}-${item.type}-${item.item.id}-${item.item.amount}-${index}`;
-          }}
+          keyExtractor={(item) => item.id}
           contentContainerStyle={styles.listContainer}
           showsVerticalScrollIndicator={false}
           refreshControl={
@@ -152,6 +265,20 @@ const styles = StyleSheet.create({
     borderBottomColor: colors.glassBorder,
     minHeight: 88,
   },
+  headerTop: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+  },
+  headerToggle: {
+    paddingVertical: spacing.xs,
+    paddingHorizontal: spacing.sm,
+  },
+  headerToggleText: {
+    color: colors.primaryStart,
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.semibold,
+  },
   headerTitle: {
     fontSize: fontSize.xxxl,
     fontWeight: fontWeight.bold,
@@ -174,6 +301,39 @@ const styles = StyleSheet.create({
     padding: spacing.lg,
     marginBottom: spacing.md,
     alignItems: 'center',
+  },
+  undoAction: {
+    backgroundColor: colors.error,
+    justifyContent: 'center',
+    alignItems: 'center',
+    width: 96,
+    marginBottom: spacing.md,
+    borderRadius: borderRadius.xl,
+    marginLeft: spacing.sm,
+  },
+  undoText: {
+    color: colors.textPrimary,
+    fontSize: fontSize.xs,
+    marginTop: spacing.xs,
+    fontWeight: fontWeight.semibold,
+  },
+  snapshotRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    padding: spacing.lg,
+    backgroundColor: colors.glassBackground,
+    borderRadius: borderRadius.lg,
+    borderWidth: 1,
+    borderColor: colors.glassBorder,
+    marginBottom: spacing.sm,
+  },
+  snapshotDate: {
+    color: colors.textPrimary,
+    fontWeight: fontWeight.medium,
+  },
+  snapshotValue: {
+    color: colors.textPrimary,
+    fontWeight: fontWeight.bold,
   },
   historyLeft: {
     flexDirection: 'row',

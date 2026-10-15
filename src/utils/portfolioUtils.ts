@@ -2,7 +2,110 @@
  * Portfolio utility functions for calculating average cost and profit/loss
  */
 
-import { HistoryItem, AssetType, Prices } from '../types';
+import { HistoryItem, AssetType, Prices, PortfolioItem } from '../types';
+import { safeAdd } from './numberUtils';
+
+export function computeItemValueInTL(item: PortfolioItem, prices: Prices): number | null {
+  if (!item?.type || isNaN(item.amount) || !isFinite(item.amount) || item.amount < 0) {
+    return 0;
+  }
+  if (item.type === 'tl') {
+    return item.amount;
+  }
+  if (item.type === 'usd') {
+    const usdPrice = prices.usd;
+    if (usdPrice == null || isNaN(usdPrice) || !isFinite(usdPrice) || usdPrice <= 0) {
+      return null;
+    }
+    return item.amount * usdPrice;
+  }
+  if (item.type === 'eur') {
+    const eurPrice = prices.eur;
+    if (eurPrice == null || isNaN(eurPrice) || !isFinite(eurPrice) || eurPrice <= 0) {
+      return null;
+    }
+    return item.amount * eurPrice;
+  }
+  const price = prices[item.type];
+  if (price == null || isNaN(price) || !isFinite(price) || price <= 0) {
+    return null;
+  }
+  return item.amount * price;
+}
+
+export interface AssetProfitLossResult {
+  profitAmount: number;
+  profitPct: number;
+  costTL: number;
+  currentTL: number;
+}
+
+export function getAssetProfitLoss(
+  assetType: AssetType,
+  items: PortfolioItem[],
+  history: HistoryItem[],
+  prices: Prices
+): AssetProfitLossResult | null {
+  const typeItems = items.filter((i) => i.type === assetType);
+  const amount = typeItems.reduce((sum, i) => safeAdd(sum, i.amount), 0);
+  if (amount <= 0) {
+    return null;
+  }
+
+  let currentTL = 0;
+  for (const item of typeItems) {
+    const value = computeItemValueInTL(item, prices);
+    if (value == null) {
+      return null;
+    }
+    currentTL = safeAdd(currentTL, value);
+  }
+
+  const averageCost = calculateAverageCost(assetType, history, amount);
+  const profit = calculateProfitLoss(currentTL, averageCost, amount);
+  if (profit == null || averageCost == null) {
+    return null;
+  }
+
+  return {
+    profitAmount: profit.amount,
+    profitPct: profit.percentage,
+    costTL: amount * averageCost,
+    currentTL,
+  };
+}
+
+export function getPortfolioProfitLoss(
+  items: PortfolioItem[],
+  history: HistoryItem[],
+  prices: Prices
+): AssetProfitLossResult | null {
+  const typesWithHoldings = [
+    ...new Set(items.filter((i) => i.amount > 0).map((i) => i.type)),
+  ];
+  if (typesWithHoldings.length === 0) {
+    return null;
+  }
+
+  let costTL = 0;
+  let currentTL = 0;
+  for (const type of typesWithHoldings) {
+    const row = getAssetProfitLoss(type, items, history, prices);
+    if (!row) {
+      return null;
+    }
+    costTL = safeAdd(costTL, row.costTL);
+    currentTL = safeAdd(currentTL, row.currentTL);
+  }
+
+  const profitAmount = currentTL - costTL;
+  const profitPct = costTL > 0 ? (profitAmount / costTL) * 100 : 0;
+  if (isNaN(profitAmount) || !isFinite(profitAmount) || isNaN(profitPct) || !isFinite(profitPct)) {
+    return null;
+  }
+
+  return { profitAmount, profitPct, costTL, currentTL };
+}
 
 /**
  * Calculate weighted average cost for an asset type based on history

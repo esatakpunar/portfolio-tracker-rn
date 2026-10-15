@@ -24,6 +24,9 @@ expo-env.d.ts
 # debug
 npm-debug.*
 
+# Local artifacts
+photos.zip
+
 # macOS
 .DS_Store
 *.pem

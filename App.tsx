@@ -11,6 +11,7 @@ import { initializeI18n } from './src/locales';
 import { fetchPrices } from './src/store/portfolioSlice';
 import { initDatabase } from './src/services/database';
 import BottomTabNavigator from './src/navigation/BottomTabNavigator';
+import LockGate from './src/components/LockGate';
 import { useToast } from './src/hooks/useToast';
 import ToastNotification from './src/components/ToastNotification';
 import ErrorBoundary from './src/components/ErrorBoundary';
@@ -56,7 +57,8 @@ export default function App() {
               }
               
               if (parsed.portfolio.history && parsed.portfolio.history.length > 0) {
-                store.dispatch(setHistory(parsed.portfolio.history));
+                const { ensureHistoryIds } = await import('./src/utils/historyUtils');
+                store.dispatch(setHistory(ensureHistoryIds(parsed.portfolio.history)));
               }
               
               if (parsed.portfolio.items && parsed.portfolio.items.length > 0) {
@@ -168,7 +170,9 @@ const AppContent: React.FC = () => {
 
   return (
     <View style={styles.container}>
-      <BottomTabNavigator />
+      <LockGate>
+        <BottomTabNavigator />
+      </LockGate>
       <ToastNotification
         toasts={toasts}
         onRemove={removeToast}

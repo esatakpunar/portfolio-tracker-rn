@@ -1,9 +1,10 @@
 import { createSlice, PayloadAction, createAsyncThunk } from '@reduxjs/toolkit';
-import { PortfolioItem, HistoryItem, Prices, PriceChanges, AssetType, CurrencyType, BuyPrices } from '../types';
+import { PortfolioItem, HistoryItem, Prices, PriceChanges, AssetType, CurrencyType, BuyPrices, LotEntryOptions } from '../types';
 import { fetchPrices as fetchPricesFromAPI } from '../services/priceService';
 import { getBackup } from '../services/priceBackupService';
 import { safeAdd, safeSubtract } from '../utils/numberUtils';
 import { trackPriceFetchError } from '../utils/errorTracking';
+import { createHistoryId, ensureHistoryIds } from '../utils/historyUtils';
 
 interface PortfolioState {
   items: PortfolioItem[];
@@ -193,37 +194,77 @@ const convertFromTL = (valueTL: number, targetCurrency: CurrencyType, prices: Pr
   }
 };
 
+function resolvePriceAtTime(
+  type: AssetType,
+  amount: number,
+  unitBuyPrice: number | null | undefined,
+  priceAtTime: number | null | undefined,
+  prices: Prices,
+  useExplicitTotal: boolean
+): number | null {
+  if (useExplicitTotal && priceAtTime != null) {
+    return priceAtTime;
+  }
+  if (unitBuyPrice != null && unitBuyPrice >= 0 && type === 'tl') {
+    return amount;
+  }
+  if (unitBuyPrice != null && unitBuyPrice >= 0) {
+    return unitBuyPrice * amount;
+  }
+  if (priceAtTime != null) {
+    return priceAtTime;
+  }
+  return getItemValueInTL({ type, amount, id: '', date: '' }, prices);
+}
+
 const portfolioSlice = createSlice({
   name: 'portfolio',
   initialState,
   reducers: {
-    addItem: (state, action: PayloadAction<Omit<PortfolioItem, 'id' | 'date'> & { priceAtTime?: number | null }>) => {
-      const { type, amount, priceAtTime } = action.payload;
+    addItem: (
+      state,
+      action: PayloadAction<Omit<PortfolioItem, 'id' | 'date'> & LotEntryOptions>
+    ) => {
+      const {
+        type,
+        amount,
+        priceAtTime,
+        unitBuyPrice,
+        useExplicitTotalCost,
+        transactionDate,
+      } = action.payload;
       
       // Validate input
       if (!type || isNaN(amount) || !isFinite(amount) || amount <= 0) {
         return; // Invalid input, ignore
       }
+
+      const txDate = transactionDate ?? new Date().toISOString();
       
       const newItem: PortfolioItem = {
         type,
         amount,
         description: action.payload.description,
         id: Date.now().toString(),
-        date: new Date().toISOString()
+        date: txDate,
       };
       
       state.items.push(newItem);
       
-      // Use provided priceAtTime or calculate from current prices
-      const finalPriceAtTime = priceAtTime != null 
-        ? priceAtTime 
-        : (getItemValueInTL(newItem, state.prices) ?? null);
+      const finalPriceAtTime = resolvePriceAtTime(
+        type,
+        amount,
+        unitBuyPrice,
+        priceAtTime,
+        state.prices,
+        useExplicitTotalCost === true
+      );
       
       state.history.unshift({
+        id: createHistoryId(),
         type: 'add',
         item: newItem,
-        date: new Date().toISOString(),
+        date: txDate,
         description: newItem.description || '',
         priceAtTime: finalPriceAtTime
       });
@@ -240,6 +281,7 @@ const portfolioSlice = createSlice({
         const priceAtTime = getItemValueInTL(removed, state.prices);
         
         state.history.unshift({
+          id: createHistoryId(),
           type: 'remove',
           item: removed,
           date: new Date().toISOString(),
@@ -248,8 +290,21 @@ const portfolioSlice = createSlice({
       }
     },
     
-    updateItemAmount: (state, action: PayloadAction<{ type: AssetType; newAmount: number; description?: string; priceAtTime?: number | null }>) => {
-      const { type, newAmount, description, priceAtTime } = action.payload;
+    updateItemAmount: (
+      state,
+      action: PayloadAction<
+        { type: AssetType; newAmount: number; description?: string } & LotEntryOptions
+      >
+    ) => {
+      const {
+        type,
+        newAmount,
+        description,
+        priceAtTime,
+        unitBuyPrice,
+        useExplicitTotalCost,
+        transactionDate,
+      } = action.payload;
       
       // Validate input
       if (!type || isNaN(newAmount) || !isFinite(newAmount) || newAmount < 0) {
@@ -266,26 +321,32 @@ const portfolioSlice = createSlice({
       if (Math.abs(difference) < 0.000001) return; // Use epsilon for floating point comparison
       
       if (difference > 0) {
+        const txDate = transactionDate ?? new Date().toISOString();
         // Adding more assets
         const newItem: PortfolioItem = {
           type,
           amount: difference,
           id: Date.now().toString(),
-          date: new Date().toISOString(),
+          date: txDate,
           description: description || undefined
         };
         
         state.items.push(newItem);
         
-        // Use provided priceAtTime or calculate from current prices
-        const finalPriceAtTime = priceAtTime != null 
-          ? priceAtTime 
-          : (getItemValueInTL(newItem, state.prices) ?? null);
+        const finalPriceAtTime = resolvePriceAtTime(
+          type,
+          difference,
+          unitBuyPrice,
+          priceAtTime,
+          state.prices,
+          useExplicitTotalCost === true
+        );
         
         state.history.unshift({
+          id: createHistoryId(),
           type: 'add',
           item: newItem,
-          date: new Date().toISOString(),
+          date: txDate,
           description: description || undefined, // Description will be set in component level with i18n
           priceAtTime: finalPriceAtTime
         });
@@ -324,6 +385,7 @@ const portfolioSlice = createSlice({
           : (getItemValueInTL(removedItemForPrice, state.prices) ?? null);
         
         state.history.unshift({
+          id: createHistoryId(),
           type: 'remove',
           item: { 
             type, 
@@ -362,13 +424,40 @@ const portfolioSlice = createSlice({
     },
     
     setHistory: (state, action: PayloadAction<HistoryItem[]>) => {
-      state.history = action.payload;
+      state.history = ensureHistoryIds(action.payload);
     },
     
     setItems: (state, action: PayloadAction<PortfolioItem[]>) => {
       // Set items without adding to history (used for restore operations)
       state.items = action.payload;
-    }
+    },
+
+    importBackup: (
+      state,
+      action: PayloadAction<{ items: PortfolioItem[]; history: HistoryItem[] }>
+    ) => {
+      state.items = action.payload.items;
+      state.history = ensureHistoryIds(action.payload.history);
+    },
+
+    undoHistoryEntry: (state, action: PayloadAction<string>) => {
+      const entry = state.history.find((h) => h.id === action.payload);
+      if (!entry) {
+        return;
+      }
+      if (entry.type === 'update') {
+        return;
+      }
+      if (entry.type === 'add') {
+        const index = state.items.findIndex((i) => i.id === entry.item.id);
+        if (index !== -1) {
+          state.items.splice(index, 1);
+        }
+      } else if (entry.type === 'remove') {
+        state.items.push({ ...entry.item, id: `${entry.item.id}-restored-${Date.now()}` });
+      }
+      state.history = state.history.filter((h) => h.id !== action.payload);
+    },
   },
   extraReducers: (builder) => {
     builder
@@ -525,7 +614,9 @@ export const {
   resetAll, 
   setPrices,
   setHistory,
-  setItems
+  setItems,
+  importBackup,
+  undoHistoryEntry,
 } = portfolioSlice.actions;
 
 export const selectItems = (state: { portfolio: PortfolioState }) => state.portfolio.items;

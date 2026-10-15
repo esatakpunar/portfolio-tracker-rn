@@ -6,6 +6,7 @@ const PREFERENCE_KEYS = {
   CURRENCY: 'pref:currency',
   ASSET_TYPE: 'pref:assetType',
   PRICE_SOURCE: 'pref:priceSource',
+  ZAKAT_DEBT: 'pref:zakatDebt',
 } as const;
 
 export type PriceSource = 'truncgil' | 'investing' | 'auto';
@@ -126,6 +127,39 @@ export async function savePriceSourcePreference(source: PriceSource): Promise<vo
       `INSERT OR REPLACE INTO app_settings (key, value, updated_at)
        VALUES (?, ?, ?)`,
       [PREFERENCE_KEYS.PRICE_SOURCE, source, Date.now()]
+    );
+  } catch {
+    // Silently fail
+  }
+}
+
+export async function getZakatDebt(): Promise<number> {
+  try {
+    await waitForDatabase();
+    const db = getDatabase();
+    const row = await db.getFirstAsync<{ value: string }>(
+      `SELECT value FROM app_settings WHERE key = ?`,
+      [PREFERENCE_KEYS.ZAKAT_DEBT]
+    );
+    if (!row?.value) {
+      return 0;
+    }
+    const n = parseFloat(row.value);
+    return isNaN(n) || n < 0 ? 0 : n;
+  } catch {
+    return 0;
+  }
+}
+
+export async function saveZakatDebt(debt: number): Promise<void> {
+  try {
+    await waitForDatabase();
+    const db = getDatabase();
+    const safe = isNaN(debt) || debt < 0 ? 0 : debt;
+    await db.runAsync(
+      `INSERT OR REPLACE INTO app_settings (key, value, updated_at)
+       VALUES (?, ?, ?)`,
+      [PREFERENCE_KEYS.ZAKAT_DEBT, String(safe), Date.now()]
     );
   } catch {
     // Silently fail

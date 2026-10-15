@@ -16,8 +16,10 @@ const TabIcon: React.FC<TabIconProps> = ({ name, focused }) => {
         return 'briefcase';
       case 'History':
         return 'file-text';
-      case 'Settings':
+      case 'Markets':
         return 'bar-chart-2';
+      case 'AppSettings':
+        return 'settings';
       default:
         return 'circle';
     }

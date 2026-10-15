@@ -1,6 +1,28 @@
 import { configureStore } from '@reduxjs/toolkit';
 import { sqliteStorage } from './sqliteStorage';
-import portfolioReducer from './portfolioSlice';
+import portfolioReducer, { fetchPrices, selectTotalTL } from './portfolioSlice';
+import { recordDailySnapshot } from '../services/dailySnapshotService';
+
+const SNAPSHOT_TRIGGER_ACTIONS = new Set([
+  fetchPrices.fulfilled.type,
+  'portfolio/addItem',
+  'portfolio/removeItem',
+  'portfolio/updateItemAmount',
+  'portfolio/importBackup',
+  'portfolio/undoHistoryEntry',
+]);
+
+async function syncTodayDailySnapshot(getState: () => { portfolio: ReturnType<typeof portfolioReducer> }) {
+  const state = getState();
+  const portfolio = state.portfolio;
+  if (portfolio.items.length === 0 || portfolio.hasPartialPriceUpdate) {
+    return;
+  }
+  const total = selectTotalTL(state);
+  if (total > 0) {
+    await recordDailySnapshot(total);
+  }
+}
 
 export const store = configureStore({
   reducer: {
@@ -9,6 +31,16 @@ export const store = configureStore({
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware().concat((store) => (next) => (action) => {
       const result = next(action);
+
+      if (SNAPSHOT_TRIGGER_ACTIONS.has(action.type)) {
+        setTimeout(async () => {
+          try {
+            await syncTodayDailySnapshot(store.getState.bind(store));
+          } catch {
+            // Silent fail
+          }
+        }, 0);
+      }
       
       if (action.type?.startsWith('portfolio/') && 
           !action.type.includes('/pending') && 

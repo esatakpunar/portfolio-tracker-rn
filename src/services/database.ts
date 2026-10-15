@@ -7,7 +7,7 @@ let db: SQLite.SQLiteDatabase | null = null;
 let initPromise: Promise<void> | null = null;
 
 // Schema version
-const SCHEMA_VERSION = 4;
+const SCHEMA_VERSION = 5;
 
 /**
  * Initialize the database and create schema if needed
@@ -177,6 +177,14 @@ async function createSchema(database: SQLite.SQLiteDatabase): Promise<void> {
     );
   `);
 
+  await database.execAsync(`
+    CREATE TABLE IF NOT EXISTS daily_portfolio_snapshots (
+      date TEXT PRIMARY KEY,
+      total_tl REAL NOT NULL,
+      recorded_at INTEGER NOT NULL
+    );
+  `);
+
   // Create price_backup table
   await database.execAsync(`
     CREATE TABLE IF NOT EXISTS price_backup (
@@ -269,6 +277,16 @@ async function migrateSchema(
         ADD COLUMN buy_prices_json TEXT;
       `);
     }
+  }
+
+  if (fromVersion < 5) {
+    await database.execAsync(`
+      CREATE TABLE IF NOT EXISTS daily_portfolio_snapshots (
+        date TEXT PRIMARY KEY,
+        total_tl REAL NOT NULL,
+        recorded_at INTEGER NOT NULL
+      );
+    `);
   }
 }
 

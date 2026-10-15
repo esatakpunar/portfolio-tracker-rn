@@ -9,23 +9,31 @@ import {
   Animated,
   ScrollView,
 } from 'react-native';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { useTranslation } from 'react-i18next';
 import { Text } from './Text';
 import { TextInput } from './TextInput';
 import { colors, spacing, borderRadius, fontSize, fontWeight, shadows } from '../theme';
 import { validateAmount } from '../utils/validationUtils';
-import { formatCurrency } from '../utils/formatUtils';
+import { formatCurrency, formatDate } from '../utils/formatUtils';
 import { getAmountPresets } from '../utils/amountPresets';
 import { AssetType } from '../types';
 import { hapticFeedback } from '../utils/haptics';
 import { useAppSelector } from '../hooks/useRedux';
 import { selectPrices, selectHistory } from '../store/portfolioSlice';
 import { calculateAverageCost } from '../utils/portfolioUtils';
+import { getAssetUnit } from '../utils/assetUtils';
+import {
+  dateToTransactionISO,
+  getMarketUnitPrice,
+  parseDecimalInput,
+} from '../utils/lotEntryUtils';
+import { AddItemPayload } from './AddItemModal';
 
 interface QuickAddModalProps {
   visible: boolean;
   onClose: () => void;
-  onAdd: (amount: number, description?: string, priceAtTime?: number | null) => void;
+  onAdd: (amount: number, options?: AddItemPayload) => void;
   assetType: AssetType;
   currentAmount: number;
 }
@@ -42,7 +50,11 @@ const QuickAddModal: React.FC<QuickAddModalProps> = ({
   const history = useAppSelector(selectHistory);
   const [amount, setAmount] = useState('');
   const [description, setDescription] = useState('');
-  const [priceAtTime, setPriceAtTime] = useState('');
+  const [unitBuyPrice, setUnitBuyPrice] = useState('');
+  const [entryTotalCost, setEntryTotalCost] = useState('');
+  const [totalCostDirty, setTotalCostDirty] = useState(false);
+  const [transactionDate, setTransactionDate] = useState(new Date());
+  const [showDatePicker, setShowDatePicker] = useState(false);
   const [slideAnim] = useState(new Animated.Value(0));
   const scrollViewRef = useRef<ScrollView>(null);
   const descriptionInputWrapperRef = useRef<any>(null);
@@ -56,7 +68,7 @@ const QuickAddModal: React.FC<QuickAddModalProps> = ({
   }, [assetType, history, currentAmount]);
   
   // Calculate total cost
-  const totalCost = useMemo(() => {
+  const holdingCostTL = useMemo(() => {
     if (averageCost == null || currentAmount <= 0) {
       return null;
     }
@@ -66,35 +78,34 @@ const QuickAddModal: React.FC<QuickAddModalProps> = ({
   const amountValidation = useMemo(() => validateAmount(amount), [amount]);
   const isAmountValid = amountValidation.isValid;
   
-  // Calculate default price based on current prices and amount
-  const calculateDefaultPrice = useMemo(() => {
-    if (!amount || !amountValidation.isValid || !amountValidation.value) {
-      return null;
+  const marketUnitPrice = useMemo(
+    () => getMarketUnitPrice(assetType, prices),
+    [assetType, prices]
+  );
+
+  const syncCostsFromUnit = (unitStr: string, amountValue: number | undefined) => {
+    const unit = parseDecimalInput(unitStr);
+    if (unit != null && amountValue != null && amountValue > 0) {
+      const total = assetType === 'tl' ? amountValue : unit * amountValue;
+      setEntryTotalCost(total.toFixed(2));
+      setTotalCostDirty(false);
     }
-    
-    const amountValue = amountValidation.value;
-    if (assetType === 'tl') {
-      return amountValue;
-    } else if (assetType === 'usd') {
-      const usdPrice = prices.usd;
-      return (usdPrice != null && usdPrice > 0) ? amountValue * usdPrice : null;
-    } else if (assetType === 'eur') {
-      const eurPrice = prices.eur;
-      return (eurPrice != null && eurPrice > 0) ? amountValue * eurPrice : null;
-    } else {
-      const price = prices[assetType];
-      return (price != null && price > 0) ? amountValue * price : null;
-    }
-  }, [amount, assetType, prices, amountValidation]);
-  
-  // Update priceAtTime when amount changes
+  };
+
   useEffect(() => {
-    if (calculateDefaultPrice != null) {
-      setPriceAtTime(calculateDefaultPrice.toFixed(2));
-    } else {
-      setPriceAtTime('');
+    if (totalCostDirty) {
+      return;
     }
-  }, [calculateDefaultPrice]);
+    if (marketUnitPrice != null) {
+      setUnitBuyPrice(assetType === 'tl' ? '1' : marketUnitPrice.toFixed(2));
+    }
+    if (amountValidation.isValid && amountValidation.value) {
+      syncCostsFromUnit(
+        assetType === 'tl' ? '1' : (marketUnitPrice?.toFixed(2) ?? unitBuyPrice),
+        amountValidation.value
+      );
+    }
+  }, [amount, assetType, marketUnitPrice, amountValidation.isValid, amountValidation.value]);
 
   useEffect(() => {
     if (visible) {
@@ -111,20 +122,18 @@ const QuickAddModal: React.FC<QuickAddModalProps> = ({
   const handleAdd = () => {
     const validation = validateAmount(amount);
     if (validation.isValid && validation.value !== undefined) {
-      // Parse priceAtTime
-      let parsedPriceAtTime: number | null = null;
-      if (priceAtTime.trim() !== '') {
-        const normalized = priceAtTime.replace(',', '.');
-        const parsed = parseFloat(normalized);
-        if (!isNaN(parsed) && isFinite(parsed) && parsed >= 0) {
-          parsedPriceAtTime = parsed;
-        }
-      }
-      
-      onAdd(validation.value, description || undefined, parsedPriceAtTime);
+      onAdd(validation.value, {
+        description: description || undefined,
+        unitBuyPrice: parseDecimalInput(unitBuyPrice),
+        priceAtTime: parseDecimalInput(entryTotalCost),
+        useExplicitTotalCost: totalCostDirty,
+        transactionDate: dateToTransactionISO(transactionDate),
+      });
       setAmount('');
       setDescription('');
-      setPriceAtTime('');
+      setUnitBuyPrice('');
+      setEntryTotalCost('');
+      setTotalCostDirty(false);
       onClose();
     }
   };
@@ -132,8 +141,23 @@ const QuickAddModal: React.FC<QuickAddModalProps> = ({
   const handleClose = () => {
     setAmount('');
     setDescription('');
-    setPriceAtTime('');
+    setUnitBuyPrice('');
+    setEntryTotalCost('');
+    setTotalCostDirty(false);
     onClose();
+  };
+
+  const handleUnitChange = (text: string) => {
+    setUnitBuyPrice(text);
+    setTotalCostDirty(false);
+    if (amountValidation.isValid && amountValidation.value) {
+      syncCostsFromUnit(text, amountValidation.value);
+    }
+  };
+
+  const handleTotalChange = (text: string) => {
+    setEntryTotalCost(text);
+    setTotalCostDirty(true);
   };
 
   const getAssetLabel = () => {
@@ -205,9 +229,9 @@ const QuickAddModal: React.FC<QuickAddModalProps> = ({
                   'tr'
                 )} {getUnit()}
               </Text>
-              {totalCost != null && (
+              {holdingCostTL != null && (
                 <Text style={styles.costText}>
-                  {t('averageCost')}: {formatCurrency(totalCost, i18n.language)} ₺
+                  {t('averageCost')}: {formatCurrency(holdingCostTL, i18n.language)} ₺
                 </Text>
               )}
             </View>
@@ -259,30 +283,83 @@ const QuickAddModal: React.FC<QuickAddModalProps> = ({
             </View>
 
             <View style={styles.inputContainer}>
+              <Text style={styles.label}>{t('transactionDate')}</Text>
+              <TouchableOpacity
+                style={styles.dateButton}
+                onPress={() => setShowDatePicker(true)}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.dateButtonText}>
+                  {formatDate(transactionDate, i18n.language, {
+                    day: '2-digit',
+                    month: '2-digit',
+                    year: 'numeric',
+                  })}
+                </Text>
+              </TouchableOpacity>
+              {showDatePicker && (
+                <DateTimePicker
+                  value={transactionDate}
+                  mode="date"
+                  display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                  maximumDate={new Date()}
+                  onChange={(_, selected) => {
+                    if (Platform.OS === 'android') {
+                      setShowDatePicker(false);
+                    }
+                    if (selected) {
+                      setTransactionDate(selected);
+                    }
+                  }}
+                />
+              )}
+            </View>
+
+            {assetType !== 'tl' && (
+              <View style={styles.inputContainer}>
+                <Text style={styles.label}>
+                  {t('unitBuyPrice')} <Text style={styles.optionalText}>{t('optional')}</Text>
+                </Text>
+                <View style={styles.inputWrapper}>
+                  <TextInput
+                    style={styles.input}
+                    value={unitBuyPrice}
+                    onChangeText={handleUnitChange}
+                    placeholder="0.00"
+                    placeholderTextColor={colors.textMuted}
+                    keyboardType="decimal-pad"
+                  />
+                  <Text style={styles.unit}>₺/{getAssetUnit(assetType, t)}</Text>
+                </View>
+              </View>
+            )}
+
+            <View style={styles.inputContainer}>
               <Text style={styles.label}>
-                {t('priceAtTime')} <Text style={styles.optionalText}>{t('optional')}</Text>
+                {t('totalCost')} <Text style={styles.optionalText}>{t('optional')}</Text>
               </Text>
               <View style={styles.inputWrapper}>
                 <TextInput
                   style={styles.input}
-                  value={priceAtTime}
-                  onChangeText={setPriceAtTime}
-                  placeholder={calculateDefaultPrice != null ? formatCurrency(calculateDefaultPrice, i18n.language) : "0.00"}
+                  value={entryTotalCost}
+                  onChangeText={handleTotalChange}
+                  placeholder="0.00"
                   placeholderTextColor={colors.textMuted}
                   keyboardType="decimal-pad"
                 />
                 <Text style={styles.unit}>₺</Text>
               </View>
-              {calculateDefaultPrice != null && (
+              {marketUnitPrice != null && assetType !== 'tl' && (
                 <Text style={styles.helperText}>
-                  {t('currentMarketPrice')}: {formatCurrency(calculateDefaultPrice, i18n.language)} ₺
+                  {t('currentMarketPrice')}: {formatCurrency(marketUnitPrice, i18n.language)} ₺
                 </Text>
               )}
             </View>
 
             <View style={styles.inputContainer}>
               <Text style={styles.label}>
-                {t('description')} <Text style={styles.optionalText}>{t('optional')}</Text>
+                {t('description')}{' '}
+                <Text style={styles.optionalText}>{t('optional')}</Text>
               </Text>
               <View ref={descriptionInputWrapperRef}>
                 <TextInput
@@ -507,6 +584,19 @@ const styles = StyleSheet.create({
   presetButtonTextActive: {
     color: colors.primaryStart,
     fontWeight: fontWeight.bold,
+  },
+  dateButton: {
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.lg,
+    borderRadius: borderRadius.lg,
+    borderWidth: 1,
+    borderColor: colors.glassBorder,
+    backgroundColor: colors.glassBackground,
+  },
+  dateButtonText: {
+    fontSize: fontSize.base,
+    color: colors.textPrimary,
+    fontWeight: fontWeight.medium,
   },
   helperText: {
     fontSize: fontSize.xs,

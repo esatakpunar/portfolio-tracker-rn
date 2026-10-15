@@ -502,6 +502,7 @@ export async function getHistory(): Promise<HistoryItem[]> {
     );
 
     return rows.map(row => ({
+      id: row.id,
       type: row.type as 'add' | 'remove' | 'update',
       item: {
         id: row.item_id || row.id,
