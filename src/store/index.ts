@@ -2,6 +2,7 @@ import { configureStore } from '@reduxjs/toolkit';
 import { sqliteStorage } from './sqliteStorage';
 import portfolioReducer, { fetchPrices, selectTotalTL } from './portfolioSlice';
 import { recordDailySnapshot } from '../services/dailySnapshotService';
+import { syncWidgetPortfolioSnapshot } from '../services/widgetSnapshotService';
 
 const SNAPSHOT_TRIGGER_ACTIONS = new Set([
   fetchPrices.fulfilled.type,
@@ -21,6 +22,7 @@ async function syncTodayDailySnapshot(getState: () => { portfolio: ReturnType<ty
   const total = selectTotalTL(state);
   if (total > 0) {
     await recordDailySnapshot(total);
+    await syncWidgetPortfolioSnapshot(total, portfolio.currentLanguage);
   }
 }
 

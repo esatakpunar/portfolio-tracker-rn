@@ -18,15 +18,15 @@
 
 **Files:** Create `src/services/widgetSnapshotService.ts`, modify `store/index.ts`
 
-- [ ] **Step 1:** Write `{ totalTl, updatedAt }` to shared storage.
-- [ ] **Step 2:** Hook same triggers as daily snapshot.
+- [x] **Step 1:** Write formatted total + updated time via `updateSnapshot`.
+- [x] **Step 2:** Hook same triggers as daily snapshot (`store/index.ts`).
 
 ### Task 2: Native widget
 
 **Files:** `app.json` plugins, ios widget extension via prebuild docs
 
-- [ ] **Step 1:** Small/medium SwiftUI or Expo widget template.
-- [ ] **Step 2:** EAS build verification.
+- [x] **Step 1:** `PortfolioTotalWidget` + `expo-widgets` plugin in `app.json`.
+- [ ] **Step 2:** EAS production build + TestFlight widget QA.
 
 ### Task 3: Manual QA
 
