@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, ScrollView, TouchableOpacity, Alert } from 'react-native';
+import { View, ScrollView, TouchableOpacity, Alert, Switch } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
@@ -16,6 +16,13 @@ import {
   importBackup,
 } from '../store/portfolioSlice';
 import { exportBackupToFile, importBackupFromPicker } from '../services/backupService';
+import { shouldPromptAutoBackup } from '../services/autoBackupService';
+import {
+  getAutoBackupEnabled,
+  setAutoBackupEnabled,
+  getLastAutoBackupAt,
+  setLastAutoBackupAt,
+} from '../utils/preferenceStorage';
 import appConfig from '../../app.json';
 import { AppDispatch } from '../store';
 import { colors } from '../theme';
@@ -36,10 +43,33 @@ const AppSettingsScreen: React.FC = () => {
   const [pinEnabled, setPinEnabledState] = useState(false);
   const [newPin, setNewPin] = useState('');
   const [showLanguagePicker, setShowLanguagePicker] = useState(false);
+  const [autoBackupEnabled, setAutoBackupEnabledState] = useState(false);
+  const [lastAutoBackupAt, setLastAutoBackupAtState] = useState<number | null>(null);
+  const [dismissedStaleBanner, setDismissedStaleBanner] = useState(false);
+
+  const refreshAutoBackupPrefs = async () => {
+    const [enabled, lastAt] = await Promise.all([
+      getAutoBackupEnabled(),
+      getLastAutoBackupAt(),
+    ]);
+    setAutoBackupEnabledState(enabled);
+    setLastAutoBackupAtState(lastAt);
+  };
 
   useEffect(() => {
     isPinEnabled().then(setPinEnabledState).catch(() => {});
+    refreshAutoBackupPrefs().catch(() => {});
   }, []);
+
+  const showStaleBackupBanner =
+    !dismissedStaleBanner && shouldPromptAutoBackup(autoBackupEnabled, lastAutoBackupAt);
+
+  const handleAutoBackupToggle = async (value: boolean) => {
+    hapticFeedback.selection();
+    setAutoBackupEnabledState(value);
+    setDismissedStaleBanner(false);
+    await setAutoBackupEnabled(value);
+  };
 
   const handleSavePin = async () => {
     if (newPin.length < 4) {
@@ -73,6 +103,10 @@ const AppSettingsScreen: React.FC = () => {
     hapticFeedback.light();
     try {
       await exportBackupToFile(portfolioItems, portfolioHistory, appConfig.expo.version);
+      const now = Date.now();
+      await setLastAutoBackupAt(now);
+      setLastAutoBackupAtState(now);
+      setDismissedStaleBanner(true);
       hapticFeedback.success();
     } catch {
       hapticFeedback.error();
@@ -235,6 +269,47 @@ const AppSettingsScreen: React.FC = () => {
               <Text style={styles.sectionSubtitle}>{t('dataBackupSubtitle')}</Text>
             </View>
           </View>
+          <View style={styles.autoBackupToggleRow}>
+            <View style={styles.autoBackupToggleText}>
+              <Text style={styles.autoBackupToggleLabel}>{t('autoBackupToggle')}</Text>
+              <Text style={styles.autoBackupToggleHint}>{t('autoBackupToggleHint')}</Text>
+            </View>
+            <Switch
+              value={autoBackupEnabled}
+              onValueChange={handleAutoBackupToggle}
+              trackColor={{ false: colors.glassBorder, true: colors.primaryStart + '80' }}
+              thumbColor={autoBackupEnabled ? colors.primaryStart : colors.textMuted}
+            />
+          </View>
+          {showStaleBackupBanner && (
+            <View style={styles.autoBackupBanner}>
+              <Text style={styles.autoBackupBannerText}>{t('autoBackupStaleBanner')}</Text>
+              <View style={styles.autoBackupBannerActions}>
+                <TouchableOpacity
+                  style={styles.autoBackupBannerPrimary}
+                  onPress={handleExportBackup}
+                  disabled={isBackupBusy}
+                >
+                  <Text style={styles.autoBackupBannerPrimaryText}>{t('autoBackupExportNow')}</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={() => {
+                    hapticFeedback.light();
+                    setDismissedStaleBanner(true);
+                  }}
+                >
+                  <Text style={styles.autoBackupBannerDismiss}>{t('autoBackupDismiss')}</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          )}
+          {lastAutoBackupAt != null && (
+            <Text style={styles.autoBackupLastLine}>
+              {t('autoBackupLastBackup', {
+                date: new Date(lastAutoBackupAt).toLocaleDateString(i18n.language),
+              })}
+            </Text>
+          )}
           <View style={styles.backupRow}>
             <TouchableOpacity
               style={styles.backupButton}

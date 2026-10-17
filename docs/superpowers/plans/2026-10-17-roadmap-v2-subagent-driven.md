@@ -61,9 +61,18 @@ For each **Task** in a child plan:
 
 ---
 
-## Phase 3–5
+## Phase 3 acceptance (manual)
 
-See respective plan files; Phase 3 (auto-backup) is next.
+- [x] Ayarlar: yedek hatırlatıcısı toggle, 7 gün banner, export sonrası tarih.
+- [x] TR/EN/DE strings present.
+
+**Status:** ✅ Done (2026-10-17, manual QA)
+
+---
+
+## Phase 4–5
+
+See respective plan files; Phase 4 (iOS widget) is next.
 
 ---
 

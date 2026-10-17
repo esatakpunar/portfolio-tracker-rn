@@ -7,6 +7,8 @@ const PREFERENCE_KEYS = {
   PRICE_SOURCE: 'pref:priceSource',
   ZAKAT_DEBT: 'pref:zakatDebt',
   PORTFOLIO_GOAL: 'pref:portfolioGoal',
+  AUTO_BACKUP_ENABLED: 'pref:autoBackupEnabled',
+  LAST_AUTO_BACKUP_AT: 'pref:lastAutoBackupAt',
 } as const;
 
 export type PriceSource = 'truncgil' | 'investing' | 'auto';
@@ -202,6 +204,64 @@ export async function clearPortfolioGoal(): Promise<void> {
     await db.runAsync(`DELETE FROM app_settings WHERE key = ?`, [
       PREFERENCE_KEYS.PORTFOLIO_GOAL,
     ]);
+  } catch {
+    // Silently fail
+  }
+}
+
+export async function getAutoBackupEnabled(): Promise<boolean> {
+  try {
+    await waitForDatabase();
+    const db = getDatabase();
+    const row = await db.getFirstAsync<{ value: string }>(
+      `SELECT value FROM app_settings WHERE key = ?`,
+      [PREFERENCE_KEYS.AUTO_BACKUP_ENABLED]
+    );
+    return row?.value === 'true';
+  } catch {
+    return false;
+  }
+}
+
+export async function setAutoBackupEnabled(enabled: boolean): Promise<void> {
+  try {
+    await waitForDatabase();
+    const db = getDatabase();
+    await db.runAsync(
+      `INSERT OR REPLACE INTO app_settings (key, value, updated_at) VALUES (?, ?, ?)`,
+      [PREFERENCE_KEYS.AUTO_BACKUP_ENABLED, enabled ? 'true' : 'false', Date.now()]
+    );
+  } catch {
+    // Silently fail
+  }
+}
+
+export async function getLastAutoBackupAt(): Promise<number | null> {
+  try {
+    await waitForDatabase();
+    const db = getDatabase();
+    const row = await db.getFirstAsync<{ value: string }>(
+      `SELECT value FROM app_settings WHERE key = ?`,
+      [PREFERENCE_KEYS.LAST_AUTO_BACKUP_AT]
+    );
+    if (!row?.value) {
+      return null;
+    }
+    const ts = parseInt(row.value, 10);
+    return isNaN(ts) || ts <= 0 ? null : ts;
+  } catch {
+    return null;
+  }
+}
+
+export async function setLastAutoBackupAt(timestamp: number): Promise<void> {
+  try {
+    await waitForDatabase();
+    const db = getDatabase();
+    await db.runAsync(
+      `INSERT OR REPLACE INTO app_settings (key, value, updated_at) VALUES (?, ?, ?)`,
+      [PREFERENCE_KEYS.LAST_AUTO_BACKUP_AT, String(timestamp), Date.now()]
+    );
   } catch {
     // Silently fail
   }

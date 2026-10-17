@@ -231,6 +231,68 @@ export const settingsScreenStyles = StyleSheet.create({
     color: colors.textMuted,
     fontStyle: 'italic',
   },
+  autoBackupToggleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: spacing.md,
+    gap: spacing.md,
+  },
+  autoBackupToggleText: {
+    flex: 1,
+  },
+  autoBackupToggleLabel: {
+    fontSize: fontSize.base,
+    fontWeight: fontWeight.semibold,
+    color: colors.textPrimary,
+    marginBottom: spacing.xs,
+  },
+  autoBackupToggleHint: {
+    fontSize: fontSize.xs,
+    color: colors.textMuted,
+    lineHeight: 18,
+  },
+  autoBackupBanner: {
+    backgroundColor: colors.primaryStart + '12',
+    borderRadius: borderRadius.lg,
+    borderWidth: 1,
+    borderColor: colors.primaryStart + '40',
+    padding: spacing.md,
+    marginBottom: spacing.md,
+    gap: spacing.sm,
+  },
+  autoBackupBannerText: {
+    fontSize: fontSize.sm,
+    color: colors.textSecondary,
+    lineHeight: 20,
+  },
+  autoBackupBannerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing.md,
+  },
+  autoBackupBannerPrimary: {
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+    borderRadius: borderRadius.md,
+    backgroundColor: colors.primaryStart,
+  },
+  autoBackupBannerPrimaryText: {
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.semibold,
+    color: colors.textPrimary,
+  },
+  autoBackupBannerDismiss: {
+    fontSize: fontSize.sm,
+    color: colors.textMuted,
+    fontWeight: fontWeight.medium,
+  },
+  autoBackupLastLine: {
+    fontSize: fontSize.xs,
+    color: colors.textMuted,
+    marginBottom: spacing.md,
+  },
   backupRow: {
     flexDirection: 'row',
     gap: spacing.md,

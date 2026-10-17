@@ -18,15 +18,15 @@
 
 **Files:** `preferenceStorage.ts`
 
-- [ ] **Step 1:** `autoBackupEnabled`, `lastAutoBackupAt`.
+- [x] **Step 1:** `autoBackupEnabled`, `lastAutoBackupAt`.
 
 ### Task 2: Service + banner
 
 **Files:** Create `src/services/autoBackupService.ts`, modify `AppSettingsScreen.tsx`
 
-- [ ] **Step 1:** `shouldPromptAutoBackup()`, record timestamp on export.
-- [ ] **Step 2:** Settings toggle + “Yedek al” when stale.
+- [x] **Step 1:** `shouldPromptAutoBackup()`, record timestamp on export.
+- [x] **Step 2:** Settings toggle + “Yedek al” when stale.
 
 ### Task 3: Locales
 
-- [ ] **Step 1:** TR/EN/DE strings.
+- [x] **Step 1:** TR/EN/DE strings.
