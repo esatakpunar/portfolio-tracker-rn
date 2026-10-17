@@ -133,6 +133,8 @@ export default {
   backupImportFailed: 'Import failed',
   dangerZone: 'Danger Zone',
   resetAllDataSubtitle: 'Reset all data',
+  resetAllDataConfirmMessage:
+    'Portfolio, history, wallets, and goals will be erased. This cannot be undone.',
   
   
   // Amount update descriptions
@@ -188,6 +190,9 @@ export default {
   appLockEnable: 'Enable lock',
   appLockDisable: 'Disable lock',
   appLockDisableConfirm: 'PIN will be removed.',
+  appLockEnterPinToDisable: 'Enter your current PIN to disable the lock.',
+  appLockEnterCurrentPin: 'Current PIN',
+  appLockGateSubtitle: 'Unlock to view your portfolio.',
   appLockUnlock: 'Unlock',
   appLockBiometric: 'Try biometrics',
   appLockWrongPin: 'Wrong PIN',

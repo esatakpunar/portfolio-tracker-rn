@@ -133,6 +133,8 @@ export default {
   backupImportFailed: 'İçe aktarma başarısız',
   dangerZone: 'Tehlikeli Bölge',
   resetAllDataSubtitle: 'Tüm verileri sıfırla',
+  resetAllDataConfirmMessage:
+    'Portföy, geçmiş, cüzdanlar ve hedefler silinecek. Bu işlem geri alınamaz.',
   
   
   // Amount update descriptions
@@ -188,6 +190,9 @@ export default {
   appLockEnable: 'Kilidi etkinleştir',
   appLockDisable: 'Kilidi kapat',
   appLockDisableConfirm: 'PIN kaldırılacak.',
+  appLockEnterPinToDisable: 'Kilidi kapatmak için mevcut PIN’ini gir.',
+  appLockEnterCurrentPin: 'Mevcut PIN',
+  appLockGateSubtitle: 'Portföyünü görmek için kilidi aç.',
   appLockUnlock: 'Kilidi aç',
   appLockBiometric: 'Biyometrik dene',
   appLockWrongPin: 'Hatalı PIN',

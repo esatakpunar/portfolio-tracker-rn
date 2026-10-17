@@ -133,6 +133,8 @@ export default {
   backupImportFailed: 'Import fehlgeschlagen',
   dangerZone: 'Gefahrenbereich',
   resetAllDataSubtitle: 'Alle Daten zurücksetzen',
+  resetAllDataConfirmMessage:
+    'Portfolio, Verlauf, Wallets und Ziele werden gelöscht. Das kann nicht rückgängig gemacht werden.',
   
   
   // Amount update descriptions
@@ -188,6 +190,9 @@ export default {
   appLockEnable: 'Sperre aktivieren',
   appLockDisable: 'Sperre deaktivieren',
   appLockDisableConfirm: 'PIN wird entfernt.',
+  appLockEnterPinToDisable: 'Gib deine aktuelle PIN ein, um die Sperre zu deaktivieren.',
+  appLockEnterCurrentPin: 'Aktuelle PIN',
+  appLockGateSubtitle: 'Entsperren, um dein Portfolio zu sehen.',
   appLockUnlock: 'Entsperren',
   appLockBiometric: 'Biometrie versuchen',
   appLockWrongPin: 'Falsche PIN',

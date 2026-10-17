@@ -7,6 +7,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   Animated,
+  Pressable,
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { Text } from './Text';
@@ -103,14 +104,12 @@ const SheetConfirmModal: React.FC<SheetConfirmModalProps> = ({
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.modalOverlay}
       >
-        <TouchableOpacity style={styles.backdrop} activeOpacity={1} onPress={onClose}>
-          <Animated.View
-            style={[styles.modalContent, { transform: [{ translateY }] }]}
-            onStartShouldSetResponder={() => true}
-          >
+        <View style={styles.backdrop}>
+          <Pressable style={styles.backdropPress} onPress={onClose} accessibilityRole="button" />
+          <Animated.View style={[styles.modalContent, { transform: [{ translateY }] }]}>
             <SheetConfirmPanel {...panelProps} onCancel={onClose} />
           </Animated.View>
-        </TouchableOpacity>
+        </View>
       </KeyboardAvoidingView>
     </Modal>
   );
@@ -125,6 +124,9 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
     justifyContent: 'flex-end',
+  },
+  backdropPress: {
+    ...StyleSheet.absoluteFillObject,
   },
   modalContent: {
     backgroundColor: colors.backgroundDark,

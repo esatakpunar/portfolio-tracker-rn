@@ -138,7 +138,7 @@ export async function exportBackupToFile(
 
 export async function importBackupFromPicker(): Promise<PortfolioBackupV2 | null> {
   const result = await DocumentPicker.getDocumentAsync({
-    type: 'application/json',
+    type: ['application/json', 'text/json', 'public.json', 'public.text'],
     copyToCacheDirectory: true,
   });
   if (result.canceled || !result.assets?.[0]?.uri) {

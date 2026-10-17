@@ -1,10 +1,17 @@
-import React, { useState, useEffect } from 'react';
-import { View, ScrollView, TouchableOpacity, Alert, Switch } from 'react-native';
+import React, { useState, useEffect, useCallback } from 'react';
+import {
+  View,
+  ScrollView,
+  TouchableOpacity,
+  Alert,
+  Switch,
+  InteractionManager,
+  Platform,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { Text } from '../components/Text';
-import { TextInput } from '../components/TextInput';
 import { useAppSelector, useAppDispatch } from '../hooks/useRedux';
 import {
   resetAll,
@@ -34,6 +41,8 @@ import ZakatScreen from './ZakatScreen';
 import { isPinEnabled, setPin, clearPin } from '../utils/pinStorage';
 import { settingsScreenStyles as styles } from './settingsScreenStyles';
 import { useOnboarding, navigateToTab } from '../onboarding';
+import SheetConfirmModal from '../components/SheetConfirmModal';
+import AppLockPinModal, { AppLockPinModalMode } from '../components/AppLockPinModal';
 
 const AppSettingsScreen: React.FC = () => {
   const { t, i18n } = useTranslation();
@@ -47,11 +56,15 @@ const AppSettingsScreen: React.FC = () => {
   const [isBackupBusy, setIsBackupBusy] = useState(false);
   const [showZakat, setShowZakat] = useState(false);
   const [pinEnabled, setPinEnabledState] = useState(false);
-  const [newPin, setNewPin] = useState('');
+  const [pinModalMode, setPinModalMode] = useState<AppLockPinModalMode | null>(null);
   const [showLanguagePicker, setShowLanguagePicker] = useState(false);
   const [autoBackupEnabled, setAutoBackupEnabledState] = useState(false);
   const [lastAutoBackupAt, setLastAutoBackupAtState] = useState<number | null>(null);
   const [dismissedStaleBanner, setDismissedStaleBanner] = useState(false);
+  const [showImportConfirm, setShowImportConfirm] = useState(false);
+  const [importPickerQueued, setImportPickerQueued] = useState(false);
+  const [showReplayConfirm, setShowReplayConfirm] = useState(false);
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
 
   const refreshAutoBackupPrefs = async () => {
     const [enabled, lastAt] = await Promise.all([
@@ -77,30 +90,20 @@ const AppSettingsScreen: React.FC = () => {
     await setAutoBackupEnabled(value);
   };
 
-  const handleSavePin = async () => {
-    if (newPin.length < 4) {
-      Alert.alert(t('error'), t('appLockPinTooShort'));
-      return;
-    }
-    await setPin(newPin);
+  const handleSavePin = async (pin: string) => {
+    await setPin(pin);
     setPinEnabledState(true);
-    setNewPin('');
-    hapticFeedback.success();
   };
 
-  const handleDisablePin = async () => {
-    Alert.alert(t('appLockDisable'), t('appLockDisableConfirm'), [
-      { text: t('cancel'), style: 'cancel' },
-      {
-        text: t('delete'),
-        style: 'destructive',
-        onPress: async () => {
-          await clearPin();
-          setPinEnabledState(false);
-          hapticFeedback.success();
-        },
-      },
-    ]);
+  const runDisablePin = async () => {
+    await clearPin();
+    setPinEnabledState(false);
+  };
+
+  const runResetAll = () => {
+    setShowResetConfirm(false);
+    hapticFeedback.heavy();
+    dispatch(resetAll());
   };
 
   const handleExportBackup = async () => {
@@ -129,44 +132,55 @@ const AppSettingsScreen: React.FC = () => {
   };
 
   const handleImportBackup = () => {
-    Alert.alert(t('importBackupTitle'), `${t('importBackupMessage')}\n\n${t('backupSensitiveWarning')}`, [
-      { text: t('cancel'), style: 'cancel' },
-      {
-        text: t('importBackup'),
-        style: 'destructive',
-        onPress: async () => {
-          if (isBackupBusy) return;
-          setIsBackupBusy(true);
-          try {
-            const backup = await importBackupFromPicker();
-            if (!backup) return;
-            dispatch(importBackup(backup.data));
-            await (dispatch as AppDispatch)(fetchPrices());
-            hapticFeedback.success();
-          } catch {
-            hapticFeedback.error();
-            Alert.alert(t('error'), t('backupImportFailed'));
-          } finally {
-            setIsBackupBusy(false);
-          }
-        },
-      },
-    ]);
+    hapticFeedback.light();
+    setShowImportConfirm(true);
+  };
+
+  const executeImportBackup = useCallback(async () => {
+    if (isBackupBusy) return;
+    setIsBackupBusy(true);
+    try {
+      const backup = await importBackupFromPicker();
+      if (!backup) return;
+      dispatch(importBackup(backup.data));
+      await (dispatch as AppDispatch)(fetchPrices());
+      hapticFeedback.success();
+    } catch {
+      hapticFeedback.error();
+      Alert.alert(t('error'), t('backupImportFailed'));
+    } finally {
+      setIsBackupBusy(false);
+    }
+  }, [dispatch, isBackupBusy, t]);
+
+  useEffect(() => {
+    if (showImportConfirm || !importPickerQueued) {
+      return;
+    }
+    setImportPickerQueued(false);
+    const task = InteractionManager.runAfterInteractions(() => {
+      const delayMs = Platform.OS === 'ios' ? 450 : 100;
+      setTimeout(() => {
+        void executeImportBackup();
+      }, delayMs);
+    });
+    return () => task.cancel();
+  }, [showImportConfirm, importPickerQueued, executeImportBackup]);
+
+  const runImportBackup = () => {
+    setImportPickerQueued(true);
+    setShowImportConfirm(false);
+  };
+
+  const runReplayOnboarding = () => {
+    setShowReplayConfirm(false);
+    hapticFeedback.light();
+    void resetForReplay().then(() => navigateToTab('Portfolio'));
   };
 
   const handleResetAll = () => {
     hapticFeedback.warning();
-    Alert.alert(t('resetAllData'), t('confirmDeleteMessage'), [
-      { text: t('cancel'), style: 'cancel', onPress: () => hapticFeedback.light() },
-      {
-        text: t('delete'),
-        style: 'destructive',
-        onPress: () => {
-          hapticFeedback.heavy();
-          dispatch(resetAll());
-        },
-      },
-    ]);
+    setShowResetConfirm(true);
   };
 
   const handleLanguageChange = async (languageCode: string) => {
@@ -249,25 +263,25 @@ const AppSettingsScreen: React.FC = () => {
             </View>
           </View>
           {pinEnabled ? (
-            <TouchableOpacity style={styles.backupButton} onPress={handleDisablePin}>
+            <TouchableOpacity
+              style={styles.backupButton}
+              onPress={() => {
+                hapticFeedback.light();
+                setPinModalMode('disable');
+              }}
+            >
               <Text style={styles.backupButtonText}>{t('appLockDisable')}</Text>
             </TouchableOpacity>
           ) : (
-            <View>
-              <TextInput
-                style={styles.pinInput}
-                value={newPin}
-                onChangeText={setNewPin}
-                placeholder={t('appLockSetPin')}
-                placeholderTextColor={colors.textMuted}
-                secureTextEntry
-                keyboardType="number-pad"
-                maxLength={6}
-              />
-              <TouchableOpacity style={styles.backupButton} onPress={handleSavePin}>
-                <Text style={styles.backupButtonText}>{t('appLockEnable')}</Text>
-              </TouchableOpacity>
-            </View>
+            <TouchableOpacity
+              style={styles.backupButton}
+              onPress={() => {
+                hapticFeedback.light();
+                setPinModalMode('enable');
+              }}
+            >
+              <Text style={styles.backupButtonText}>{t('appLockEnable')}</Text>
+            </TouchableOpacity>
           )}
         </View>
 
@@ -355,16 +369,8 @@ const AppSettingsScreen: React.FC = () => {
           <TouchableOpacity
             style={styles.backupButton}
             onPress={() => {
-              Alert.alert(t('onboardingReplayConfirmTitle'), t('onboardingReplayConfirmMessage'), [
-                { text: t('cancel'), style: 'cancel' },
-                {
-                  text: t('onboardingReplayConfirmAction'),
-                  onPress: () => {
-                    hapticFeedback.light();
-                    void resetForReplay().then(() => navigateToTab('Portfolio'));
-                  },
-                },
-              ]);
+              hapticFeedback.light();
+              setShowReplayConfirm(true);
             }}
           >
             <Text style={styles.backupButtonText}>{t('onboardingReplayButton')}</Text>
@@ -390,6 +396,47 @@ const AppSettingsScreen: React.FC = () => {
         </View>
       </ScrollView>
       <ZakatScreen visible={showZakat} onClose={() => setShowZakat(false)} />
+
+      <SheetConfirmModal
+        visible={showImportConfirm}
+        onClose={() => setShowImportConfirm(false)}
+        title={t('importBackupTitle')}
+        message={`${t('importBackupMessage')}\n\n${t('backupSensitiveWarning')}`}
+        confirmLabel={t('importBackup')}
+        variant="primary"
+        onConfirm={runImportBackup}
+        onCancel={() => setShowImportConfirm(false)}
+      />
+
+      <SheetConfirmModal
+        visible={showReplayConfirm}
+        onClose={() => setShowReplayConfirm(false)}
+        title={t('onboardingReplayConfirmTitle')}
+        message={t('onboardingReplayConfirmMessage')}
+        confirmLabel={t('onboardingReplayConfirmAction')}
+        variant="primary"
+        onConfirm={runReplayOnboarding}
+        onCancel={() => setShowReplayConfirm(false)}
+      />
+
+      <SheetConfirmModal
+        visible={showResetConfirm}
+        onClose={() => setShowResetConfirm(false)}
+        title={t('resetAllData')}
+        message={t('resetAllDataConfirmMessage')}
+        confirmLabel={t('resetAllData')}
+        variant="danger"
+        onConfirm={runResetAll}
+        onCancel={() => setShowResetConfirm(false)}
+      />
+
+      <AppLockPinModal
+        visible={pinModalMode != null}
+        mode={pinModalMode ?? 'enable'}
+        onClose={() => setPinModalMode(null)}
+        onEnable={handleSavePin}
+        onDisableVerified={runDisablePin}
+      />
     </SafeAreaView>
   );
 };
