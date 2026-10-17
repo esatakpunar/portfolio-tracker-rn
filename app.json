@@ -61,6 +61,7 @@
         {
           "groupIdentifier": "group.com.portfoliotracker.app",
           "bundleIdentifier": "com.portfoliotracker.app.widgets",
+          "enablePushNotifications": false,
           "widgets": [
             {
               "name": "PortfolioTotalWidget",
@@ -78,7 +79,8 @@
             }
           ]
         }
-      ]
+      ],
+      "./plugins/withStripWidgetPushEntitlement.js"
     ],
     "extra": {
       "eas": {
