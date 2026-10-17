@@ -236,7 +236,7 @@ export default {
   assetMoveConfirmTitle: 'Varlık taşınsın mı?',
   assetMoveConfirmMessage:
     '{{asset}} varlığı {{from}} cüzdanından {{to}} cüzdanına taşınacak.',
-  goalOverviewTitle: 'Hedefler',
+  portfolioInsightsTitle: 'Analiz ve dağılım',
   goalSetCta: 'Hedef belirle',
   goalHint: 'Ek hedef veya toplam hedef belirleyin',
   goalTitlePortfolioTl: 'Portföy hedefi (TL)',

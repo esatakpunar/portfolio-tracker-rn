@@ -235,7 +235,7 @@ export default {
   assetMoveToWalletButton: 'Verschieben',
   assetMoveConfirmTitle: 'Vermögenswert verschieben?',
   assetMoveConfirmMessage: '{{asset}} wird von {{from}} nach {{to}} verschoben.',
-  goalOverviewTitle: 'Ziele',
+  portfolioInsightsTitle: 'Analyse & Allokation',
   goalSetCta: 'Ziel festlegen',
   goalHint: 'Vermögensmenge oder Portfoliowert in TL verfolgen',
   goalTitlePortfolioTl: 'Portfolioziel (TL)',

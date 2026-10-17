@@ -41,10 +41,9 @@ import {
   selectItems,
   sumItemsTotalTL,
 } from '../store/portfolioSlice';
-import PortfolioProfitSummary from '../components/PortfolioProfitSummary';
-import PortfolioAllocationCard from '../components/PortfolioAllocationCard';
 import PortfolioGoalCard from '../components/PortfolioGoalCard';
-import PortfolioGoalsOverviewCard from '../components/PortfolioGoalsOverviewCard';
+import PortfolioWalletSummaryCard from '../components/PortfolioWalletSummaryCard';
+import CollapsiblePortfolioInsights from '../components/CollapsiblePortfolioInsights';
 import { getAssetProfitLoss, getPortfolioProfitLoss } from '../utils/portfolioUtils';
 import { AppDispatch } from '../store';
 import { colors, spacing, borderRadius, fontSize, fontWeight, shadows } from '../theme';
@@ -1172,41 +1171,17 @@ const PortfolioScreen: React.FC = () => {
         </ScrollView>
 
         {isAllWalletsView && wallets.length > 1 && (
-          <View style={styles.allWalletsSection}>
-            <Text style={styles.walletBreakdownTitle}>{t('portfolioWalletBreakdownTitle')}</Text>
-            {walletBreakdown.map((row) => (
-              <TouchableOpacity
-                key={row.id}
-                style={styles.walletBreakdownRow}
-                onPress={() => handleSelectWallet(row.id)}
-                activeOpacity={0.7}
-              >
-                <Text style={styles.walletBreakdownName} numberOfLines={1}>
-                  {row.label}
-                </Text>
-                <Text style={styles.walletBreakdownValue}>
-                  {formatCurrency(row.totalTL, i18n.language)} ₺
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        )}
-
-        {portfolioProfitLoss && (
-          <PortfolioProfitSummary data={portfolioProfitLoss} />
+          <PortfolioWalletSummaryCard
+            rows={walletBreakdown}
+            allItems={allItems}
+            prices={prices}
+            onOpenWallet={handleSelectWallet}
+          />
         )}
 
         {items.length > 0 && (
           <>
-            {isAllWalletsView && wallets.length > 1 ? (
-              <PortfolioGoalsOverviewCard
-                wallets={wallets}
-                allItems={allItems}
-                prices={prices}
-                walletLabel={walletDisplayName}
-                onOpenWallet={handleSelectWallet}
-              />
-            ) : (
+            {!isAllWalletsView || wallets.length <= 1 ? (
               <PortfolioGoalCard
                 walletId={normalizeWalletId(portfolioWalletFilter)}
                 walletLabel={walletDisplayName(
@@ -1220,8 +1195,12 @@ const PortfolioScreen: React.FC = () => {
                 items={items}
                 prices={prices}
               />
-            )}
-            <PortfolioAllocationCard items={items} prices={prices} />
+            ) : null}
+            <CollapsiblePortfolioInsights
+              profit={portfolioProfitLoss}
+              items={items}
+              prices={prices}
+            />
           </>
         )}
 
@@ -1528,40 +1507,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.glassBorder,
     borderStyle: 'dashed',
-  },
-  allWalletsSection: {
-    marginHorizontal: spacing.lg,
-    marginBottom: spacing.lg,
-    padding: spacing.md,
-    borderRadius: borderRadius.lg,
-    backgroundColor: colors.glassBackground,
-    borderWidth: 1,
-    borderColor: colors.glassBorder,
-  },
-  walletBreakdownTitle: {
-    fontSize: fontSize.sm,
-    fontWeight: fontWeight.semibold,
-    color: colors.textPrimary,
-    marginBottom: spacing.sm,
-  },
-  walletBreakdownRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: spacing.sm,
-    borderTopWidth: 1,
-    borderTopColor: colors.glassBorder,
-  },
-  walletBreakdownName: {
-    flex: 1,
-    fontSize: fontSize.base,
-    color: colors.textSecondary,
-    marginRight: spacing.sm,
-  },
-  walletBreakdownValue: {
-    fontSize: fontSize.base,
-    fontWeight: fontWeight.semibold,
-    color: colors.textPrimary,
   },
   walletChipAddText: {
     fontSize: fontSize.sm,

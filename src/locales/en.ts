@@ -235,7 +235,7 @@ export default {
   assetMoveToWalletButton: 'Move',
   assetMoveConfirmTitle: 'Move asset?',
   assetMoveConfirmMessage: '{{asset}} will move from {{from}} to {{to}}.',
-  goalOverviewTitle: 'Goals',
+  portfolioInsightsTitle: 'Insights & allocation',
   goalSetCta: 'Set a goal',
   goalHint: 'Track asset amount or portfolio value in TL',
   goalTitlePortfolioTl: 'Portfolio goal (TL)',
