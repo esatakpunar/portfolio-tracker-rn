@@ -297,6 +297,9 @@ export const settingsScreenStyles = StyleSheet.create({
     flexDirection: 'row',
     gap: spacing.md,
   },
+  backupRowItem: {
+    flex: 1,
+  },
   backupButton: {
     flex: 1,
     backgroundColor: colors.primaryStart,

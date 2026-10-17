@@ -16,9 +16,9 @@
 
 **Files:** `src/types/onboarding.ts` (or `src/types/index.ts`), `src/utils/preferenceStorage.ts`
 
-- [ ] Define `OnboardingState`, step ID constants, `ONBOARDING_VERSION`.
-- [ ] Implement get/save/completeStep/reset helpers.
-- [ ] Migration: if unset and `items.length > 0`, write all steps complete at current version.
+- [x] Define `OnboardingState`, step ID constants, `ONBOARDING_VERSION`.
+- [x] Implement get/save/completeStep/reset helpers.
+- [x] Migration: if unset and `items.length > 0`, write all steps complete at current version.
 
 **Acceptance:** Unit-less manual: read/write round-trip via dev log or temporary screen.
 
@@ -28,9 +28,9 @@
 
 **Files:** `src/onboarding/OnboardingProvider.tsx`, `src/onboarding/index.ts`, `App.tsx`
 
-- [ ] Context with `shouldShowWelcome`, `shouldShowChecklist`, `completeStep`, `dismissChecklist`, `resetOnboarding`.
-- [ ] Watch `selectItems`, wallet count, optional navigation ref.
-- [ ] `createNavigationContainerRef` wired to `NavigationContainer`.
+- [x] Context with `shouldShowWelcome`, `shouldShowChecklist`, `completeStep`, `dismissChecklist`, `resetOnboarding`.
+- [x] Watch `selectItems`, wallet count, optional navigation ref.
+- [x] `createNavigationContainerRef` wired to `NavigationContainer`.
 
 **Acceptance:** Provider mounts without crash; existing app behavior unchanged when onboarding complete.
 
@@ -40,9 +40,9 @@
 
 **Files:** `src/components/WelcomeOnboardingModal.tsx`
 
-- [ ] 4-slide pager (FlatList horizontal or manual index).
-- [ ] Skip (all slides), Next, final “Başla”.
-- [ ] On complete/skip: `completeStep('welcome_done')`, close.
+- [x] 4-slide pager (FlatList horizontal or manual index).
+- [x] Skip (all slides), Next, final “Başla”.
+- [x] On complete/skip: `completeStep('welcome_done')`, close.
 
 **Acceptance:** Modal matches glass style; i18n TR/EN/DE.
 
@@ -52,10 +52,10 @@
 
 **Files:** `src/components/OnboardingChecklistCard.tsx`, `PortfolioScreen.tsx`
 
-- [ ] Render when `shouldShowChecklist`.
-- [ ] Required steps pinned top; optional below; show checkmarks from `completedSteps`.
-- [ ] Row actions: open Add modal, focus currency slider (callback props from Portfolio), navigate History, navigate Settings export.
-- [ ] Hide button after required complete or explicit dismiss.
+- [x] Render when `shouldShowChecklist`.
+- [x] Required steps pinned top; optional below; show checkmarks from `completedSteps`.
+- [x] Row actions: open Add modal, focus currency slider (callback props from Portfolio), navigate History, navigate Settings export.
+- [x] Hide button after required complete or explicit dismiss.
 
 **Acceptance:** PO required steps auto-tick; card hidden for legacy users with items.
 
@@ -65,11 +65,11 @@
 
 **Files:** `PortfolioScreen.tsx`, `AppSettingsScreen.tsx`, `BottomTabNavigator.tsx` or History screen
 
-- [ ] `add_first_asset` on items length.
-- [ ] `see_total_currency` on slider index change (once).
-- [ ] `visit_history` on tab focus listener.
-- [ ] `export_backup` on export success.
-- [ ] `add_second_wallet`, `set_goal`, `enable_lock` from existing state/prefs.
+- [x] `add_first_asset` on items length.
+- [x] `see_total_currency` on slider index change (once).
+- [x] `visit_history` on tab focus listener.
+- [x] `export_backup` on export success.
+- [x] `add_second_wallet`, `set_goal`, `enable_lock` from existing state/prefs.
 
 **Acceptance:** Manual QA checklist in spec passes.
 
@@ -79,8 +79,8 @@
 
 **Files:** `AppSettingsScreen.tsx`, `src/locales/tr.ts`, `en.ts`, `de.ts`
 
-- [ ] “Turu tekrar göster” with confirm Alert.
-- [ ] All welcome + checklist strings.
+- [x] “Turu tekrar göster” with confirm Alert.
+- [x] All welcome + checklist strings.
 
 **Acceptance:** Replay shows welcome; reset behavior documented in spec.
 
@@ -92,9 +92,9 @@
 
 **Files:** `package.json`, `babel.config.js` (reanimated plugin if needed), `App.tsx`
 
-- [ ] Add `guideway`, `react-native-reanimated`, `react-native-svg`.
-- [ ] Wrap app with `TourProvider`; dark theme tokens matching app colors.
-- [ ] Storage adapter → `pref:onboarding` or tours key.
+- [x] Add `guideway`, `react-native-reanimated`, `react-native-svg`.
+- [x] Wrap app with `TourProvider`; dark theme tokens matching app colors.
+- [x] Storage adapter → `pref:onboarding` or tours key.
 
 **Acceptance:** Example tour runs in dev on one button.
 
@@ -104,9 +104,9 @@
 
 **Files:** `PortfolioScreen.tsx`, tour definition file `src/onboarding/tours.ts`
 
-- [ ] `useTourTarget` on header add button.
-- [ ] Start tour when user taps checklist row for first asset.
-- [ ] `allowTargetInteraction` true.
+- [x] `useTourTarget` on header add button.
+- [x] Start tour when user taps checklist row for first asset.
+- [x] `allowTargetInteraction` true.
 
 **Acceptance:** User can add item through spotlight hole.
 
@@ -116,8 +116,8 @@
 
 **Files:** `AppSettingsScreen.tsx`, `PortfolioScreen.tsx`, `tours.ts`
 
-- [ ] Navigate then start tour (delay until layout).
-- [ ] showOnce per tour id.
+- [x] Navigate then start tour (delay until layout).
+- [x] showOnce per tour id.
 
 **Acceptance:** Manual QA v1.1 section in spec.
 

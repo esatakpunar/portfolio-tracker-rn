@@ -1,5 +1,14 @@
 import { getDatabase, waitForDatabase } from '../services/database';
 import { CurrencyType, AssetType, PortfolioGoal, PortfolioGoalsByWallet } from '../types';
+import {
+  ALL_ONBOARDING_STEP_IDS,
+  createEmptyOnboardingState,
+  createLegacyUserOnboardingState,
+  OnboardingState,
+  OnboardingStepId,
+  ONBOARDING_STEPS,
+  ONBOARDING_VERSION,
+} from '../types/onboarding';
 import { DEFAULT_WALLET_ID } from './walletUtils';
 
 const PREFERENCE_KEYS = {
@@ -10,6 +19,7 @@ const PREFERENCE_KEYS = {
   PORTFOLIO_GOAL: 'pref:portfolioGoal',
   AUTO_BACKUP_ENABLED: 'pref:autoBackupEnabled',
   LAST_AUTO_BACKUP_AT: 'pref:lastAutoBackupAt',
+  ONBOARDING: 'pref:onboarding',
 } as const;
 
 export type PriceSource = 'truncgil' | 'investing' | 'auto';
@@ -323,6 +333,157 @@ export async function setLastAutoBackupAt(timestamp: number): Promise<void> {
       `INSERT OR REPLACE INTO app_settings (key, value, updated_at) VALUES (?, ?, ?)`,
       [PREFERENCE_KEYS.LAST_AUTO_BACKUP_AT, String(timestamp), Date.now()]
     );
+  } catch {
+    // Silently fail
+  }
+}
+
+const VALID_ONBOARDING_STEP_SET = new Set<string>(ALL_ONBOARDING_STEP_IDS);
+
+function normalizeOnboardingState(raw: unknown): OnboardingState | null {
+  if (!raw || typeof raw !== 'object') {
+    return null;
+  }
+  const parsed = raw as OnboardingState;
+  if (typeof parsed.version !== 'number' || !Array.isArray(parsed.completedSteps)) {
+    return null;
+  }
+  const completedSteps = parsed.completedSteps.filter(
+    (id): id is OnboardingStepId =>
+      typeof id === 'string' && VALID_ONBOARDING_STEP_SET.has(id)
+  );
+  const welcomeCompletedAt =
+    parsed.welcomeCompletedAt == null || typeof parsed.welcomeCompletedAt === 'number'
+      ? parsed.welcomeCompletedAt
+      : null;
+  const dismissedAt =
+    parsed.dismissedAt == null || typeof parsed.dismissedAt === 'number'
+      ? parsed.dismissedAt
+      : null;
+  return {
+    version: parsed.version,
+    welcomeCompletedAt,
+    dismissedAt,
+    completedSteps,
+    currencySwipeSeen: parsed.currencySwipeSeen === true,
+  };
+}
+
+async function readOnboardingStateRaw(): Promise<OnboardingState | null> {
+  await waitForDatabase();
+  const db = getDatabase();
+  const row = await db.getFirstAsync<{ value: string }>(
+    `SELECT value FROM app_settings WHERE key = ?`,
+    [PREFERENCE_KEYS.ONBOARDING]
+  );
+  if (!row?.value) {
+    return null;
+  }
+  try {
+    return normalizeOnboardingState(JSON.parse(row.value));
+  } catch {
+    return null;
+  }
+}
+
+async function writeOnboardingState(state: OnboardingState): Promise<void> {
+  await waitForDatabase();
+  const db = getDatabase();
+  await db.runAsync(
+    `INSERT OR REPLACE INTO app_settings (key, value, updated_at) VALUES (?, ?, ?)`,
+    [PREFERENCE_KEYS.ONBOARDING, JSON.stringify(state), Date.now()]
+  );
+}
+
+export interface GetOnboardingStateOptions {
+  /** When unset in DB and count > 0, mark all steps complete (existing portfolio). */
+  portfolioItemCount?: number;
+  /** Settings “replay tour”: do not auto-migrate legacy completion. */
+  forceFresh?: boolean;
+}
+
+export async function getOnboardingState(
+  options?: GetOnboardingStateOptions
+): Promise<OnboardingState> {
+  try {
+    const existing = await readOnboardingStateRaw();
+    if (existing) {
+      if (existing.version < ONBOARDING_VERSION) {
+        const upgraded: OnboardingState = {
+          ...existing,
+          version: ONBOARDING_VERSION,
+        };
+        await writeOnboardingState(upgraded);
+        return upgraded;
+      }
+      return existing;
+    }
+
+    const itemCount = options?.portfolioItemCount ?? 0;
+    if (!options?.forceFresh && itemCount > 0) {
+      const migrated = createLegacyUserOnboardingState();
+      await writeOnboardingState(migrated);
+      return migrated;
+    }
+
+    return createEmptyOnboardingState();
+  } catch {
+    return createEmptyOnboardingState();
+  }
+}
+
+export async function saveOnboardingState(state: OnboardingState): Promise<void> {
+  try {
+    await writeOnboardingState({
+      ...state,
+      version: ONBOARDING_VERSION,
+    });
+  } catch {
+    // Silently fail
+  }
+}
+
+export async function completeOnboardingStep(
+  stepId: OnboardingStepId,
+  options?: GetOnboardingStateOptions
+): Promise<OnboardingState> {
+  const state = await getOnboardingState(options);
+  if (state.completedSteps.includes(stepId)) {
+    return state;
+  }
+  const now = Date.now();
+  const next: OnboardingState = {
+    ...state,
+    completedSteps: [...state.completedSteps, stepId],
+    version: ONBOARDING_VERSION,
+  };
+  if (stepId === ONBOARDING_STEPS.WELCOME_DONE) {
+    next.welcomeCompletedAt = now;
+  }
+  if (stepId === ONBOARDING_STEPS.SEE_TOTAL_CURRENCY) {
+    next.currencySwipeSeen = true;
+  }
+  await saveOnboardingState(next);
+  return next;
+}
+
+export async function dismissOnboardingChecklist(
+  options?: GetOnboardingStateOptions
+): Promise<OnboardingState> {
+  const state = await getOnboardingState(options);
+  const next: OnboardingState = {
+    ...state,
+    dismissedAt: Date.now(),
+  };
+  await saveOnboardingState(next);
+  return next;
+}
+
+export async function resetOnboarding(): Promise<void> {
+  try {
+    await waitForDatabase();
+    const db = getDatabase();
+    await db.runAsync(`DELETE FROM app_settings WHERE key = ?`, [PREFERENCE_KEYS.ONBOARDING]);
   } catch {
     // Silently fail
   }

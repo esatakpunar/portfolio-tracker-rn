@@ -100,6 +100,7 @@ const PortfolioScreen: React.FC = () => {
       setPortfolioWalletFilter(activeWalletId);
     }
   }, [activeWalletId]);
+
   const history = useAppSelector(selectHistory);
   const prices = useAppSelector(selectPrices);
   const priceChanges = useAppSelector(selectPriceChanges);
@@ -109,7 +110,6 @@ const PortfolioScreen: React.FC = () => {
   const hasPartialPriceUpdate = useAppSelector(selectHasPartialPriceUpdate);
   const priceFetchError = useAppSelector(selectPriceFetchError);
   const { showToast } = useToast();
-  
   const [currentCurrencyIndex, setCurrentCurrencyIndex] = useState(0);
   const [showAddModal, setShowAddModal] = useState(false);
   const [showQuickAddModal, setShowQuickAddModal] = useState(false);
@@ -122,7 +122,6 @@ const PortfolioScreen: React.FC = () => {
   const [walletModalInitialName, setWalletModalInitialName] = useState('');
   const [walletRenamingId, setWalletRenamingId] = useState<string | null>(null);
   const [quickModalWalletId, setQuickModalWalletId] = useState('');
-
   const defaultOperationWalletId = useMemo(() => {
     const id = normalizeWalletId(activeWalletId);
     return wallets.some((w) => w.id === id) ? id : DEFAULT_WALLET_ID;
@@ -141,7 +140,7 @@ const PortfolioScreen: React.FC = () => {
   }, [currentCurrencyIndex]);
   
   const currentCurrency = CURRENCIES[safeCurrencyIndex] || CURRENCIES[0];
-  
+
   // Calculate total values for all currencies
   const totalValuesByCurrency = useMemo(() => {
     const values: Record<CurrencyType, number> = {} as Record<CurrencyType, number>;
@@ -326,6 +325,15 @@ const PortfolioScreen: React.FC = () => {
     if (walletId !== activeWalletId) {
       dispatch(setActiveWalletId(walletId));
     }
+  };
+
+  const handleWalletChipPress = (wallet: Wallet) => {
+    const isActive = !isAllWalletsView && wallet.id === portfolioWalletFilter;
+    if (isActive) {
+      handleRenameWallet(wallet);
+      return;
+    }
+    handleSelectWallet(wallet.id);
   };
 
   const handleSelectAllWallets = () => {
@@ -1106,8 +1114,8 @@ const PortfolioScreen: React.FC = () => {
         </View>
       </TouchableWithoutFeedback>
 
-      <ScrollView 
-        style={styles.content} 
+      <ScrollView
+        style={styles.content}
         showsVerticalScrollIndicator={false}
         onScrollBeginDrag={closeAllSwipeables}
         refreshControl={
@@ -1151,7 +1159,7 @@ const PortfolioScreen: React.FC = () => {
               <TouchableOpacity
                 key={wallet.id}
                 style={[styles.walletChip, isActive && styles.walletChipActive]}
-                onPress={() => handleSelectWallet(wallet.id)}
+                onPress={() => handleWalletChipPress(wallet)}
                 onLongPress={() => handleRenameWallet(wallet)}
                 activeOpacity={0.8}
               >
@@ -1164,7 +1172,11 @@ const PortfolioScreen: React.FC = () => {
               </TouchableOpacity>
             );
           })}
-          <TouchableOpacity style={styles.walletChipAdd} onPress={handleAddWallet} activeOpacity={0.8}>
+          <TouchableOpacity
+            style={styles.walletChipAdd}
+            onPress={handleAddWallet}
+            activeOpacity={0.8}
+          >
             <Feather name="plus" size={16} color={colors.primaryStart} />
             <Text style={styles.walletChipAddText}>{t('walletsAdd')}</Text>
           </TouchableOpacity>

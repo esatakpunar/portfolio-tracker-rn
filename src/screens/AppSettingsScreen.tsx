@@ -33,10 +33,12 @@ import { hapticFeedback } from '../utils/haptics';
 import ZakatScreen from './ZakatScreen';
 import { isPinEnabled, setPin, clearPin } from '../utils/pinStorage';
 import { settingsScreenStyles as styles } from './settingsScreenStyles';
+import { useOnboarding, navigateToTab } from '../onboarding';
 
 const AppSettingsScreen: React.FC = () => {
   const { t, i18n } = useTranslation();
   const dispatch = useAppDispatch();
+  const { resetForReplay } = useOnboarding();
   const currentLanguage = useAppSelector(selectLanguage);
   const portfolioItems = useAppSelector(selectItems);
   const portfolioHistory = useAppSelector(selectHistory);
@@ -321,13 +323,15 @@ const AppSettingsScreen: React.FC = () => {
             </Text>
           )}
           <View style={styles.backupRow}>
-            <TouchableOpacity
-              style={styles.backupButton}
-              onPress={handleExportBackup}
-              disabled={isBackupBusy}
-            >
-              <Text style={styles.backupButtonText}>{t('exportBackup')}</Text>
-            </TouchableOpacity>
+            <View style={styles.backupRowItem}>
+              <TouchableOpacity
+                style={styles.backupButton}
+                onPress={handleExportBackup}
+                disabled={isBackupBusy}
+              >
+                <Text style={styles.backupButtonText}>{t('exportBackup')}</Text>
+              </TouchableOpacity>
+            </View>
             <TouchableOpacity
               style={[styles.backupButton, styles.backupButtonSecondary]}
               onPress={handleImportBackup}
@@ -336,6 +340,35 @@ const AppSettingsScreen: React.FC = () => {
               <Text style={styles.backupButtonText}>{t('importBackup')}</Text>
             </TouchableOpacity>
           </View>
+        </View>
+
+        <View style={styles.section}>
+          <View style={styles.sectionHeaderContainer}>
+            <View style={[styles.sectionIconWrapper, { backgroundColor: colors.primaryStart + '20' }]}>
+              <Feather name="compass" size={24} color={colors.primaryStart} />
+            </View>
+            <View style={styles.sectionHeaderContent}>
+              <Text style={styles.sectionTitle}>{t('onboardingReplaySectionTitle')}</Text>
+              <Text style={styles.sectionSubtitle}>{t('onboardingReplaySectionSubtitle')}</Text>
+            </View>
+          </View>
+          <TouchableOpacity
+            style={styles.backupButton}
+            onPress={() => {
+              Alert.alert(t('onboardingReplayConfirmTitle'), t('onboardingReplayConfirmMessage'), [
+                { text: t('cancel'), style: 'cancel' },
+                {
+                  text: t('onboardingReplayConfirmAction'),
+                  onPress: () => {
+                    hapticFeedback.light();
+                    void resetForReplay().then(() => navigateToTab('Portfolio'));
+                  },
+                },
+              ]);
+            }}
+          >
+            <Text style={styles.backupButtonText}>{t('onboardingReplayButton')}</Text>
+          </TouchableOpacity>
         </View>
 
         <View style={styles.section}>

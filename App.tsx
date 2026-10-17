@@ -12,6 +12,10 @@ import { fetchPrices } from './src/store/portfolioSlice';
 import { initDatabase } from './src/services/database';
 import { DEFAULT_WALLET_ID } from './src/utils/walletUtils';
 import BottomTabNavigator from './src/navigation/BottomTabNavigator';
+import { OnboardingProvider, useOnboarding } from './src/onboarding';
+import { rootNavigationRef } from './src/onboarding/navigationRef';
+import WelcomeOnboardingModal from './src/components/WelcomeOnboardingModal';
+import { ONBOARDING_STEPS } from './src/types/onboarding';
 import LockGate from './src/components/LockGate';
 import { useToast } from './src/hooks/useToast';
 import ToastNotification from './src/components/ToastNotification';
@@ -159,9 +163,11 @@ export default function App() {
       <GestureHandlerRootView style={styles.container}>
         <Provider store={store}>
           <SafeAreaProvider>
-            <NavigationContainer>
-              <AppContent />
-            </NavigationContainer>
+            <OnboardingProvider>
+              <NavigationContainer ref={rootNavigationRef}>
+                <AppContent />
+              </NavigationContainer>
+            </OnboardingProvider>
           </SafeAreaProvider>
         </Provider>
       </GestureHandlerRootView>
@@ -171,9 +177,15 @@ export default function App() {
 
 const AppContent: React.FC = () => {
   const { toasts, removeToast } = useToast();
+  const { shouldShowWelcome, completeStep } = useOnboarding();
+
+  const handleWelcomeFinish = () => {
+    void completeStep(ONBOARDING_STEPS.WELCOME_DONE);
+  };
 
   return (
     <View style={styles.container}>
+      <WelcomeOnboardingModal visible={shouldShowWelcome} onFinish={handleWelcomeFinish} />
       <LockGate>
         <BottomTabNavigator />
       </LockGate>
