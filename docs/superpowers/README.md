@@ -27,6 +27,7 @@ Master plan: `plans/2026-10-17-roadmap-v2-subagent-driven.md`
 | 3 | auto-backup | 2026-10-17-auto-backup | ✅ Implemented |
 | 4 | ios-widget | 2026-10-17-ios-widget | ✅ Implemented (dev QA; EAS/TestFlight deferred) |
 | 5 | multi-wallet | 2026-10-17-multi-wallet | ✅ Implemented |
+| 6 | onboarding | 2026-10-17-onboarding | 📋 Spec + plan ready |
 
 Kapsam dışı (v2): fiyat uyarıları, işlem tarihi piyasa satırı, zekât hatırlatıcı.
 

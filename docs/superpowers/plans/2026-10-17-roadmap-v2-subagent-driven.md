@@ -76,6 +76,29 @@ Phase 4 (iOS widget) and Phase 5 (multi-wallet) — see plan files; both impleme
 
 ---
 
+## Phase 6 — Onboarding (PO approved)
+
+**Spec:** `specs/2026-10-17-onboarding-design.md`  
+**Plan:** `plans/2026-10-17-onboarding.md`  
+**Subagent batches:** Phase A Tasks A1–A6 (v1), then Phase B B1–B3 (Guideway spotlights).
+
+### PO scope summary
+
+- Welcome 4 slides (skippable): value, offline trust, backup/lock *mention*, checklist intro.
+- Checklist: **required** = first asset + currency slider; optional = history, backup, 2nd wallet, goal, lock.
+- No mandatory PIN/backup; no single cross-tab auto-tour in v1.
+
+### Phase 6 acceptance (manual)
+
+- [ ] Fresh user: welcome → checklist → required steps auto-complete.
+- [ ] Existing portfolio: no welcome/checklist on upgrade.
+- [ ] Settings replay tour works; TR/EN/DE.
+- [ ] (v1.1) Spotlight add + backup tours once only.
+
+**Status:** 📋 Not started — implement via subagent-driven-development per task in onboarding plan.
+
+---
+
 ## Post-roadmap
 
 Update `docs/superpowers/README.md` table and `CHANGELOG.md` on release bump.
