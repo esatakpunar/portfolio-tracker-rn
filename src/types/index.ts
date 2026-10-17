@@ -18,6 +18,20 @@ export interface PortfolioItem {
   date: string;
 }
 
+export type PortfolioGoalKind = 'asset_amount' | 'portfolio_value_tl';
+
+export type PortfolioGoalMode = 'absolute' | 'increment';
+
+export interface PortfolioGoal {
+  kind: PortfolioGoalKind;
+  target: number;
+  assetType?: AssetType;
+  /** `increment`: progress = growth since baseline; `absolute`: progress toward total target */
+  mode?: PortfolioGoalMode;
+  /** Snapshot at goal creation when mode is `increment` */
+  baseline?: number;
+}
+
 /** Optional fields when adding or increasing holdings */
 export interface LotEntryOptions {
   transactionDate?: string;

@@ -18,6 +18,8 @@ import { Text } from '../components/Text';
 import { useAppSelector, useAppDispatch } from '../hooks/useRedux';
 import { addItem, updateItemAmount, selectItems, selectPrices, selectPriceChanges, selectHistory, selectTotalIn, fetchPrices, selectPriceDataFetchedAt, selectIsUsingBackupPriceData, selectIsUsingOldBackup, selectHasPartialPriceUpdate, selectPriceFetchError } from '../store/portfolioSlice';
 import PortfolioProfitSummary from '../components/PortfolioProfitSummary';
+import PortfolioAllocationCard from '../components/PortfolioAllocationCard';
+import PortfolioGoalCard from '../components/PortfolioGoalCard';
 import { getAssetProfitLoss, getPortfolioProfitLoss } from '../utils/portfolioUtils';
 import { AppDispatch } from '../store';
 import { colors, spacing, borderRadius, fontSize, fontWeight, shadows } from '../theme';
@@ -29,7 +31,7 @@ import SwipeableAssetItem from '../components/SwipeableAssetItem';
 import EmptyState from '../components/EmptyState';
 import PriceChangeIndicator from '../components/PriceChangeIndicator';
 import { hapticFeedback } from '../utils/haptics';
-import { formatCurrency } from '../utils/formatUtils';
+import { formatCurrency, getCurrencySymbol } from '../utils/formatUtils';
 import { useToast } from '../hooks/useToast';
 
 const { width } = Dimensions.get('window');
@@ -674,16 +676,6 @@ const PortfolioScreen: React.FC = () => {
     return valueTL;
   };
 
-  const getCurrencySymbol = (currency: CurrencyType): string => {
-    const symbols: Record<CurrencyType, string> = {
-      'TL': '₺',
-      'USD': '$',
-      'EUR': '€',
-      'ALTIN': '₲',
-    };
-    return symbols[currency];
-  };
-
   const getCurrencyChange = (currency: CurrencyType): number | null => {
     const changeMap: Record<CurrencyType, keyof typeof priceChanges> = {
       'TL': 'tl',
@@ -835,6 +827,13 @@ const PortfolioScreen: React.FC = () => {
 
         {portfolioProfitLoss && (
           <PortfolioProfitSummary data={portfolioProfitLoss} />
+        )}
+
+        {items.length > 0 && (
+          <>
+            <PortfolioGoalCard items={items} prices={prices} />
+            <PortfolioAllocationCard items={items} prices={prices} />
+          </>
         )}
 
         <TouchableWithoutFeedback onPress={closeAllSwipeables}>

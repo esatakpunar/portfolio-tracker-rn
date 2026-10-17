@@ -6,6 +6,7 @@ import {
   RefreshControl,
   TouchableOpacity,
   Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
@@ -15,6 +16,7 @@ import { Text } from '../components/Text';
 import { useAppSelector, useAppDispatch } from '../hooks/useRedux';
 import { selectHistory, selectTotalTL, undoHistoryEntry } from '../store/portfolioSlice';
 import { getAllSnapshots, recordDailySnapshot } from '../services/dailySnapshotService';
+import { exportHistoryCsvToShare } from '../services/historyExportService';
 import { colors, spacing, borderRadius, fontSize, fontWeight } from '../theme';
 import { getAssetIcon, getAssetColor } from '../utils/assetUtils';
 import { formatRelativeDate, formatCurrency, formatDate } from '../utils/formatUtils';
@@ -29,6 +31,7 @@ const HistoryScreen: React.FC = () => {
   const [refreshing, setRefreshing] = useState(false);
   const [showDailyTotals, setShowDailyTotals] = useState(false);
   const [snapshots, setSnapshots] = useState<{ date: string; totalTl: number }[]>([]);
+  const [isExportingCsv, setIsExportingCsv] = useState(false);
 
   const loadSnapshots = useCallback(async () => {
     if (totalTL > 0) {
@@ -151,6 +154,23 @@ const HistoryScreen: React.FC = () => {
     );
   };
 
+  const handleExportCsv = async () => {
+    if (isExportingCsv || history.length === 0) {
+      return;
+    }
+    setIsExportingCsv(true);
+    hapticFeedback.light();
+    try {
+      await exportHistoryCsvToShare(history, t, i18n.language);
+      hapticFeedback.success();
+    } catch {
+      hapticFeedback.error();
+      Alert.alert(t('error'), t('historyExportFailed'));
+    } finally {
+      setIsExportingCsv(false);
+    }
+  };
+
   const onRefresh = () => {
     hapticFeedback.light();
     setRefreshing(true);
@@ -177,17 +197,32 @@ const HistoryScreen: React.FC = () => {
               {showDailyTotals ? t('dailyTotalsSubtitle') : t('historySubtitle')}
             </Text>
           </View>
-          <TouchableOpacity
-            style={styles.headerToggle}
-            onPress={() => {
-              hapticFeedback.selection();
-              setShowDailyTotals((v) => !v);
-            }}
-          >
-            <Text style={styles.headerToggleText}>
-              {showDailyTotals ? t('historyTitle') : t('dailyTotalsTitle')}
-            </Text>
-          </TouchableOpacity>
+          <View style={styles.headerActions}>
+            {!showDailyTotals && history.length > 0 && (
+              <TouchableOpacity
+                style={styles.headerIconBtn}
+                onPress={handleExportCsv}
+                disabled={isExportingCsv}
+              >
+                {isExportingCsv ? (
+                  <ActivityIndicator size="small" color={colors.primaryStart} />
+                ) : (
+                  <Feather name="download" size={20} color={colors.primaryStart} />
+                )}
+              </TouchableOpacity>
+            )}
+            <TouchableOpacity
+              style={styles.headerToggle}
+              onPress={() => {
+                hapticFeedback.selection();
+                setShowDailyTotals((v) => !v);
+              }}
+            >
+              <Text style={styles.headerToggleText}>
+                {showDailyTotals ? t('historyTitle') : t('dailyTotalsTitle')}
+              </Text>
+            </TouchableOpacity>
+          </View>
         </View>
       </View>
 
@@ -269,6 +304,20 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
+  },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+  },
+  headerIconBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: borderRadius.lg,
+    borderWidth: 1,
+    borderColor: colors.glassBorder,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   headerToggle: {
     paddingVertical: spacing.xs,

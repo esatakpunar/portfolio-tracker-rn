@@ -16,6 +16,10 @@ const PortfolioProfitSummary: React.FC<PortfolioProfitSummaryProps> = ({ data })
   const color = positive ? colors.success : colors.error;
   const sign = positive ? '+' : '−';
 
+  const costStr = formatCurrency(data.costTL, i18n.language);
+  const currentStr = formatCurrency(data.currentTL, i18n.language);
+  const metaLine = `${t('profitLossMetaCost')}: ${costStr} ₺ · ${t('profitLossMetaCurrent')}: ${currentStr} ₺`;
+
   return (
     <View style={styles.container}>
       <View style={styles.topRow}>
@@ -26,9 +30,13 @@ const PortfolioProfitSummary: React.FC<PortfolioProfitSummaryProps> = ({ data })
           {Math.abs(data.profitPct).toFixed(1)}%)
         </Text>
       </View>
-      <Text style={styles.meta}>
-        {t('totalCost')}: {formatCurrency(data.costTL, i18n.language)} ₺ · {t('currentValue')}:{' '}
-        {formatCurrency(data.currentTL, i18n.language)} ₺
+      <Text
+        style={styles.meta}
+        numberOfLines={1}
+        adjustsFontSizeToFit
+        minimumFontScale={0.72}
+      >
+        {metaLine}
       </Text>
     </View>
   );
@@ -67,7 +75,6 @@ const styles = StyleSheet.create({
   meta: {
     fontSize: fontSize.xs,
     color: colors.textMuted,
-    lineHeight: 18,
   },
 });
 

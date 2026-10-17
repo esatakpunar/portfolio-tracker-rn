@@ -15,6 +15,21 @@ Bu klasör konuşmalardan çıkan özelliklerin **tasarım spec’leri** ve **im
 | 7 | app-lock | ✅ Implemented | — |
 | 8 | price-source-diff | ✅ Implemented | — |
 
+## Roadmap v2 (2026-10-17)
+
+Master plan: `plans/2026-10-17-roadmap-v2-subagent-driven.md`
+
+| Sıra | Spec | Plan | Durum |
+|------|------|------|--------|
+| 1a | portfolio-allocation | 2026-10-17-portfolio-allocation | ✅ Implemented |
+| 1b | portfolio-goals | 2026-10-17-portfolio-goals | ✅ Implemented |
+| 2 | history-csv-export | 2026-10-17-history-csv-export | ✅ Implemented |
+| 3 | auto-backup | 2026-10-17-auto-backup | ⏳ |
+| 4 | ios-widget | 2026-10-17-ios-widget | ⏳ |
+| 5 | multi-wallet | 2026-10-17-multi-wallet | ⏳ |
+
+Kapsam dışı (v2): fiyat uyarıları, işlem tarihi piyasa satırı, zekât hatırlatıcı.
+
 ## Bilinçli olarak kapsam dışı
 
 - Grafik / teknik analiz

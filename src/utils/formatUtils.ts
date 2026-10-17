@@ -1,6 +1,18 @@
+import { CurrencyType } from '../types';
+
 /**
  * Format utility functions for currency, dates, and numbers
  */
+
+export function getCurrencySymbol(currency: CurrencyType): string {
+  const symbols: Record<CurrencyType, string> = {
+    TL: '₺',
+    USD: '$',
+    EUR: '€',
+    ALTIN: 'gr',
+  };
+  return symbols[currency];
+}
 
 /**
  * Formats a number as currency based on locale

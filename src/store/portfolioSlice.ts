@@ -5,6 +5,7 @@ import { getBackup } from '../services/priceBackupService';
 import { safeAdd, safeSubtract } from '../utils/numberUtils';
 import { trackPriceFetchError } from '../utils/errorTracking';
 import { createHistoryId, ensureHistoryIds } from '../utils/historyUtils';
+import { convertFromTL } from '../utils/portfolioUtils';
 
 interface PortfolioState {
   items: PortfolioItem[];
@@ -153,44 +154,6 @@ const getItemValueInTL = (item: PortfolioItem, prices: Prices): number | null =>
       return null;
     }
     return item.amount * price;
-  }
-};
-
-const convertFromTL = (valueTL: number, targetCurrency: CurrencyType, prices: Prices): number | null => {
-  // Validate input
-  if (isNaN(valueTL) || !isFinite(valueTL) || valueTL < 0) {
-    return 0;
-  }
-  
-  switch (targetCurrency) {
-    case 'TL':
-      return valueTL;
-    case 'USD': {
-      const usdPrice = prices.usd;
-      // Finance-safe: Return null if price is unavailable, do not hide errors with 0
-      if (usdPrice == null || isNaN(usdPrice) || !isFinite(usdPrice) || usdPrice <= 0) {
-        return null;
-      }
-      return valueTL / usdPrice;
-    }
-    case 'EUR': {
-      const eurPrice = prices.eur;
-      // Finance-safe: Return null if price is unavailable, do not hide errors with 0
-      if (eurPrice == null || isNaN(eurPrice) || !isFinite(eurPrice) || eurPrice <= 0) {
-        return null;
-      }
-      return valueTL / eurPrice;
-    }
-    case 'ALTIN': {
-      const altinPrice = prices['24_ayar'];
-      // Finance-safe: Return null if price is unavailable, do not hide errors with 0
-      if (altinPrice == null || isNaN(altinPrice) || !isFinite(altinPrice) || altinPrice <= 0) {
-        return null;
-      }
-      return valueTL / altinPrice;
-    }
-    default:
-      return valueTL;
   }
 };
 

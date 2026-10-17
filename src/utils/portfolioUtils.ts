@@ -2,7 +2,7 @@
  * Portfolio utility functions for calculating average cost and profit/loss
  */
 
-import { HistoryItem, AssetType, Prices, PortfolioItem } from '../types';
+import { HistoryItem, AssetType, Prices, PortfolioItem, CurrencyType } from '../types';
 import { safeAdd } from './numberUtils';
 
 export function computeItemValueInTL(item: PortfolioItem, prices: Prices): number | null {
@@ -38,6 +38,44 @@ export interface AssetProfitLossResult {
   profitPct: number;
   costTL: number;
   currentTL: number;
+}
+
+/** Convert a TL monetary amount to display currency (uses current FX/gold prices). */
+export function convertFromTL(
+  valueTL: number,
+  targetCurrency: CurrencyType,
+  prices: Prices
+): number | null {
+  if (isNaN(valueTL) || !isFinite(valueTL) || valueTL < 0) {
+    return 0;
+  }
+  switch (targetCurrency) {
+    case 'TL':
+      return valueTL;
+    case 'USD': {
+      const usdPrice = prices.usd;
+      if (usdPrice == null || isNaN(usdPrice) || !isFinite(usdPrice) || usdPrice <= 0) {
+        return null;
+      }
+      return valueTL / usdPrice;
+    }
+    case 'EUR': {
+      const eurPrice = prices.eur;
+      if (eurPrice == null || isNaN(eurPrice) || !isFinite(eurPrice) || eurPrice <= 0) {
+        return null;
+      }
+      return valueTL / eurPrice;
+    }
+    case 'ALTIN': {
+      const altinPrice = prices['24_ayar'];
+      if (altinPrice == null || isNaN(altinPrice) || !isFinite(altinPrice) || altinPrice <= 0) {
+        return null;
+      }
+      return valueTL / altinPrice;
+    }
+    default:
+      return valueTL;
+  }
 }
 
 export function getAssetProfitLoss(

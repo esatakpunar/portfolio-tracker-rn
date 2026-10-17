@@ -1,12 +1,12 @@
 import { getDatabase, waitForDatabase } from '../services/database';
-import { CurrencyType } from '../types';
-import { AssetType } from '../types';
+import { CurrencyType, AssetType, PortfolioGoal } from '../types';
 
 const PREFERENCE_KEYS = {
   CURRENCY: 'pref:currency',
   ASSET_TYPE: 'pref:assetType',
   PRICE_SOURCE: 'pref:priceSource',
   ZAKAT_DEBT: 'pref:zakatDebt',
+  PORTFOLIO_GOAL: 'pref:portfolioGoal',
 } as const;
 
 export type PriceSource = 'truncgil' | 'investing' | 'auto';
@@ -148,6 +148,62 @@ export async function getZakatDebt(): Promise<number> {
     return isNaN(n) || n < 0 ? 0 : n;
   } catch {
     return 0;
+  }
+}
+
+export async function getPortfolioGoal(): Promise<PortfolioGoal | null> {
+  try {
+    await waitForDatabase();
+    const db = getDatabase();
+    const row = await db.getFirstAsync<{ value: string }>(
+      `SELECT value FROM app_settings WHERE key = ?`,
+      [PREFERENCE_KEYS.PORTFOLIO_GOAL]
+    );
+    if (!row?.value) {
+      return null;
+    }
+    const parsed = JSON.parse(row.value) as PortfolioGoal;
+    if (!parsed || typeof parsed.target !== 'number' || parsed.target <= 0) {
+      return null;
+    }
+    const mode = parsed.mode ?? 'absolute';
+    if (mode === 'increment' && (parsed.baseline == null || !isFinite(parsed.baseline))) {
+      return null;
+    }
+    if (parsed.kind === 'portfolio_value_tl') {
+      return { ...parsed, mode };
+    }
+    if (parsed.kind === 'asset_amount' && parsed.assetType) {
+      return { ...parsed, mode };
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+export async function savePortfolioGoal(goal: PortfolioGoal): Promise<void> {
+  try {
+    await waitForDatabase();
+    const db = getDatabase();
+    await db.runAsync(
+      `INSERT OR REPLACE INTO app_settings (key, value, updated_at) VALUES (?, ?, ?)`,
+      [PREFERENCE_KEYS.PORTFOLIO_GOAL, JSON.stringify(goal), Date.now()]
+    );
+  } catch {
+    // Silently fail
+  }
+}
+
+export async function clearPortfolioGoal(): Promise<void> {
+  try {
+    await waitForDatabase();
+    const db = getDatabase();
+    await db.runAsync(`DELETE FROM app_settings WHERE key = ?`, [
+      PREFERENCE_KEYS.PORTFOLIO_GOAL,
+    ]);
+  } catch {
+    // Silently fail
   }
 }
 
