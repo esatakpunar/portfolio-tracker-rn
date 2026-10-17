@@ -77,7 +77,7 @@ export default {
   noAssets: 'Noch keine Vermögenswerte hinzugefügt',
   addFirstAsset: 'Fügen Sie Ihren ersten Vermögenswert hinzu',
   
-  historyTitle: 'Transaktionsverlauf',
+  historyTitle: 'Verlauf',
   noHistory: 'Noch kein Transaktionsverlauf',
   noHistorySubtitle: 'Ihr Transaktionsverlauf wird hier angezeigt',
   
@@ -172,6 +172,7 @@ export default {
   undoConfirm: 'Diese Transaktion wird im Portfolio rückgängig gemacht. Fortfahren?',
   undoUnsupported: 'Dieser Transaktionstyp kann nicht rückgängig gemacht werden.',
   dailyTotalsTitle: 'Tägliche Summen',
+  dailyTotalsShort: 'Täglich',
   dailyTotalsSubtitle: 'Portfoliowert in TL pro Tag',
   noDailyTotals: 'Noch keine Tageseinträge',
   zakatTitle: 'Zakat',

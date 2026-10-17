@@ -225,11 +225,11 @@ const HistoryScreen: React.FC = () => {
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
       <View style={styles.header}>
         <View style={styles.headerTop}>
-          <View>
-            <Text style={styles.headerTitle}>
+          <View style={styles.headerTitleBlock}>
+            <Text style={styles.headerTitle} numberOfLines={1} ellipsizeMode="tail">
               {showDailyTotals ? t('dailyTotalsTitle') : t('historyTitle')}
             </Text>
-            <Text style={styles.headerSubtitle}>
+            <Text style={styles.headerSubtitle} numberOfLines={2}>
               {showDailyTotals ? t('dailyTotalsSubtitle') : t('historySubtitle')}
             </Text>
           </View>
@@ -254,8 +254,8 @@ const HistoryScreen: React.FC = () => {
                 setShowDailyTotals((v) => !v);
               }}
             >
-              <Text style={styles.headerToggleText}>
-                {showDailyTotals ? t('historyTitle') : t('dailyTotalsTitle')}
+              <Text style={styles.headerToggleText} numberOfLines={1}>
+                {showDailyTotals ? t('history') : t('dailyTotalsShort')}
               </Text>
             </TouchableOpacity>
           </View>
@@ -397,11 +397,17 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
+    gap: spacing.sm,
+  },
+  headerTitleBlock: {
+    flex: 1,
+    minWidth: 0,
   },
   headerActions: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.xs,
+    flexShrink: 0,
   },
   headerIconBtn: {
     width: 40,
@@ -415,11 +421,13 @@ const styles = StyleSheet.create({
   headerToggle: {
     paddingVertical: spacing.xs,
     paddingHorizontal: spacing.sm,
+    flexShrink: 0,
   },
   headerToggleText: {
     color: colors.primaryStart,
     fontSize: fontSize.sm,
     fontWeight: fontWeight.semibold,
+    flexShrink: 0,
   },
   headerTitle: {
     fontSize: fontSize.xxxl,

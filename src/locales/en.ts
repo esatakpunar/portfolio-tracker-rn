@@ -77,7 +77,7 @@ export default {
   noAssets: 'No assets added yet',
   addFirstAsset: 'Add your first asset',
   
-  historyTitle: 'Transaction History',
+  historyTitle: 'History',
   noHistory: 'No transaction history yet',
   noHistorySubtitle: 'Your transaction history will appear here',
   
@@ -172,6 +172,7 @@ export default {
   undoConfirm: 'This will reverse the transaction in your portfolio. Continue?',
   undoUnsupported: 'This transaction type cannot be undone.',
   dailyTotalsTitle: 'Daily totals',
+  dailyTotalsShort: 'Daily',
   dailyTotalsSubtitle: 'Portfolio value in TL per day',
   noDailyTotals: 'No daily records yet',
   zakatTitle: 'Zakat',

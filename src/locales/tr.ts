@@ -172,6 +172,7 @@ export default {
   undoConfirm: 'Bu işlem portföyden geri alınacak. Emin misiniz?',
   undoUnsupported: 'Bu işlem türü geri alınamıyor.',
   dailyTotalsTitle: 'Günlük toplamlar',
+  dailyTotalsShort: 'Günlük',
   dailyTotalsSubtitle: 'TL cinsinden günlük portföy değeri',
   noDailyTotals: 'Henüz günlük kayıt yok',
   zakatTitle: 'Zekât',
