@@ -22,7 +22,12 @@ async function syncTodayDailySnapshot(getState: () => { portfolio: ReturnType<ty
   const total = selectTotalTL(state);
   if (total > 0) {
     await recordDailySnapshot(total);
-    await syncWidgetPortfolioSnapshot(total, portfolio.currentLanguage);
+    await syncWidgetPortfolioSnapshot(
+      total,
+      portfolio.currentLanguage,
+      portfolio.items,
+      portfolio.prices
+    );
   }
 }
 

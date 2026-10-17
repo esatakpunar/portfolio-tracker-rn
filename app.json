@@ -33,8 +33,10 @@
       },
       "associatedDomains": [],
       "entitlements": {
-        "com.apple.developer.applesignin": []
-      }
+        "com.apple.developer.applesignin": [],
+        "com.apple.security.application-groups": ["group.com.portfoliotracker.app"]
+      },
+      "appleTeamId": "ZJUV6ZYP44"
     },
     "android": {
       "adaptiveIcon": {
@@ -62,10 +64,15 @@
           "widgets": [
             {
               "name": "PortfolioTotalWidget",
-              "displayName": "Portfolio Total",
-              "description": "Total portfolio value in TL",
+              "displayName": "Portfolio Tracker",
+              "description": "Toplam portföy değeri (TL)",
               "ios": {
-                "supportedFamilies": ["systemSmall", "systemMedium"],
+                "supportedFamilies": [
+                  "systemSmall",
+                  "systemMedium",
+                  "systemLarge"
+                ],
+                "contentMarginsDisabled": true,
                 "initialLayout": "./src/widgets/PortfolioTotalWidget.tsx"
               }
             }

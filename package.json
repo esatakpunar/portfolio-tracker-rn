@@ -17,6 +17,7 @@
     "@react-navigation/native": "^7.1.17",
     "@reduxjs/toolkit": "^2.9.0",
     "axios": "^1.12.2",
+    "babel-preset-expo": "~57.0.0",
     "expo": "~57.0.29",
     "expo-crypto": "~57.0.4",
     "expo-dev-client": "^57.0.20",
