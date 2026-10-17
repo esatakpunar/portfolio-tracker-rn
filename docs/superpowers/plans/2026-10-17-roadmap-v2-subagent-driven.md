@@ -72,7 +72,7 @@ For each **Task** in a child plan:
 
 ## Phase 4–5
 
-See respective plan files; Phase 4 (iOS widget) is next.
+Phase 4 (iOS widget) and Phase 5 (multi-wallet) — see plan files; both implemented in app (widget EAS QA deferred).
 
 ---
 

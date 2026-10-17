@@ -1,6 +1,6 @@
 import { configureStore } from '@reduxjs/toolkit';
 import { sqliteStorage } from './sqliteStorage';
-import portfolioReducer, { fetchPrices, selectTotalTL } from './portfolioSlice';
+import portfolioReducer, { fetchPrices, selectTotalTLAllWallets } from './portfolioSlice';
 import { recordDailySnapshot } from '../services/dailySnapshotService';
 import { syncWidgetPortfolioSnapshot } from '../services/widgetSnapshotService';
 
@@ -19,7 +19,7 @@ async function syncTodayDailySnapshot(getState: () => { portfolio: ReturnType<ty
   if (portfolio.items.length === 0 || portfolio.hasPartialPriceUpdate) {
     return;
   }
-  const total = selectTotalTL(state);
+  const total = selectTotalTLAllWallets(state);
   if (total > 0) {
     await recordDailySnapshot(total);
     await syncWidgetPortfolioSnapshot(

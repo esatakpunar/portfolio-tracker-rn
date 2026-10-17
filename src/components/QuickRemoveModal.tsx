@@ -21,6 +21,8 @@ import { hapticFeedback } from '../utils/haptics';
 import { useAppSelector } from '../hooks/useRedux';
 import { selectPrices, selectHistory } from '../store/portfolioSlice';
 import { calculateAverageCost } from '../utils/portfolioUtils';
+import { normalizeWalletId } from '../utils/walletUtils';
+import { QuickAddWalletOption } from './QuickAddModal';
 
 interface QuickRemoveModalProps {
   visible: boolean;
@@ -28,6 +30,9 @@ interface QuickRemoveModalProps {
   onRemove: (amount: number, description?: string, priceAtTime?: number | null) => void;
   assetType: AssetType;
   currentAmount: number;
+  editingWalletId?: string;
+  walletOptions?: QuickAddWalletOption[];
+  onEditingWalletChange?: (walletId: string) => void;
 }
 
 const QuickRemoveModal: React.FC<QuickRemoveModalProps> = ({
@@ -36,6 +41,9 @@ const QuickRemoveModal: React.FC<QuickRemoveModalProps> = ({
   onRemove,
   assetType,
   currentAmount,
+  editingWalletId = '',
+  walletOptions = [],
+  onEditingWalletChange,
 }) => {
   const { t, i18n } = useTranslation();
   const prices = useAppSelector(selectPrices);
@@ -46,14 +54,42 @@ const QuickRemoveModal: React.FC<QuickRemoveModalProps> = ({
   const [slideAnim] = useState(new Animated.Value(0));
   const scrollViewRef = useRef<ScrollView>(null);
   const descriptionInputWrapperRef = useRef<any>(null);
-  
+  const [showWalletPicker, setShowWalletPicker] = useState(false);
+
+  const showWalletDropdown = walletOptions.length > 1;
+  const selectedWalletLabel =
+    walletOptions.find((w) => w.id === editingWalletId)?.label ?? '';
+
+  useEffect(() => {
+    if (visible) {
+      setShowWalletPicker(false);
+    }
+  }, [visible, editingWalletId]);
+
+  const handleWalletSelect = (walletId: string) => {
+    setShowWalletPicker(false);
+    hapticFeedback.selection();
+    if (walletId !== editingWalletId) {
+      onEditingWalletChange?.(walletId);
+    }
+  };
+
   // Calculate average cost for current asset
+  const walletHistory = useMemo(() => {
+    if (!editingWalletId) {
+      return history;
+    }
+    return history.filter(
+      (entry) => normalizeWalletId(entry.item.walletId) === normalizeWalletId(editingWalletId)
+    );
+  }, [history, editingWalletId]);
+
   const averageCost = useMemo(() => {
     if (currentAmount <= 0) {
       return null;
     }
-    return calculateAverageCost(assetType, history, currentAmount);
-  }, [assetType, history, currentAmount]);
+    return calculateAverageCost(assetType, walletHistory, currentAmount);
+  }, [assetType, walletHistory, currentAmount]);
   
   // Calculate total cost
   const totalCost = useMemo(() => {
@@ -232,6 +268,52 @@ const QuickRemoveModal: React.FC<QuickRemoveModalProps> = ({
               showsVerticalScrollIndicator={false}
               keyboardShouldPersistTaps="handled"
             >
+              {showWalletDropdown && (
+                <View style={[styles.inputContainer, styles.walletPickerContainer]}>
+                  <Text style={styles.label}>{t('assetWalletLabel')}</Text>
+                  <View style={styles.pickerWrapper}>
+                    <TouchableOpacity
+                      style={styles.pickerButton}
+                      onPress={() => setShowWalletPicker(!showWalletPicker)}
+                      activeOpacity={0.7}
+                    >
+                      <Text style={styles.pickerButtonText} numberOfLines={1}>
+                        {selectedWalletLabel}
+                      </Text>
+                      <Text style={styles.pickerArrow}>{showWalletPicker ? '▲' : '▼'}</Text>
+                    </TouchableOpacity>
+                    {showWalletPicker && (
+                      <View style={styles.walletPickerList}>
+                        {walletOptions.map((wallet) => (
+                          <TouchableOpacity
+                            key={wallet.id}
+                            style={[
+                              styles.walletOption,
+                              wallet.id === editingWalletId && styles.walletOptionSelected,
+                            ]}
+                            onPress={() => handleWalletSelect(wallet.id)}
+                            activeOpacity={0.7}
+                          >
+                            <Text
+                              style={[
+                                styles.walletOptionText,
+                                wallet.id === editingWalletId && styles.walletOptionTextSelected,
+                              ]}
+                              numberOfLines={1}
+                            >
+                              {wallet.label}
+                            </Text>
+                            {wallet.id === editingWalletId && (
+                              <Text style={styles.checkmark}>✓</Text>
+                            )}
+                          </TouchableOpacity>
+                        ))}
+                      </View>
+                    )}
+                  </View>
+                </View>
+              )}
+
               <View style={styles.inputContainer}>
                 <View style={styles.labelRow}>
                 <Text style={styles.label}>{t('amountToRemove')}:</Text>
@@ -568,6 +650,67 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
     fontStyle: 'italic',
     marginTop: spacing.xs,
+  },
+  walletPickerContainer: {
+    zIndex: 10,
+  },
+  pickerWrapper: {
+    position: 'relative',
+  },
+  pickerButton: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: colors.background,
+    borderRadius: borderRadius.lg,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
+    borderWidth: 2,
+    borderColor: colors.textMuted,
+  },
+  pickerButtonText: {
+    flex: 1,
+    fontSize: fontSize.base,
+    color: colors.textPrimary,
+    fontWeight: fontWeight.semibold,
+  },
+  pickerArrow: {
+    fontSize: fontSize.base,
+    color: colors.textSecondary,
+    marginLeft: spacing.sm,
+  },
+  walletPickerList: {
+    marginTop: spacing.sm,
+    backgroundColor: colors.background,
+    borderRadius: borderRadius.lg,
+    borderWidth: 1,
+    borderColor: colors.glassBorder,
+    overflow: 'hidden',
+  },
+  walletOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.glassBorder,
+  },
+  walletOptionSelected: {
+    backgroundColor: colors.glassBackground,
+  },
+  walletOptionText: {
+    flex: 1,
+    fontSize: fontSize.base,
+    color: colors.textSecondary,
+  },
+  walletOptionTextSelected: {
+    color: colors.textPrimary,
+    fontWeight: fontWeight.semibold,
+  },
+  checkmark: {
+    fontSize: fontSize.base,
+    color: colors.primaryStart,
+    fontWeight: fontWeight.bold,
   },
 });
 

@@ -34,12 +34,20 @@ export interface AddItemPayload {
   unitBuyPrice?: number | null;
   useExplicitTotalCost?: boolean;
   transactionDate?: string;
+  walletId?: string;
+}
+
+export interface AddItemWalletOption {
+  id: string;
+  label: string;
 }
 
 interface AddItemModalProps {
   visible: boolean;
   onClose: () => void;
   onAdd: (type: AssetType, amount: number, options?: AddItemPayload) => void;
+  walletOptions?: AddItemWalletOption[];
+  defaultWalletId?: string;
 }
 
 const assetTypes: AssetType[] = [
@@ -53,7 +61,13 @@ const assetTypes: AssetType[] = [
   'gumus'
 ];
 
-const AddItemModal: React.FC<AddItemModalProps> = ({ visible, onClose, onAdd }) => {
+const AddItemModal: React.FC<AddItemModalProps> = ({
+  visible,
+  onClose,
+  onAdd,
+  walletOptions = [],
+  defaultWalletId = '',
+}) => {
   const { t, i18n } = useTranslation();
   const prices = useAppSelector(selectPrices);
   const [selectedType, setSelectedType] = useState<AssetType>('22_ayar');
@@ -65,6 +79,8 @@ const AddItemModal: React.FC<AddItemModalProps> = ({ visible, onClose, onAdd }) 
   const [transactionDate, setTransactionDate] = useState(new Date());
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showTypePicker, setShowTypePicker] = useState(false);
+  const [showWalletPicker, setShowWalletPicker] = useState(false);
+  const [selectedWalletId, setSelectedWalletId] = useState(defaultWalletId);
   const [slideAnim] = useState(new Animated.Value(0));
   const scrollViewRef = useRef<ScrollView>(null);
   const descriptionInputWrapperRef = useRef<any>(null);
@@ -118,10 +134,12 @@ const AddItemModal: React.FC<AddItemModalProps> = ({ visible, onClose, onAdd }) 
       setTransactionDate(new Date());
       setShowDatePicker(false);
       setShowTypePicker(false);
+      setShowWalletPicker(false);
+      setSelectedWalletId(defaultWalletId);
     } else {
       slideAnim.setValue(0);
     }
-  }, [visible]);
+  }, [visible, defaultWalletId]);
 
   const handleAdd = () => {
     const validation = validateAmount(amount);
@@ -135,6 +153,7 @@ const AddItemModal: React.FC<AddItemModalProps> = ({ visible, onClose, onAdd }) 
         priceAtTime: parsedTotal,
         useExplicitTotalCost: totalCostDirty,
         transactionDate: dateToTransactionISO(transactionDate),
+        walletId: selectedWalletId || defaultWalletId || undefined,
       });
       setAmount('');
       setDescription('');
@@ -278,6 +297,56 @@ const AddItemModal: React.FC<AddItemModalProps> = ({ visible, onClose, onAdd }) 
                   )}
                 </View>
               </View>
+
+              {walletOptions.length > 1 && (
+                <View style={styles.inputContainer}>
+                  <Text style={styles.label}>{t('assetWalletLabel')}</Text>
+                  <View style={styles.pickerWrapper}>
+                    <TouchableOpacity
+                      style={styles.pickerButton}
+                      onPress={() => setShowWalletPicker(!showWalletPicker)}
+                      activeOpacity={0.7}
+                    >
+                      <Text style={styles.pickerButtonText} numberOfLines={1}>
+                        {walletOptions.find((w) => w.id === selectedWalletId)?.label ?? ''}
+                      </Text>
+                      <Text style={styles.pickerArrow}>{showWalletPicker ? '▲' : '▼'}</Text>
+                    </TouchableOpacity>
+                    {showWalletPicker && (
+                      <View style={styles.typePickerContainer}>
+                        {walletOptions.map((wallet) => (
+                          <TouchableOpacity
+                            key={wallet.id}
+                            style={[
+                              styles.typeOption,
+                              wallet.id === selectedWalletId && styles.typeOptionSelected,
+                            ]}
+                            onPress={() => {
+                              hapticFeedback.selection();
+                              setSelectedWalletId(wallet.id);
+                              setShowWalletPicker(false);
+                            }}
+                            activeOpacity={0.7}
+                          >
+                            <Text
+                              style={[
+                                styles.typeOptionText,
+                                wallet.id === selectedWalletId && styles.typeOptionTextSelected,
+                              ]}
+                              numberOfLines={1}
+                            >
+                              {wallet.label}
+                            </Text>
+                            {wallet.id === selectedWalletId && (
+                              <Text style={styles.checkmark}>✓</Text>
+                            )}
+                          </TouchableOpacity>
+                        ))}
+                      </View>
+                    )}
+                  </View>
+                </View>
+              )}
 
               <View style={styles.inputContainer}>
                 <Text style={styles.label}>{t('amount')}:</Text>

@@ -10,6 +10,7 @@ import { store, AppDispatch } from './src/store';
 import { initializeI18n } from './src/locales';
 import { fetchPrices } from './src/store/portfolioSlice';
 import { initDatabase } from './src/services/database';
+import { DEFAULT_WALLET_ID } from './src/utils/walletUtils';
 import BottomTabNavigator from './src/navigation/BottomTabNavigator';
 import LockGate from './src/components/LockGate';
 import { useToast } from './src/hooks/useToast';
@@ -46,7 +47,8 @@ export default function App() {
             const parsed = JSON.parse(storedValue);
             if (parsed.portfolio) {
               const portfolioSlice = await import('./src/store/portfolioSlice');
-              const { setPrices, setLanguage, setHistory, setItems } = portfolioSlice;
+              const { setPrices, setLanguage, setHistory, setItems, setWallets, setActiveWalletId } =
+                portfolioSlice;
               
               if (parsed.portfolio.prices) {
                 store.dispatch(setPrices(parsed.portfolio.prices));
@@ -61,8 +63,10 @@ export default function App() {
                 store.dispatch(setHistory(ensureHistoryIds(parsed.portfolio.history)));
               }
               
+              store.dispatch(setWallets(parsed.portfolio.wallets ?? []));
+              // Active wallet for + / defaults: always Ana cüzdan on cold start (not last-added).
+              store.dispatch(setActiveWalletId(DEFAULT_WALLET_ID));
               if (parsed.portfolio.items && parsed.portfolio.items.length > 0) {
-                // Restore items directly without adding to history (history already restored above)
                 store.dispatch(setItems(parsed.portfolio.items));
               }
             }

@@ -1,5 +1,6 @@
 import { getDatabase, waitForDatabase } from '../services/database';
-import { CurrencyType, AssetType, PortfolioGoal } from '../types';
+import { CurrencyType, AssetType, PortfolioGoal, PortfolioGoalsByWallet } from '../types';
+import { DEFAULT_WALLET_ID } from './walletUtils';
 
 const PREFERENCE_KEYS = {
   CURRENCY: 'pref:currency',
@@ -153,57 +154,117 @@ export async function getZakatDebt(): Promise<number> {
   }
 }
 
-export async function getPortfolioGoal(): Promise<PortfolioGoal | null> {
-  try {
-    await waitForDatabase();
-    const db = getDatabase();
-    const row = await db.getFirstAsync<{ value: string }>(
-      `SELECT value FROM app_settings WHERE key = ?`,
-      [PREFERENCE_KEYS.PORTFOLIO_GOAL]
-    );
-    if (!row?.value) {
-      return null;
-    }
-    const parsed = JSON.parse(row.value) as PortfolioGoal;
-    if (!parsed || typeof parsed.target !== 'number' || parsed.target <= 0) {
-      return null;
-    }
-    const mode = parsed.mode ?? 'absolute';
-    if (mode === 'increment' && (parsed.baseline == null || !isFinite(parsed.baseline))) {
-      return null;
-    }
-    if (parsed.kind === 'portfolio_value_tl') {
-      return { ...parsed, mode };
-    }
-    if (parsed.kind === 'asset_amount' && parsed.assetType) {
-      return { ...parsed, mode };
-    }
+function normalizePortfolioGoal(raw: unknown): PortfolioGoal | null {
+  if (!raw || typeof raw !== 'object') {
     return null;
+  }
+  const parsed = raw as PortfolioGoal;
+  if (typeof parsed.target !== 'number' || parsed.target <= 0) {
+    return null;
+  }
+  const mode = parsed.mode ?? 'absolute';
+  if (mode === 'increment' && (parsed.baseline == null || !isFinite(parsed.baseline))) {
+    return null;
+  }
+  if (parsed.kind === 'portfolio_value_tl') {
+    return { ...parsed, mode };
+  }
+  if (parsed.kind === 'asset_amount' && parsed.assetType) {
+    return { ...parsed, mode };
+  }
+  return null;
+}
+
+function parsePortfolioGoalsJson(value: string): PortfolioGoalsByWallet {
+  const parsed: unknown = JSON.parse(value);
+  if (parsed && typeof parsed === 'object' && 'kind' in parsed && 'target' in parsed) {
+    const legacy = normalizePortfolioGoal(parsed);
+    return legacy ? { [DEFAULT_WALLET_ID]: legacy } : {};
+  }
+  if (!parsed || typeof parsed !== 'object') {
+    return {};
+  }
+  const result: PortfolioGoalsByWallet = {};
+  for (const [walletId, goalRaw] of Object.entries(parsed)) {
+    const goal = normalizePortfolioGoal(goalRaw);
+    if (goal) {
+      result[walletId] = goal;
+    }
+  }
+  return result;
+}
+
+async function readPortfolioGoalsByWallet(): Promise<PortfolioGoalsByWallet> {
+  await waitForDatabase();
+  const db = getDatabase();
+  const row = await db.getFirstAsync<{ value: string }>(
+    `SELECT value FROM app_settings WHERE key = ?`,
+    [PREFERENCE_KEYS.PORTFOLIO_GOAL]
+  );
+  if (!row?.value) {
+    return {};
+  }
+  try {
+    return parsePortfolioGoalsJson(row.value);
+  } catch {
+    return {};
+  }
+}
+
+async function writePortfolioGoalsByWallet(goals: PortfolioGoalsByWallet): Promise<void> {
+  await waitForDatabase();
+  const db = getDatabase();
+  const keys = Object.keys(goals);
+  if (keys.length === 0) {
+    await db.runAsync(`DELETE FROM app_settings WHERE key = ?`, [PREFERENCE_KEYS.PORTFOLIO_GOAL]);
+    return;
+  }
+  await db.runAsync(
+    `INSERT OR REPLACE INTO app_settings (key, value, updated_at) VALUES (?, ?, ?)`,
+    [PREFERENCE_KEYS.PORTFOLIO_GOAL, JSON.stringify(goals), Date.now()]
+  );
+}
+
+export async function getPortfolioGoalsByWallet(): Promise<PortfolioGoalsByWallet> {
+  try {
+    return await readPortfolioGoalsByWallet();
+  } catch {
+    return {};
+  }
+}
+
+export async function getPortfolioGoalForWallet(
+  walletId: string
+): Promise<PortfolioGoal | null> {
+  try {
+    const goals = await readPortfolioGoalsByWallet();
+    return goals[walletId] ?? null;
   } catch {
     return null;
   }
 }
 
-export async function savePortfolioGoal(goal: PortfolioGoal): Promise<void> {
+export async function savePortfolioGoalForWallet(
+  walletId: string,
+  goal: PortfolioGoal
+): Promise<void> {
   try {
-    await waitForDatabase();
-    const db = getDatabase();
-    await db.runAsync(
-      `INSERT OR REPLACE INTO app_settings (key, value, updated_at) VALUES (?, ?, ?)`,
-      [PREFERENCE_KEYS.PORTFOLIO_GOAL, JSON.stringify(goal), Date.now()]
-    );
+    const goals = await readPortfolioGoalsByWallet();
+    goals[walletId] = goal;
+    await writePortfolioGoalsByWallet(goals);
   } catch {
     // Silently fail
   }
 }
 
-export async function clearPortfolioGoal(): Promise<void> {
+export async function clearPortfolioGoalForWallet(walletId: string): Promise<void> {
   try {
-    await waitForDatabase();
-    const db = getDatabase();
-    await db.runAsync(`DELETE FROM app_settings WHERE key = ?`, [
-      PREFERENCE_KEYS.PORTFOLIO_GOAL,
-    ]);
+    const goals = await readPortfolioGoalsByWallet();
+    if (!(walletId in goals)) {
+      return;
+    }
+    delete goals[walletId];
+    await writePortfolioGoalsByWallet(goals);
   } catch {
     // Silently fail
   }

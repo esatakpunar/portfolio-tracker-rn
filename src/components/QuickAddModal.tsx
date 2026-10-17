@@ -22,6 +22,7 @@ import { hapticFeedback } from '../utils/haptics';
 import { useAppSelector } from '../hooks/useRedux';
 import { selectPrices, selectHistory } from '../store/portfolioSlice';
 import { calculateAverageCost } from '../utils/portfolioUtils';
+import { normalizeWalletId } from '../utils/walletUtils';
 import { getAssetUnit } from '../utils/assetUtils';
 import {
   dateToTransactionISO,
@@ -30,12 +31,21 @@ import {
 } from '../utils/lotEntryUtils';
 import { AddItemPayload } from './AddItemModal';
 
+export interface QuickAddWalletOption {
+  id: string;
+  label: string;
+}
+
 interface QuickAddModalProps {
   visible: boolean;
   onClose: () => void;
   onAdd: (amount: number, options?: AddItemPayload) => void;
   assetType: AssetType;
   currentAmount: number;
+  walletOptions?: QuickAddWalletOption[];
+  editingWalletId?: string;
+  onEditingWalletChange?: (walletId: string) => void;
+  onMoveAssetWallet?: (toWalletId: string) => void;
 }
 
 const QuickAddModal: React.FC<QuickAddModalProps> = ({
@@ -44,6 +54,10 @@ const QuickAddModal: React.FC<QuickAddModalProps> = ({
   onAdd,
   assetType,
   currentAmount,
+  walletOptions = [],
+  editingWalletId = '',
+  onEditingWalletChange,
+  onMoveAssetWallet,
 }) => {
   const { t, i18n } = useTranslation();
   const prices = useAppSelector(selectPrices);
@@ -58,14 +72,86 @@ const QuickAddModal: React.FC<QuickAddModalProps> = ({
   const [slideAnim] = useState(new Animated.Value(0));
   const scrollViewRef = useRef<ScrollView>(null);
   const descriptionInputWrapperRef = useRef<any>(null);
-  
+  const [showWalletPicker, setShowWalletPicker] = useState(false);
+  const [showMoveTargetPicker, setShowMoveTargetPicker] = useState(false);
+  const [pendingMoveToWalletId, setPendingMoveToWalletId] = useState<string | null>(null);
+
+  const showWalletDropdown = walletOptions.length > 1;
+
+  const moveTargetOptions = useMemo(
+    () => walletOptions.filter((w) => w.id !== editingWalletId),
+    [walletOptions, editingWalletId]
+  );
+
+  const [moveTargetId, setMoveTargetId] = useState<string>(
+    () => moveTargetOptions[0]?.id ?? ''
+  );
+
+  const selectedWalletLabel =
+    walletOptions.find((w) => w.id === editingWalletId)?.label ?? '';
+
+  const fromWalletLabel =
+    walletOptions.find((w) => w.id === editingWalletId)?.label ?? '';
+  const pendingWalletLabel =
+    pendingMoveToWalletId != null
+      ? walletOptions.find((w) => w.id === pendingMoveToWalletId)?.label ?? ''
+      : '';
+
+  const showMoveSection =
+    currentAmount > 0 && moveTargetOptions.length > 0 && onMoveAssetWallet != null;
+
+  useEffect(() => {
+    if (visible) {
+      setShowWalletPicker(false);
+      setShowMoveTargetPicker(false);
+      setPendingMoveToWalletId(null);
+      setMoveTargetId(moveTargetOptions[0]?.id ?? '');
+    }
+  }, [visible, editingWalletId, moveTargetOptions]);
+
+  const handleWalletSelect = (walletId: string) => {
+    setShowWalletPicker(false);
+    hapticFeedback.selection();
+    if (walletId !== editingWalletId) {
+      onEditingWalletChange?.(walletId);
+    }
+  };
+
+  const cancelPendingMove = () => {
+    setPendingMoveToWalletId(null);
+  };
+
+  const startMoveConfirm = () => {
+    if (!moveTargetId || moveTargetId === editingWalletId) {
+      return;
+    }
+    hapticFeedback.light();
+    setPendingMoveToWalletId(moveTargetId);
+  };
+
+  const confirmPendingMove = () => {
+    if (!pendingMoveToWalletId) {
+      return;
+    }
+    hapticFeedback.success();
+    onMoveAssetWallet?.(pendingMoveToWalletId);
+  };
+
   // Calculate average cost for current asset
+  const walletHistory = useMemo(
+    () =>
+      history.filter(
+        (entry) => normalizeWalletId(entry.item.walletId) === normalizeWalletId(editingWalletId)
+      ),
+    [history, editingWalletId]
+  );
+
   const averageCost = useMemo(() => {
     if (currentAmount <= 0) {
       return null;
     }
-    return calculateAverageCost(assetType, history, currentAmount);
-  }, [assetType, history, currentAmount]);
+    return calculateAverageCost(assetType, walletHistory, currentAmount);
+  }, [assetType, walletHistory, currentAmount]);
   
   // Calculate total cost
   const holdingCostTL = useMemo(() => {
@@ -243,6 +329,137 @@ const QuickAddModal: React.FC<QuickAddModalProps> = ({
               showsVerticalScrollIndicator={false}
               keyboardShouldPersistTaps="handled"
             >
+              {showWalletDropdown && (
+                <View style={[styles.inputContainer, styles.walletPickerContainer]}>
+                  <Text style={styles.label}>{t('assetWalletLabel')}</Text>
+                  <View style={styles.pickerWrapper}>
+                    <TouchableOpacity
+                      style={styles.pickerButton}
+                      onPress={() => setShowWalletPicker(!showWalletPicker)}
+                      activeOpacity={0.7}
+                    >
+                      <Text style={styles.pickerButtonText} numberOfLines={1}>
+                        {selectedWalletLabel}
+                      </Text>
+                      <Text style={styles.pickerArrow}>{showWalletPicker ? '▲' : '▼'}</Text>
+                    </TouchableOpacity>
+                    {showWalletPicker && (
+                      <View style={styles.walletPickerList}>
+                        {walletOptions.map((wallet) => (
+                          <TouchableOpacity
+                            key={wallet.id}
+                            style={[
+                              styles.walletOption,
+                              wallet.id === editingWalletId && styles.walletOptionSelected,
+                            ]}
+                            onPress={() => handleWalletSelect(wallet.id)}
+                            activeOpacity={0.7}
+                          >
+                            <Text
+                              style={[
+                                styles.walletOptionText,
+                                wallet.id === editingWalletId && styles.walletOptionTextSelected,
+                              ]}
+                              numberOfLines={1}
+                            >
+                              {wallet.label}
+                            </Text>
+                            {wallet.id === editingWalletId && (
+                              <Text style={styles.checkmark}>✓</Text>
+                            )}
+                          </TouchableOpacity>
+                        ))}
+                      </View>
+                    )}
+                  </View>
+                  {showMoveSection && pendingMoveToWalletId == null && (
+                    <View style={styles.moveSection}>
+                      <Text style={styles.moveSectionTitle}>{t('assetMoveToWalletTitle')}</Text>
+                      <View style={styles.pickerWrapper}>
+                        <TouchableOpacity
+                          style={styles.pickerButton}
+                          onPress={() => setShowMoveTargetPicker(!showMoveTargetPicker)}
+                          activeOpacity={0.7}
+                        >
+                          <Text style={styles.pickerButtonText} numberOfLines={1}>
+                            {moveTargetOptions.find((w) => w.id === moveTargetId)?.label ?? ''}
+                          </Text>
+                          <Text style={styles.pickerArrow}>
+                            {showMoveTargetPicker ? '▲' : '▼'}
+                          </Text>
+                        </TouchableOpacity>
+                        {showMoveTargetPicker && (
+                          <View style={styles.walletPickerList}>
+                            {moveTargetOptions.map((wallet) => (
+                              <TouchableOpacity
+                                key={wallet.id}
+                                style={[
+                                  styles.walletOption,
+                                  wallet.id === moveTargetId && styles.walletOptionSelected,
+                                ]}
+                                onPress={() => {
+                                  hapticFeedback.selection();
+                                  setMoveTargetId(wallet.id);
+                                  setShowMoveTargetPicker(false);
+                                }}
+                                activeOpacity={0.7}
+                              >
+                                <Text
+                                  style={[
+                                    styles.walletOptionText,
+                                    wallet.id === moveTargetId && styles.walletOptionTextSelected,
+                                  ]}
+                                  numberOfLines={1}
+                                >
+                                  {wallet.label}
+                                </Text>
+                              </TouchableOpacity>
+                            ))}
+                          </View>
+                        )}
+                      </View>
+                      <TouchableOpacity
+                        style={styles.moveActionBtn}
+                        onPress={startMoveConfirm}
+                        activeOpacity={0.8}
+                      >
+                        <Text style={styles.moveActionBtnText}>{t('assetMoveToWalletButton')}</Text>
+                      </TouchableOpacity>
+                    </View>
+                  )}
+                  {pendingMoveToWalletId != null && (
+                    <View style={styles.inlineConfirm}>
+                      <Text style={styles.inlineConfirmTitle}>{t('assetMoveConfirmTitle')}</Text>
+                      <Text style={styles.inlineConfirmMessage}>
+                        {t('assetMoveConfirmMessage', {
+                          asset: t(`assetTypes.${assetType}`),
+                          from: fromWalletLabel,
+                          to: pendingWalletLabel,
+                        })}
+                      </Text>
+                      <View style={styles.inlineConfirmActions}>
+                        <TouchableOpacity
+                          style={[styles.inlineConfirmBtn, styles.inlineConfirmCancel]}
+                          onPress={cancelPendingMove}
+                          activeOpacity={0.8}
+                        >
+                          <Text style={styles.inlineConfirmCancelText}>{t('cancel')}</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          style={[styles.inlineConfirmBtn, styles.inlineConfirmPrimary]}
+                          onPress={confirmPendingMove}
+                          activeOpacity={0.8}
+                        >
+                          <Text style={styles.inlineConfirmPrimaryText}>
+                            {t('assetMoveToWalletButton')}
+                          </Text>
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+                  )}
+                </View>
+              )}
+
               <View style={styles.inputContainer}>
                 <Text style={styles.label}>{t('amountToAdd')}:</Text>
               <View style={styles.inputWrapper}>
@@ -609,6 +826,142 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
     fontStyle: 'italic',
     marginTop: spacing.xs,
+  },
+  walletPickerContainer: {
+    zIndex: 10,
+  },
+  pickerWrapper: {
+    position: 'relative',
+  },
+  pickerButton: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: colors.background,
+    borderRadius: borderRadius.lg,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
+    borderWidth: 2,
+    borderColor: colors.textMuted,
+  },
+  pickerButtonText: {
+    flex: 1,
+    fontSize: fontSize.base,
+    color: colors.textPrimary,
+    fontWeight: fontWeight.semibold,
+  },
+  pickerArrow: {
+    fontSize: fontSize.base,
+    color: colors.textSecondary,
+    marginLeft: spacing.sm,
+  },
+  walletPickerList: {
+    marginTop: spacing.sm,
+    backgroundColor: colors.background,
+    borderRadius: borderRadius.lg,
+    borderWidth: 1,
+    borderColor: colors.glassBorder,
+    overflow: 'hidden',
+  },
+  walletOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.glassBorder,
+  },
+  walletOptionSelected: {
+    backgroundColor: colors.glassBackground,
+  },
+  walletOptionText: {
+    flex: 1,
+    fontSize: fontSize.base,
+    color: colors.textSecondary,
+  },
+  walletOptionTextSelected: {
+    color: colors.textPrimary,
+    fontWeight: fontWeight.semibold,
+  },
+  checkmark: {
+    fontSize: fontSize.base,
+    color: colors.primaryStart,
+    fontWeight: fontWeight.bold,
+  },
+  inlineConfirm: {
+    marginTop: spacing.md,
+    padding: spacing.md,
+    borderRadius: borderRadius.lg,
+    backgroundColor: colors.glassBackground,
+    borderWidth: 1,
+    borderColor: colors.glassBorder,
+  },
+  inlineConfirmTitle: {
+    fontSize: fontSize.base,
+    fontWeight: fontWeight.semibold,
+    color: colors.textPrimary,
+    marginBottom: spacing.xs,
+  },
+  inlineConfirmMessage: {
+    fontSize: fontSize.sm,
+    color: colors.textSecondary,
+    lineHeight: 20,
+    marginBottom: spacing.md,
+  },
+  inlineConfirmActions: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+  },
+  inlineConfirmBtn: {
+    flex: 1,
+    paddingVertical: spacing.sm,
+    borderRadius: borderRadius.lg,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 44,
+  },
+  inlineConfirmCancel: {
+    backgroundColor: colors.background,
+    borderWidth: 1,
+    borderColor: colors.textMuted,
+  },
+  inlineConfirmCancelText: {
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.semibold,
+    color: colors.textSecondary,
+  },
+  inlineConfirmPrimary: {
+    backgroundColor: colors.primaryStart,
+  },
+  inlineConfirmPrimaryText: {
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.bold,
+    color: colors.textPrimary,
+  },
+  moveSection: {
+    marginTop: spacing.lg,
+    paddingTop: spacing.lg,
+    borderTopWidth: 1,
+    borderTopColor: colors.glassBorder,
+  },
+  moveSectionTitle: {
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.semibold,
+    color: colors.textSecondary,
+    marginBottom: spacing.sm,
+  },
+  moveActionBtn: {
+    marginTop: spacing.sm,
+    paddingVertical: spacing.sm,
+    borderRadius: borderRadius.lg,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: colors.primaryStart,
+  },
+  moveActionBtnText: {
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.semibold,
+    color: colors.primaryStart,
   },
 });
 

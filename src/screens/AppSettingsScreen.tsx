@@ -13,6 +13,8 @@ import {
   fetchPrices,
   selectItems,
   selectHistory,
+  selectWallets,
+  selectActiveWalletId,
   importBackup,
 } from '../store/portfolioSlice';
 import { exportBackupToFile, importBackupFromPicker } from '../services/backupService';
@@ -38,6 +40,8 @@ const AppSettingsScreen: React.FC = () => {
   const currentLanguage = useAppSelector(selectLanguage);
   const portfolioItems = useAppSelector(selectItems);
   const portfolioHistory = useAppSelector(selectHistory);
+  const wallets = useAppSelector(selectWallets);
+  const activeWalletId = useAppSelector(selectActiveWalletId);
   const [isBackupBusy, setIsBackupBusy] = useState(false);
   const [showZakat, setShowZakat] = useState(false);
   const [pinEnabled, setPinEnabledState] = useState(false);
@@ -102,7 +106,13 @@ const AppSettingsScreen: React.FC = () => {
     setIsBackupBusy(true);
     hapticFeedback.light();
     try {
-      await exportBackupToFile(portfolioItems, portfolioHistory, appConfig.expo.version);
+      await exportBackupToFile(
+        portfolioItems,
+        portfolioHistory,
+        appConfig.expo.version,
+        wallets,
+        activeWalletId
+      );
       const now = Date.now();
       await setLastAutoBackupAt(now);
       setLastAutoBackupAtState(now);

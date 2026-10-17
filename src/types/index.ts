@@ -10,12 +10,20 @@ export type AssetType =
 
 export type CurrencyType = 'TL' | 'USD' | 'EUR' | 'ALTIN';
 
+export interface Wallet {
+  id: string;
+  name: string;
+  createdAt: number;
+}
+
 export interface PortfolioItem {
   id: string;
   type: AssetType;
   amount: number;
   description?: string;
   date: string;
+  /** Defaults to `default` when missing (legacy data). */
+  walletId?: string;
 }
 
 export type PortfolioGoalKind = 'asset_amount' | 'portfolio_value_tl';
@@ -31,6 +39,9 @@ export interface PortfolioGoal {
   /** Snapshot at goal creation when mode is `increment` */
   baseline?: number;
 }
+
+/** Per-wallet goals persisted in app settings */
+export type PortfolioGoalsByWallet = Record<string, PortfolioGoal>;
 
 /** Optional fields when adding or increasing holdings */
 export interface LotEntryOptions {

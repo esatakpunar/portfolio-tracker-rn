@@ -12,6 +12,7 @@ interface SwipeableItemProps {
   onEdit: () => void;
   onDelete: () => void;
   onSwipeableWillOpen?: () => void;
+  swipeEnabled?: boolean;
   children: React.ReactNode;
 }
 
@@ -21,6 +22,7 @@ const SwipeableAssetItem = forwardRef<Swipeable, SwipeableItemProps>(({
   onEdit,
   onDelete,
   onSwipeableWillOpen,
+  swipeEnabled = true,
   children,
 }, ref) => {
   const { t } = useTranslation();
@@ -55,6 +57,10 @@ const SwipeableAssetItem = forwardRef<Swipeable, SwipeableItemProps>(({
       </Animated.View>
     );
   };
+
+  if (!swipeEnabled) {
+    return <View>{children}</View>;
+  }
 
   return (
     <Swipeable

@@ -1,22 +1,30 @@
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 import * as DocumentPicker from 'expo-document-picker';
-import { PortfolioItem, HistoryItem } from '../types';
-import { PortfolioBackupV1 } from '../types/backup';
+import { PortfolioItem, HistoryItem, Wallet } from '../types';
+import { PortfolioBackup, PortfolioBackupV1, PortfolioBackupV2 } from '../types/backup';
+import { normalizePortfolioItems, normalizeWallets } from '../utils/walletUtils';
 
 const BACKUP_FORMAT = 'portfolio-tracker-backup' as const;
 
 export function buildBackupPayload(
   items: PortfolioItem[],
   history: HistoryItem[],
-  appVersion: string
-): PortfolioBackupV1 {
+  appVersion: string,
+  wallets: Wallet[],
+  activeWalletId: string
+): PortfolioBackupV2 {
   return {
     format: BACKUP_FORMAT,
-    version: 1,
+    version: 2,
     exportedAt: new Date().toISOString(),
     appVersion,
-    data: { items, history },
+    data: {
+      items: normalizePortfolioItems(items),
+      history,
+      wallets: normalizeWallets(wallets),
+      activeWalletId,
+    },
   };
 }
 
@@ -47,12 +55,46 @@ function isValidHistoryEntry(entry: unknown): entry is HistoryItem {
   );
 }
 
+function isValidWallet(wallet: unknown): wallet is Wallet {
+  if (!wallet || typeof wallet !== 'object') {
+    return false;
+  }
+  const row = wallet as Wallet;
+  return typeof row.id === 'string' && typeof row.name === 'string' && typeof row.createdAt === 'number';
+}
+
+function normalizeBackup(parsed: PortfolioBackup): PortfolioBackupV2 {
+  if (parsed.version === 2) {
+    return {
+      ...parsed,
+      data: {
+        ...parsed.data,
+        items: normalizePortfolioItems(parsed.data.items),
+        wallets: normalizeWallets(parsed.data.wallets),
+      },
+    };
+  }
+  const v1 = parsed as PortfolioBackupV1;
+  return {
+    format: BACKUP_FORMAT,
+    version: 2,
+    exportedAt: v1.exportedAt,
+    appVersion: v1.appVersion,
+    data: {
+      items: normalizePortfolioItems(v1.data.items),
+      history: v1.data.history,
+      wallets: normalizeWallets(undefined),
+      activeWalletId: 'default',
+    },
+  };
+}
+
 export function parseBackupJson(
   raw: string
-): { ok: true; data: PortfolioBackupV1 } | { ok: false; error: string } {
+): { ok: true; data: PortfolioBackupV2 } | { ok: false; error: string } {
   try {
-    const parsed = JSON.parse(raw) as PortfolioBackupV1;
-    if (parsed.format !== BACKUP_FORMAT || parsed.version !== 1) {
+    const parsed = JSON.parse(raw) as PortfolioBackup;
+    if (parsed.format !== BACKUP_FORMAT || (parsed.version !== 1 && parsed.version !== 2)) {
       return { ok: false, error: 'invalid_format' };
     }
     if (!Array.isArray(parsed.data?.items) || !Array.isArray(parsed.data?.history)) {
@@ -61,7 +103,12 @@ export function parseBackupJson(
     if (!parsed.data.items.every(isValidItem) || !parsed.data.history.every(isValidHistoryEntry)) {
       return { ok: false, error: 'invalid_entries' };
     }
-    return { ok: true, data: parsed };
+    if (parsed.version === 2) {
+      if (!Array.isArray(parsed.data.wallets) || !parsed.data.wallets.every(isValidWallet)) {
+        return { ok: false, error: 'invalid_wallets' };
+      }
+    }
+    return { ok: true, data: normalizeBackup(parsed) };
   } catch {
     return { ok: false, error: 'parse_error' };
   }
@@ -70,9 +117,11 @@ export function parseBackupJson(
 export async function exportBackupToFile(
   items: PortfolioItem[],
   history: HistoryItem[],
-  appVersion: string
+  appVersion: string,
+  wallets: Wallet[],
+  activeWalletId: string
 ): Promise<void> {
-  const payload = buildBackupPayload(items, history, appVersion);
+  const payload = buildBackupPayload(items, history, appVersion, wallets, activeWalletId);
   const json = JSON.stringify(payload, null, 2);
   const dateKey = new Date().toISOString().slice(0, 10);
   const uri = `${FileSystem.cacheDirectory}portfolio-backup-${dateKey}.json`;
@@ -87,7 +136,7 @@ export async function exportBackupToFile(
   });
 }
 
-export async function importBackupFromPicker(): Promise<PortfolioBackupV1 | null> {
+export async function importBackupFromPicker(): Promise<PortfolioBackupV2 | null> {
   const result = await DocumentPicker.getDocumentAsync({
     type: 'application/json',
     copyToCacheDirectory: true,

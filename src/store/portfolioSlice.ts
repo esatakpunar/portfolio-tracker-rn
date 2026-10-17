@@ -1,5 +1,24 @@
 import { createSlice, PayloadAction, createAsyncThunk } from '@reduxjs/toolkit';
-import { PortfolioItem, HistoryItem, Prices, PriceChanges, AssetType, CurrencyType, BuyPrices, LotEntryOptions } from '../types';
+import {
+  PortfolioItem,
+  HistoryItem,
+  Prices,
+  PriceChanges,
+  AssetType,
+  CurrencyType,
+  BuyPrices,
+  LotEntryOptions,
+  Wallet,
+} from '../types';
+import {
+  createDefaultWallet,
+  createWalletId,
+  DEFAULT_WALLET_ID,
+  normalizePortfolioItems,
+  normalizeWalletId,
+  normalizeWallets,
+  walletItemCount,
+} from '../utils/walletUtils';
 import { fetchPrices as fetchPricesFromAPI } from '../services/priceService';
 import { getBackup } from '../services/priceBackupService';
 import { safeAdd, safeSubtract } from '../utils/numberUtils';
@@ -9,6 +28,8 @@ import { convertFromTL } from '../utils/portfolioUtils';
 
 interface PortfolioState {
   items: PortfolioItem[];
+  wallets: Wallet[];
+  activeWalletId: string;
   prices: Prices; // Sell prices (satis)
   buyPrices: BuyPrices; // Buy prices (alis)
   priceChanges: PriceChanges;
@@ -58,6 +79,8 @@ const initialChanges: PriceChanges = {
 
 export const initialState: PortfolioState = {
   items: [],
+  wallets: [createDefaultWallet()],
+  activeWalletId: DEFAULT_WALLET_ID,
   prices: initialPrices,
   buyPrices: initialBuyPrices,
   priceChanges: initialChanges,
@@ -204,12 +227,14 @@ const portfolioSlice = createSlice({
 
       const txDate = transactionDate ?? new Date().toISOString();
       
+      const walletId = normalizeWalletId(action.payload.walletId ?? state.activeWalletId);
       const newItem: PortfolioItem = {
         type,
         amount,
         description: action.payload.description,
         id: Date.now().toString(),
         date: txDate,
+        walletId,
       };
       
       state.items.push(newItem);
@@ -256,7 +281,7 @@ const portfolioSlice = createSlice({
     updateItemAmount: (
       state,
       action: PayloadAction<
-        { type: AssetType; newAmount: number; description?: string } & LotEntryOptions
+        { type: AssetType; newAmount: number; description?: string; walletId?: string } & LotEntryOptions
       >
     ) => {
       const {
@@ -267,6 +292,7 @@ const portfolioSlice = createSlice({
         unitBuyPrice,
         useExplicitTotalCost,
         transactionDate,
+        walletId: payloadWalletId,
       } = action.payload;
       
       // Validate input
@@ -275,7 +301,10 @@ const portfolioSlice = createSlice({
       }
       
       // Calculate current total for this asset type
-      const itemsOfType = state.items.filter(item => item.type === type);
+      const targetWalletId = normalizeWalletId(payloadWalletId ?? state.activeWalletId);
+      const itemsOfType = state.items.filter(
+        (item) => item.type === type && normalizeWalletId(item.walletId) === targetWalletId
+      );
       const currentTotal = itemsOfType.reduce((sum, item) => safeAdd(sum, item.amount), 0);
       
       // Calculate difference safely
@@ -291,7 +320,8 @@ const portfolioSlice = createSlice({
           amount: difference,
           id: Date.now().toString(),
           date: txDate,
-          description: description || undefined
+          description: description || undefined,
+          walletId: targetWalletId,
         };
         
         state.items.push(newItem);
@@ -322,7 +352,11 @@ const portfolioSlice = createSlice({
         // Iterate backwards through the main list to find items of this type
         for (let i = state.items.length - 1; i >= 0; i--) {
           const item = state.items[i];
-          if (item.type === type && remainingToRemove > 0) {
+          if (
+            item.type === type &&
+            normalizeWalletId(item.walletId) === targetWalletId &&
+            remainingToRemove > 0
+          ) {
             if (item.amount <= remainingToRemove) {
               // Remove entire item
               remainingToRemove = safeSubtract(remainingToRemove, item.amount);
@@ -350,11 +384,12 @@ const portfolioSlice = createSlice({
         state.history.unshift({
           id: createHistoryId(),
           type: 'remove',
-          item: { 
-            type, 
-            amount: amountToRemove, // Show how much was removed (positive number)
-            id: Date.now().toString(), 
-            date: new Date().toISOString() 
+          item: {
+            type,
+            amount: amountToRemove,
+            id: Date.now().toString(),
+            date: new Date().toISOString(),
+            walletId: targetWalletId,
           },
           date: new Date().toISOString(),
           description: description || undefined, // Description will be set in component level with i18n
@@ -379,6 +414,8 @@ const portfolioSlice = createSlice({
     resetAll: (state) => {
       state.items = [];
       state.history = [];
+      state.wallets = [createDefaultWallet()];
+      state.activeWalletId = DEFAULT_WALLET_ID;
     },
     
     setPrices: (state, action: PayloadAction<Partial<Prices>>) => {
@@ -391,16 +428,166 @@ const portfolioSlice = createSlice({
     },
     
     setItems: (state, action: PayloadAction<PortfolioItem[]>) => {
-      // Set items without adding to history (used for restore operations)
-      state.items = action.payload;
+      state.items = normalizePortfolioItems(action.payload);
+    },
+
+    setWallets: (state, action: PayloadAction<Wallet[]>) => {
+      state.wallets = normalizeWallets(action.payload);
+      if (!state.wallets.some((w) => w.id === state.activeWalletId)) {
+        state.activeWalletId = DEFAULT_WALLET_ID;
+      }
+    },
+
+    setActiveWalletId: (state, action: PayloadAction<string>) => {
+      const id = normalizeWalletId(action.payload);
+      if (id === DEFAULT_WALLET_ID || state.wallets.some((w) => w.id === id)) {
+        state.activeWalletId = id;
+      }
+    },
+
+    addWallet: (state, action: PayloadAction<{ name: string; id?: string }>) => {
+      const name = action.payload.name.trim();
+      if (!name) {
+        return;
+      }
+      const wallet: Wallet = {
+        id: action.payload.id ?? createWalletId(),
+        name,
+        createdAt: Date.now(),
+      };
+      state.wallets.push(wallet);
+      state.activeWalletId = wallet.id;
+    },
+
+    renameWallet: (state, action: PayloadAction<{ id: string; name: string }>) => {
+      const name = action.payload.name.trim();
+      if (!name) {
+        return;
+      }
+      const wallet = state.wallets.find((w) => w.id === action.payload.id);
+      if (wallet) {
+        wallet.name = name;
+      }
+    },
+
+    moveWalletHoldings: (
+      state,
+      action: PayloadAction<{ fromWalletId: string; toWalletId: string }>
+    ) => {
+      const fromId = normalizeWalletId(action.payload.fromWalletId);
+      const toId = normalizeWalletId(action.payload.toWalletId);
+      if (fromId === toId) {
+        return;
+      }
+      if (!state.wallets.some((w) => w.id === fromId) || !state.wallets.some((w) => w.id === toId)) {
+        return;
+      }
+      for (const item of state.items) {
+        if (normalizeWalletId(item.walletId) === fromId) {
+          item.walletId = toId;
+        }
+      }
+      for (const entry of state.history) {
+        if (normalizeWalletId(entry.item.walletId) === fromId) {
+          entry.item = { ...entry.item, walletId: toId };
+        }
+      }
+    },
+
+    moveAssetHoldings: (
+      state,
+      action: PayloadAction<{
+        assetType: AssetType;
+        toWalletId: string;
+        fromWalletId?: string;
+      }>
+    ) => {
+      const { assetType } = action.payload;
+      const fromId = normalizeWalletId(
+        action.payload.fromWalletId ?? state.activeWalletId
+      );
+      const toId = normalizeWalletId(action.payload.toWalletId);
+      if (fromId === toId) {
+        return;
+      }
+      if (
+        !state.wallets.some((w) => w.id === fromId) ||
+        !state.wallets.some((w) => w.id === toId)
+      ) {
+        return;
+      }
+      for (const item of state.items) {
+        if (item.type === assetType && normalizeWalletId(item.walletId) === fromId) {
+          item.walletId = toId;
+        }
+      }
+      for (const entry of state.history) {
+        if (
+          entry.item.type === assetType &&
+          normalizeWalletId(entry.item.walletId) === fromId
+        ) {
+          entry.item = { ...entry.item, walletId: toId };
+        }
+      }
+    },
+
+    deleteWallet: (state, action: PayloadAction<string>) => {
+      const id = action.payload;
+      if (id === DEFAULT_WALLET_ID) {
+        return;
+      }
+      const hasActivity = state.history.some(
+        (entry) => normalizeWalletId(entry.item.walletId) === id
+      );
+      if (walletItemCount(state.items, id) > 0 || hasActivity) {
+        return;
+      }
+      state.wallets = state.wallets.filter((w) => w.id !== id);
+      if (state.activeWalletId === id) {
+        state.activeWalletId = DEFAULT_WALLET_ID;
+      }
+    },
+
+    deleteWalletWithContents: (state, action: PayloadAction<string>) => {
+      const id = action.payload;
+      if (id === DEFAULT_WALLET_ID) {
+        return;
+      }
+      if (!state.wallets.some((w) => w.id === id)) {
+        return;
+      }
+      state.items = state.items.filter(
+        (item) => normalizeWalletId(item.walletId) !== id
+      );
+      state.history = state.history.filter(
+        (entry) => normalizeWalletId(entry.item.walletId) !== id
+      );
+      state.wallets = state.wallets.filter((w) => w.id !== id);
+      if (state.activeWalletId === id) {
+        state.activeWalletId = DEFAULT_WALLET_ID;
+      }
     },
 
     importBackup: (
       state,
-      action: PayloadAction<{ items: PortfolioItem[]; history: HistoryItem[] }>
+      action: PayloadAction<{
+        items: PortfolioItem[];
+        history: HistoryItem[];
+        wallets?: Wallet[];
+        activeWalletId?: string;
+      }>
     ) => {
-      state.items = action.payload.items;
+      state.items = normalizePortfolioItems(action.payload.items);
       state.history = ensureHistoryIds(action.payload.history);
+      if (action.payload.wallets?.length) {
+        state.wallets = normalizeWallets(action.payload.wallets);
+      } else {
+        state.wallets = normalizeWallets(state.wallets);
+      }
+      const nextActive = action.payload.activeWalletId ?? state.activeWalletId;
+      state.activeWalletId = state.wallets.some((w) => w.id === nextActive)
+        ? nextActive
+        : DEFAULT_WALLET_ID;
     },
 
     undoHistoryEntry: (state, action: PayloadAction<string>) => {
@@ -568,21 +755,39 @@ const portfolioSlice = createSlice({
   }
 });
 
-export const { 
-  addItem, 
+export const {
+  addItem,
   removeItem,
   updateItemAmount,
-  updatePrice, 
-  setLanguage, 
-  resetAll, 
+  updatePrice,
+  setLanguage,
+  resetAll,
   setPrices,
   setHistory,
   setItems,
+  setWallets,
+  setActiveWalletId,
+  addWallet,
+  renameWallet,
+  moveWalletHoldings,
+  moveAssetHoldings,
+  deleteWallet,
+  deleteWalletWithContents,
   importBackup,
   undoHistoryEntry,
 } = portfolioSlice.actions;
 
 export const selectItems = (state: { portfolio: PortfolioState }) => state.portfolio.items;
+export const selectWallets = (state: { portfolio: PortfolioState }) => state.portfolio.wallets;
+export const selectActiveWalletId = (state: { portfolio: PortfolioState }) =>
+  normalizeWalletId(state.portfolio.activeWalletId);
+
+export const selectActiveWalletItems = (state: { portfolio: PortfolioState }) => {
+  const walletId = selectActiveWalletId(state);
+  return state.portfolio.items.filter(
+    (item) => normalizeWalletId(item.walletId) === walletId
+  );
+};
 export const selectPrices = (state: { portfolio: PortfolioState }) => state.portfolio.prices;
 export const selectBuyPrices = (state: { portfolio: PortfolioState }) => state.portfolio.buyPrices;
 export const selectPriceChanges = (state: { portfolio: PortfolioState }) => state.portfolio.priceChanges;
@@ -596,33 +801,41 @@ export const selectIsFetchingPrices = (state: { portfolio: PortfolioState }) => 
 export const selectPriceFetchError = (state: { portfolio: PortfolioState }) => state.portfolio.priceFetchError;
 export const selectPriceSource = (state: { portfolio: PortfolioState }) => state.portfolio.priceSource;
 
-export const selectTotalTL = (state: { portfolio: PortfolioState }) => {
-  if (!state.portfolio?.items || state.portfolio.items.length === 0) {
+export function sumItemsTotalTL(items: PortfolioItem[], prices: Prices): number {
+  if (!items.length) {
     return 0;
   }
-  return state.portfolio.items.reduce((sum, item) => {
+  return items.reduce((sum, item) => {
     if (!item || !item.type || isNaN(item.amount)) {
       return sum;
     }
-    const value = getItemValueInTL(item, state.portfolio.prices);
-    // Finance-safe: Skip items with null prices (unavailable data), do not add 0
+    const value = getItemValueInTL(item, prices);
     return value != null ? sum + value : sum;
   }, 0);
-};
+}
+
+/** All wallets — daily snapshot, widget, zakat. */
+export const selectTotalTLAllWallets = (state: { portfolio: PortfolioState }) =>
+  sumItemsTotalTL(state.portfolio.items, state.portfolio.prices);
+
+/** Active wallet — portfolio screen totals. */
+export const selectTotalTL = (state: { portfolio: PortfolioState }) =>
+  sumItemsTotalTL(selectActiveWalletItems(state), state.portfolio.prices);
 
 export const selectTotalIn = (currency: CurrencyType) => (state: { portfolio: PortfolioState }) => {
-  if (!state.portfolio?.items || state.portfolio.items.length === 0) {
+  const items = selectActiveWalletItems(state);
+  if (!items.length) {
     return 0;
   }
-  
+
   const gramEquivalents: Record<string, number> = {
-    'ceyrek': 1.75,
-    'tam': 7,
+    ceyrek: 1.75,
+    tam: 7,
     '22_ayar': 1,
     '24_ayar': 1,
   };
-  
-  return state.portfolio.items.reduce((sum, item) => {
+
+  return items.reduce((sum, item) => {
     if (!item || !item.type || isNaN(item.amount) || !isFinite(item.amount)) {
       return sum;
     }

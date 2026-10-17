@@ -26,8 +26,9 @@
 **Files:** `app.json` plugins, ios widget extension via prebuild docs
 
 - [x] **Step 1:** `PortfolioTotalWidget` + `expo-widgets` plugin in `app.json`.
-- [ ] **Step 2:** EAS production build + TestFlight widget QA.
+- [ ] **Step 2:** EAS production build + TestFlight widget QA (deferred).
 
 ### Task 3: Manual QA
 
-- [ ] **Step 1:** Device TestFlight widget refresh.
+- [x] **Step 1:** Local dev build (`prebuild` + simulator) — small/medium/large layouts.
+- [ ] **Step 2:** Device TestFlight widget refresh (deferred).

@@ -5,29 +5,37 @@ import { Text } from './Text';
 import { colors, spacing, borderRadius, fontSize, fontWeight } from '../theme';
 import { PortfolioGoal, PortfolioItem, Prices } from '../types';
 import { computeGoalProgress } from '../utils/goalUtils';
-import { formatCurrency } from '../utils/formatUtils';
-import { getAssetUnit } from '../utils/assetUtils';
+import { getGoalProgressLabel, getGoalTitleText } from '../utils/goalDisplayUtils';
 import {
-  clearPortfolioGoal,
-  getPortfolioGoal,
-  savePortfolioGoal,
+  clearPortfolioGoalForWallet,
+  getPortfolioGoalForWallet,
+  savePortfolioGoalForWallet,
 } from '../utils/preferenceStorage';
 import PortfolioGoalModal from './PortfolioGoalModal';
 import { hapticFeedback } from '../utils/haptics';
 
 interface PortfolioGoalCardProps {
+  walletId: string;
+  walletLabel?: string;
+  showWalletSubtitle?: boolean;
   items: PortfolioItem[];
   prices: Prices;
 }
 
-const PortfolioGoalCard: React.FC<PortfolioGoalCardProps> = ({ items, prices }) => {
+const PortfolioGoalCard: React.FC<PortfolioGoalCardProps> = ({
+  walletId,
+  walletLabel,
+  showWalletSubtitle = false,
+  items,
+  prices,
+}) => {
   const { t, i18n } = useTranslation();
   const [goal, setGoal] = useState<PortfolioGoal | null>(null);
   const [modalVisible, setModalVisible] = useState(false);
 
   const loadGoal = useCallback(async () => {
-    setGoal(await getPortfolioGoal());
-  }, []);
+    setGoal(await getPortfolioGoalForWallet(walletId));
+  }, [walletId]);
 
   useEffect(() => {
     loadGoal();
@@ -46,46 +54,38 @@ const PortfolioGoalCard: React.FC<PortfolioGoalCardProps> = ({ items, prices }) 
   };
 
   const handleSave = async (next: PortfolioGoal) => {
-    await savePortfolioGoal(next);
+    await savePortfolioGoalForWallet(walletId, next);
     setGoal(next);
   };
 
   const handleClear = async () => {
-    await clearPortfolioGoal();
+    await clearPortfolioGoalForWallet(walletId);
     setGoal(null);
     setModalVisible(false);
     hapticFeedback.success();
   };
 
+  const titleText = useMemo(() => getGoalTitleText(goal, t), [goal, t]);
+
   const progressLabel = useMemo(() => {
     if (!goal || !progress) {
       return '';
     }
-    const prefix = progress.mode === 'increment' ? '+' : '';
-    if (goal.kind === 'portfolio_value_tl') {
-      return `${prefix}${formatCurrency(progress.progressValue, i18n.language)} / ${prefix}${formatCurrency(progress.targetValue, i18n.language)} ₺`;
-    }
-    const unit = goal.assetType ? getAssetUnit(goal.assetType, t) : '';
-    return `${prefix}${progress.progressValue.toFixed(2)} / ${prefix}${progress.targetValue} ${unit}`;
+    return getGoalProgressLabel(goal, progress, i18n.language, t);
   }, [goal, progress, i18n.language, t]);
-
-  const titleText = useMemo(() => {
-    if (!goal) {
-      return t('goalSetCta');
-    }
-    const increment = (goal.mode ?? 'absolute') === 'increment';
-    if (goal.kind === 'portfolio_value_tl') {
-      return increment ? t('goalTitleIncrementPortfolioTl') : t('goalTitlePortfolioTl');
-    }
-    const asset = t(`assetTypes.${goal.assetType}`);
-    return increment ? t('goalTitleIncrementAsset', { asset }) : t('goalTitleAsset', { asset });
-  }, [goal, t]);
 
   return (
     <>
       <TouchableOpacity style={styles.container} onPress={openModal} activeOpacity={0.85}>
         <View style={styles.header}>
-          <Text style={styles.title}>{titleText}</Text>
+          <View style={styles.titleBlock}>
+            <Text style={styles.title}>{titleText}</Text>
+            {showWalletSubtitle && walletLabel ? (
+              <Text style={styles.walletSubtitle} numberOfLines={1}>
+                {walletLabel}
+              </Text>
+            ) : null}
+          </View>
           <Text style={styles.edit}>{goal ? t('edit') : t('add')}</Text>
         </View>
         {goal && progress ? (
@@ -127,14 +127,22 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     marginBottom: spacing.sm,
+    gap: spacing.sm,
+  },
+  titleBlock: {
+    flex: 1,
   },
   title: {
     fontSize: fontSize.sm,
     fontWeight: fontWeight.semibold,
     color: colors.textPrimary,
-    flex: 1,
+  },
+  walletSubtitle: {
+    fontSize: fontSize.xs,
+    color: colors.textMuted,
+    marginTop: 2,
   },
   edit: {
     fontSize: fontSize.sm,
